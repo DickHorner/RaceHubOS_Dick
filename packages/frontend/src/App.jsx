@@ -29,6 +29,7 @@ const Championships = lazy(() => import('./pages/Championships'))
 const ChampionshipDetail = lazy(() => import('./pages/ChampionshipDetail'))
 const SpectatorScoreboard = lazy(() => import('./pages/SpectatorScoreboard'))
 const DriverDisplay = lazy(() => import('./pages/DriverDisplay'))
+const MobileRaceControl = lazy(() => import('./pages/MobileRaceControl'))
 
 function App() {
   return (
@@ -223,6 +224,15 @@ function App() {
                     element={
                       <Suspense>
                         <DriverDisplay />
+                      </Suspense>
+                    }
+                  />
+
+                  <Route
+                    path="display/control"
+                    element={
+                      <Suspense>
+                        <MobileRaceControl />
                       </Suspense>
                     }
                   />

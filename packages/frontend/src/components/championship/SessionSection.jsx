@@ -435,6 +435,12 @@ export default function SessionSection({
         </div>
       )}
 
+      <div className="px-4 py-2 border-b border-border">
+        <a href="/display/control" target="_blank" rel="noopener noreferrer" className="text-sm text-primary underline underline-offset-2">
+          {t('mobileControl:title')}
+        </a>
+      </div>
+
       {/* Session config + Controllers table */}
       {canEdit && (
         <div className="p-4 border-b border-border space-y-3">

@@ -7,6 +7,7 @@ import { useSession } from '../context/SessionContext'
 import { DriverBadge } from '../components/DriverDisplays'
 import LapTime from '../components/race/LapTime'
 import GapDisplay from '../components/race/GapDisplay'
+import { Button } from '@/components/ui/button'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -20,6 +21,10 @@ export default function DriverDisplay() {
   const fetching = useRef(false)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
+  const [chaosPending, setChaosPending] = useState(false)
+  const [chaosMessage, setChaosMessage] = useState('')
+  const [chaosError, setChaosError] = useState('')
+  const chaosToken = new URLSearchParams(window.location.hash.slice(1)).get('chaos')
 
   const refresh = useCallback(async () => {
     if (fetching.current) return
@@ -102,6 +107,26 @@ export default function DriverDisplay() {
     : null
   const fuelLevel = Number.isInteger(fuel) && fuel >= 0 && fuel <= 15 ? fuel : null
 
+  async function requestChaos() {
+    if (!chaosToken || chaosPending || !session || !assignment) return
+    setChaosPending(true)
+    setChaosError('')
+    setChaosMessage('')
+    try {
+      const response = await fetch(`${API_URL}/api/race-control/chaos`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${chaosToken}` },
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error(result.error || t('chaosError'))
+      setChaosMessage(t(result.alreadyPaused ? 'alreadyPaused' : 'chaosRequested'))
+    } catch (error) {
+      setChaosError(error.message)
+    } finally {
+      setChaosPending(false)
+    }
+  }
+
   return (
     <main className="min-h-dvh bg-background p-4 text-foreground sm:p-8">
       <div className="mx-auto max-w-xl space-y-5">
@@ -165,6 +190,22 @@ export default function DriverDisplay() {
                     <p className="text-2xl font-bold tabular-nums">{fuelLevel === null ? t('unavailable') : `${fuelLevel} / 15`}</p>
                   </div>
                 </section>
+                {chaosToken && ['active', 'paused'].includes(session.status) && (
+                  <section className="rounded-xl border border-red-500/40 bg-card p-5 space-y-3">
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      className="w-full min-h-20 text-2xl font-black"
+                      disabled={chaosPending || session.status !== 'active' || !connected || signalMissing}
+                      onClick={requestChaos}
+                    >
+                      {t('chaosButton')}
+                    </Button>
+                    <p className="text-sm text-muted-foreground">{t('chaosDescription')}</p>
+                    {chaosMessage && <p role="status" className="text-sm text-green-500">{chaosMessage}</p>}
+                    {chaosError && <p role="alert" className="text-sm text-red-500">{chaosError}</p>}
+                  </section>
+                )}
               </>
             )}
           </>
