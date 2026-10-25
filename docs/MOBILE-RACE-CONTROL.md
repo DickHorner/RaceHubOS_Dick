@@ -4,23 +4,43 @@ The mobile race director and personal Chaos button are optional. Both require a
 server-only director credential. No new account provider or internet service is
 involved.
 
-## Enable on the race PC
+## First-run setup on the race PC
 
-In the installed RaceHubOS folder, generate a random credential:
+**Open the control page on the actual race PC**, not on a phone:
+
+- Development mode: `http://localhost:5173/display/control`
+- Built app: `http://localhost:3001/display/control`
+
+If no director credential exists, choose **Set up race control**. The server
+generates a random 32-byte key, saves it as `RACE_CONTROL_SECRET` in
+`packages/backend/.env` with owner-only file permissions, and immediately
+enables mobile race control **without restarting the backend**.
+
+Copy the newly displayed key to a password manager or other secure location.
+For security, the UI shows it only during initial setup; it does not offer a
+"show current key" endpoint. To activate race control on another device,
+open `http://<race-pc-LAN-IP>:3001/display/control` and enter that key into
+the **Race director credential** field. The mobile browser keeps the key only
+in memory; re-enter it after a page refresh. Never put the director key in a
+URL, and never share it as a driver link.
+
+The automatic setup endpoint rejects requests from non-loopback connections
+and from an untrusted/missing browser Origin. It also refuses to replace an
+existing `RACE_CONTROL_SECRET`, including malformed values. To correct an
+existing invalid configuration, update `packages/backend/.env` on the race
+PC and restart the backend. If the application runs behind a proxy, ensure
+that loopback detection cannot be bypassed by remote clients.
+
+For headless systems, you can instead configure the environment variable
+manually before starting RaceHubOS:
 
 ```sh
 printf '\nRACE_CONTROL_SECRET=%s\n' "$(openssl rand -hex 32)" >> packages/backend/.env
 chmod 600 packages/backend/.env
 ```
 
-If `RACE_CONTROL_SECRET` already exists, replace it instead of appending another
-entry. `packages/backend/.env` is gitignored. Restart RaceHubOS after changing
-the key. The value must contain at least 32 UTF-8 bytes.
-
-Open `http://localhost:3001/display/control` on the race PC or
-`http://<race-pc-LAN-IP>:3001/display/control` on a phone. Enter the
-`RACE_CONTROL_SECRET` there, **not in a URL**. The browser holds it only in
-memory for the current page; re-enter it after refresh.
+Do not append duplicate `RACE_CONTROL_SECRET` entries. The value must contain
+at least 32 UTF-8 bytes. Restart RaceHubOS after a manual environment change.
 
 Select a session to pause, resume, or stop. To give a participant a Chaos
 button, choose their name under *Personal chaos links*. The resulting URL

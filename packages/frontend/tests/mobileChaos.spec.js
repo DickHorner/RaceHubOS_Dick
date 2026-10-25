@@ -54,3 +54,32 @@ test('director credential and individual driver links stay out of the URL', asyn
   expect(page.url()).not.toContain('test-secret')
   expect(page.url()).not.toContain('signed-driver-token')
 })
+test('first-run setup on race PC generates a key and unlocks director controls', async ({ page }) => {
+  await mockRace(page, race)
+  await page.route('**/api/race-control/status', (route) =>
+    route.fulfill({ json: { success: true, enabled: false, setupAvailable: true } })
+  )
+  let setupCalls = 0
+  await page.route('**/api/race-control/setup', (route) => {
+    setupCalls++
+    return route.fulfill({ json: { success: true, secret: 'a'.repeat(64) } })
+  })
+  await page.goto('/display/control')
+  await expect(page.getByRole('button', { name: /set up race control/i })).toBeVisible()
+  await page.getByRole('button', { name: /set up race control/i }).click()
+  await expect(page.getByRole('status').filter({ hasText: /director authorized/i })).toBeVisible()
+  await expect(page.getByLabel(/new race director credential/i)).toHaveValue('a'.repeat(64))
+  expect(setupCalls).toBe(1)
+  expect(page.url()).not.toContain('a'.repeat(64))
+})
+
+test('remote first-run screen explains setup location rather than displaying a broken form', async ({ page }) => {
+  await mockRace(page, race)
+  await page.route('**/api/race-control/status', (route) =>
+    route.fulfill({ json: { success: true, enabled: false, setupAvailable: false } })
+  )
+  await page.goto('/display/control')
+  await expect(page.getByText(/only available directly on the race PC/i)).toBeVisible()
+  await expect(page.getByRole('button', { name: /set up race control/i })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /check setup status again/i })).toBeVisible()
+})

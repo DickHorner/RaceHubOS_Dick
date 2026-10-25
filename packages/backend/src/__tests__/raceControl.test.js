@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals';
+import fs from 'node:fs/promises';
 import express from 'express';
 import request from 'supertest';
 import raceControl, { setRaceControlServices, remoteWriteGuard, mayControlSocket } from '../routes/raceControl.js';
@@ -114,6 +115,92 @@ describe('race director and driver-scoped chaos access', () => {
       .send({ sessionId: 'race-1' }).expect(200);
     expect(session.resumeSession).toHaveBeenCalledTimes(1);
     expect(session.stopSession).toHaveBeenCalledTimes(1);
+  });
+
+
+  test('unconfigured status offers setup only on the race PC', async () => {
+    const { app } = setup();
+    delete process.env.RACE_CONTROL_SECRET;
+
+    const local = await request(app).get('/api/race-control/status')
+      .set('Host', 'localhost:3001').expect(200);
+    expect(local.body).toMatchObject({ success: true, enabled: false, setupAvailable: true });
+    expect(local.body.secret).toBeUndefined();
+
+    const remoteHost = await request(app).get('/api/race-control/status')
+      .set('Host', '192.168.0.10:3001').expect(200);
+    expect(remoteHost.body.setupAvailable).toBe(false);
+  });
+
+  test('an invalid preconfigured secret does not offer first-run setup', async () => {
+    const { app } = setup();
+    process.env.RACE_CONTROL_SECRET = 'short';
+
+    const status = await request(app).get('/api/race-control/status')
+      .set('Host', 'localhost:3001').expect(200);
+    expect(status.body).toMatchObject({ success: true, enabled: false, setupAvailable: false });
+  });
+
+  test('first-run setup generates and saves a key without restarting', async () => {
+    const { app } = setup();
+    delete process.env.RACE_CONTROL_SECRET;
+    jest.spyOn(fs, 'readFile').mockRejectedValue(
+      Object.assign(new Error('missing'), { code: 'ENOENT' })
+    );
+    const append = jest.spyOn(fs, 'appendFile').mockResolvedValue();
+
+    const result = await request(app).post('/api/race-control/setup')
+      .set('Host', 'localhost:3001')
+      .set('Origin', 'http://localhost:5173')
+      .expect(200);
+
+    expect(result.body.secret).toMatch(/^[a-f0-9]{64}$/);
+    expect(process.env.RACE_CONTROL_SECRET).toBe(result.body.secret);
+    expect(append).toHaveBeenCalledWith(
+      expect.stringMatching(/packages[\\/]backend[\\/]\.env$/),
+      `RACE_CONTROL_SECRET=${result.body.secret}\n`,
+      { mode: 0o600 },
+    );
+    await request(app).get('/api/race-control/director/check')
+      .set('Authorization', `Bearer ${result.body.secret}`).expect(200);
+    await request(app).post('/api/race-control/setup')
+      .set('Host', 'localhost:3001')
+      .set('Origin', 'http://localhost:5173').expect(409);
+    expect(append).toHaveBeenCalledTimes(1);
+  });
+
+  test('first-run setup rejects non-local hosts, untrusted origins and existing keys', async () => {
+    const { app } = setup();
+    delete process.env.RACE_CONTROL_SECRET;
+    const append = jest.spyOn(fs, 'appendFile').mockResolvedValue();
+
+    await request(app).post('/api/race-control/setup')
+      .set('Host', '192.168.0.10:3001')
+      .set('Origin', 'http://192.168.0.10:3001').expect(403);
+    await request(app).post('/api/race-control/setup')
+      .set('Host', 'localhost:3001')
+      .set('Origin', 'https://evil.test').expect(403);
+    await request(app).post('/api/race-control/setup')
+      .set('Host', 'localhost:3001').expect(403);
+    expect(append).not.toHaveBeenCalled();
+
+    process.env.RACE_CONTROL_SECRET = 'short';
+    await request(app).post('/api/race-control/setup')
+      .set('Host', 'localhost:3001')
+      .set('Origin', 'http://localhost:5173').expect(409);
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  test('existing env key is never silently overwritten', async () => {
+    const { app } = setup();
+    delete process.env.RACE_CONTROL_SECRET;
+    jest.spyOn(fs, 'readFile').mockResolvedValue('SITE_NAME=test\nRACE_CONTROL_SECRET=existing\n');
+    const append = jest.spyOn(fs, 'appendFile').mockResolvedValue();
+
+    await request(app).post('/api/race-control/setup')
+      .set('Host', 'localhost:3001')
+      .set('Origin', 'http://localhost:5173').expect(409);
+    expect(append).not.toHaveBeenCalled();
   });
 
   test('missing server secret disables the new feature', async () => {

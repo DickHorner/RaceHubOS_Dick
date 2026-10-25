@@ -1,7 +1,7 @@
 {
   "title": "Direction de course mobile",
   "trustedLan": "À utiliser sur un réseau local fiable ou en HTTPS. Ce n'est pas un arrêt d'urgence de sécurité.",
-  "notConfigured": "Commande mobile désactivée : définir RACE_CONTROL_SECRET avec au moins 32 caractères sur le serveur et redémarrer RaceHubOS.",
+  "notConfigured": "La direction de course mobile n'est pas encore configurée.",
   "credential": "Clé de direction de course",
   "unlock": "Déverrouiller",
   "lock": "Verrouiller",
@@ -21,5 +21,14 @@
   "controller": "Contrôleur",
   "linkWarning": "Toute personne possédant ce lien peut déclencher Chaos pour ce pilote. Ne le partagez pas publiquement. Valable six heures uniquement tant que l'affectation reste inchangée.",
   "linkError": "Impossible de créer le lien du pilote.",
-  "copyLink": "Copié si le presse-papiers est disponible. Sinon sélectionnez et copiez le lien. Utilisez l'adresse IP LAN plutôt que localhost sur d'autres appareils."
+  "copyLink": "Copié si le presse-papiers est disponible. Sinon sélectionnez et copiez le lien. Utilisez l'adresse IP LAN plutôt que localhost sur d'autres appareils.",
+  "setupHere": "Vous êtes sur le PC de course. Un clic génère une clé sécurisée et l'enregistre sur le serveur. Aucun terminal ni redémarrage requis.",
+  "setupButton": "Configurer la direction de course",
+  "setupOnRacePc": "La première configuration est uniquement possible sur le PC de course. Ouvrez-y http://localhost:5173/display/control (développement) ou http://localhost:3001/display/control, puis actualisez cette page.",
+  "retryStatus": "Revérifier la configuration",
+  "setupSecretLabel": "Votre nouvelle clé de direction de course",
+  "setupSecretHint": "Copiez et conservez cette clé en lieu sûr. Elle permet de déverrouiller la direction sur un téléphone. Le serveur l'enregistre dans packages/backend/.env ; elle ne sera plus affichée ici.",
+  "copySecret": "Copier la clé",
+  "setupSecretCopied": "Clé copiée",
+  "setupError": "Impossible de configurer la direction de course."
 }
