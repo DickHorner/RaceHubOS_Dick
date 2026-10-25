@@ -46,8 +46,8 @@ second device, open the director page from the race PC's LAN address first.
 - A failed or disconnected CU does not produce a successful pause response.
   No audio/visual confirmation substitutes for observing the physical track.
   This is **not** a safety-rated emergency stop.
-- When the endpoint is enabled, remote mutating legacy `/api/*` requests
-  require the director credential. The race PC can still use its local browser
+- Remote mutating legacy `/api/*` requests always require the director
+  credential (and are rejected until the feature is configured). The race PC can still use its local browser
   controls. Spectator/driver GET routes remain public. Remote legacy admin
   sessions without the credential will receive HTTP 403.
 - Legacy Socket.IO commands from remote devices are disabled. LAN displays
