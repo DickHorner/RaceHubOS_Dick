@@ -32,6 +32,7 @@ export class SessionService extends EventEmitter {
 
     // Driver states
     this.sessionDrivers = [];
+    this.firstCrossingProgrammed = new Set();
     this.previousPositions = new Map(); // controller -> previous position
     this.displayedDeltas = new Map(); // controller -> delta to display
 
@@ -58,28 +59,49 @@ export class SessionService extends EventEmitter {
    * @param {{ controller: number, timestamp: number, lapTime: number, sector: number }} data
    */
   async handleLap(data) {
-    const { controller, lapTime, sector } = data;
+    const { controller, timestamp, lapTime, sector } = data;
 
     // Ignore stale hardware events when there is no running session.
     if (!this.activeSessionId || !this.isActive()) {
       return;
     }
 
-    // Only process finish line (sector 1) with valid lap time
-    if (sector !== 1 || lapTime <= 0) {
-      return;
-    }
+    if (sector !== 1) return;
 
     const driver = this.getDriverByController(controller);
-    if (!driver) {
-      return;
+    if (!driver || this.hasDriverFinished(driver)) return;
+
+    // The first finish-line crossing often has lapTime=0; reapply before discarding it.
+    if (
+      this.sessionStatus === SessionStatus.ACTIVE &&
+      timestamp > 0 &&
+      lapTime >= 0 &&
+      driver.carId &&
+      driver.car &&
+      !this.firstCrossingProgrammed.has(controller)
+    ) {
+      const device = this.syncService?.getDevice();
+      if (device?.setSpeed && device?.setBrake) {
+        this.firstCrossingProgrammed.add(controller);
+        let field = 'speed';
+        try {
+          await device.setSpeed(controller, toLevel(driver.car.maxSpeed));
+          field = 'brake';
+          await device.setBrake(controller, toLevel(driver.car.brakeForce));
+        } catch (error) {
+          console.warn(`[SessionService] First-crossing ${field} failed for controller ${controller + 1}:`, error.message);
+          this.emit('session:config_error', {
+            sessionId: this.activeSessionId,
+            controller,
+            field,
+            error: error.message,
+          });
+        }
+      }
     }
 
-    // A driver who has already crossed their finish line must not record
-    // additional laps while the other drivers use the grace period.
-    if (this.hasDriverFinished(driver)) {
-      return;
-    }
+    // Only record laps with a valid measured time.
+    if (lapTime <= 0) return;
 
     // Track crossings - first crossing is start, doesn't count as lap
     // const isFirstCrossing = driver.crossings === 0; // DISABLED: count first lap
@@ -214,6 +236,9 @@ export class SessionService extends EventEmitter {
       throw new Error(`Session ${sessionId} not found`);
     }
 
+    if (this.activeSessionId !== session.id || session.status === SessionStatus.DRAFT) {
+      this.firstCrossingProgrammed.clear();
+    }
     this.activeSessionId = session.id;
     this.activeTrackId = session.trackId;
     // A lap's phase is its session's type; the ladder this replaces spelled out
@@ -424,6 +449,7 @@ export class SessionService extends EventEmitter {
     this.gracePeriodEndsAt = null;
     this.activeSessionId = null;
     this.activeTrackId = null;
+    this.firstCrossingProgrammed.clear();
     this.currentPhase = SessionType.PRACTICE;
     this.sessionConfig = null;
     this.sessionStatus = null;
