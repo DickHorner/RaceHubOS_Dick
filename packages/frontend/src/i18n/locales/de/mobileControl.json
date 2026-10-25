@@ -1,7 +1,7 @@
 {
   "title": "Mobile Rennleitung",
   "trustedLan": "Nur im vertrauenswürdigen Heimnetz oder über HTTPS verwenden. Das ist kein sicherheitstechnischer Not-Aus.",
-  "notConfigured": "Mobile Rennleitung deaktiviert: RACE_CONTROL_SECRET mit mindestens 32 Zeichen auf dem Server konfigurieren und RaceHubOS neu starten.",
+  "notConfigured": "Die mobile Rennleitung ist noch nicht eingerichtet.",
   "credential": "Rennleitungs-Schlüssel",
   "unlock": "Entsperren",
   "lock": "Sperren",
@@ -21,5 +21,14 @@
   "controller": "Regler",
   "linkWarning": "Jeder mit diesem Link darf für den betreffenden Fahrer Chaos auslösen. Link nicht öffentlich teilen. Gültig für sechs Stunden und nur bei unveränderter Zuordnung.",
   "linkError": "Fahrerlink konnte nicht erstellt werden.",
-  "copyLink": "Link kopiert, falls die Browser-Zwischenablage verfügbar ist. Sonst hier markieren und kopieren. Auf anderen Geräten muss statt localhost die LAN-IP verwendet werden."
+  "copyLink": "Link kopiert, falls die Browser-Zwischenablage verfügbar ist. Sonst hier markieren und kopieren. Auf anderen Geräten muss statt localhost die LAN-IP verwendet werden.",
+  "setupHere": "Du bist am Rennrechner. Ein Klick erzeugt einen sicheren Schlüssel und speichert ihn auf dem Server. Keine Konsole und kein Neustart erforderlich.",
+  "setupButton": "Rennleitung einrichten",
+  "setupOnRacePc": "Die erstmalige Einrichtung ist nur direkt am Rennrechner möglich: dort http://localhost:5173/display/control (Entwicklung) oder http://localhost:3001/display/control öffnen. Anschließend diese Seite aktualisieren.",
+  "retryStatus": "Status erneut prüfen",
+  "setupSecretLabel": "Dein neuer Rennleitungs-Schlüssel",
+  "setupSecretHint": "Diesen Schlüssel jetzt kopieren und sicher aufbewahren. Er ist nötig, um die Rennleitung auf dem Smartphone zu entsperren. Auf dem Server liegt er in packages/backend/.env; hier wird er später nicht erneut angezeigt.",
+  "copySecret": "Schlüssel kopieren",
+  "setupSecretCopied": "Schlüssel kopiert",
+  "setupError": "Rennleitung konnte nicht eingerichtet werden."
 }
