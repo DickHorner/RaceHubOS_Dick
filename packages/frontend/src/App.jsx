@@ -27,6 +27,7 @@ const FreeSessionPage = lazy(() => import('./pages/FreeSessionPage'))
 const BalancingPage = lazy(() => import('./pages/BalancingPage'))
 const Championships = lazy(() => import('./pages/Championships'))
 const ChampionshipDetail = lazy(() => import('./pages/ChampionshipDetail'))
+const SpectatorScoreboard = lazy(() => import('./pages/SpectatorScoreboard'))
 
 function App() {
   return (
@@ -205,6 +206,16 @@ function App() {
                       }
                     />
                   </Route>
+
+                  {/* Read-only spectator screen, no sidebar or race controls */}
+                  <Route
+                    path="display/scoreboard"
+                    element={
+                      <Suspense>
+                        <SpectatorScoreboard />
+                      </Suspense>
+                    }
+                  />
 
                   {/* Routes without sidebar */}
                   <Route path="*" element={<Navigate to="/" replace />} />
