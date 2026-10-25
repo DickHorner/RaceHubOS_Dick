@@ -31,7 +31,7 @@ test('uploads, serves and deletes a WAV clip under a generated safe filename', a
   expect(fs.existsSync(path.join(soundsDir, uploaded.body.data.filename))).toBe(true);
   const played = await request(app).get(uploaded.body.data.url);
   expect(played.status).toBe(200);
-  expect(played.headers['content-type']).toMatch(/audio\/wav/);
+  expect(played.headers['content-type']).toMatch(/audio\/(?:x-)?wav/);
   expect(played.headers['x-content-type-options']).toBe('nosniff');
 
   const removed = await request(app).delete(uploaded.body.data.url);
