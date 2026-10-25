@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import SessionSection from '../components/championship/SessionSection'
 import SessionLeaderboard from '../components/race/SessionLeaderboard'
+import Soundboard from '../components/race/Soundboard'
 import StartingGrid from '../components/race/StartingGrid'
 import StandingsTabs from '../components/championship/StandingsTabs'
 import { STANDARD_SESSION_TYPES, SessionStatus, SessionType, sessionTypeFullKey } from '@racehubos/shared'
@@ -340,6 +341,7 @@ export default function FreeSessionPage() {
 
       {/* Main content */}
       <div className="@container flex-1 overflow-auto p-4">
+        <Soundboard />
         <div className={`grid grid-cols-1 ${showStandings ? '@4xl:grid-cols-3' : ''} gap-4`}>
           {/* Left: Session + Leaderboard */}
           <div className={`${showStandings ? '@4xl:col-span-2' : ''} space-y-4`}>

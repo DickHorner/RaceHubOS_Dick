@@ -8,6 +8,7 @@ import ChampionshipResults from '../components/championship/ChampionshipResults'
 import SessionSection from '../components/championship/SessionSection'
 import StandingsTabs from '../components/championship/StandingsTabs'
 import SessionLeaderboard from '../components/race/SessionLeaderboard'
+import Soundboard from '../components/race/Soundboard'
 import StartingGrid from '../components/race/StartingGrid'
 import { DataFreshnessIndicator } from '../components/ui'
 import ChampionshipConfigModal from '../components/championship/ChampionshipConfigModal'
@@ -369,6 +370,7 @@ export default function ChampionshipDetail() {
 
       {/* Main content */}
       <div className="@container flex-1 overflow-auto p-4">
+        <Soundboard />
         {/* Bracket view for auto championships */}
         {showBracket && championship?.mode === ChampionshipMode.AUTO && (
           <div className="mb-4 bg-card border border-border rounded-xl p-4">

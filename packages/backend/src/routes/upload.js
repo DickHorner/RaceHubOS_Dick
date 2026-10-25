@@ -2,6 +2,7 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { randomUUID } from 'crypto';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -55,6 +56,68 @@ const upload = multer({
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB max
   },
+});
+
+// Soundboard audio uses a separate bounded upload path; image uploads remain unchanged.
+const soundsDir = path.join(__dirname, '../../public/uploads/sounds');
+fs.mkdirSync(soundsDir, { recursive: true });
+const soundUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const SOUND_FILENAME = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.(mp3|ogg|wav)$/;
+const SOUND_MIME = {
+  '.mp3': ['audio/mpeg', 'audio/mp3'],
+  '.ogg': ['audio/ogg', 'application/ogg'],
+  '.wav': ['audio/wav', 'audio/x-wav', 'audio/wave'],
+};
+
+function soundExtension(file) {
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (!SOUND_MIME[ext]?.includes(file.mimetype)) return null;
+  const data = file.buffer;
+  if (data.length < 12) return null;
+  if (ext === '.wav' && data.toString('ascii', 0, 4) === 'RIFF' && data.toString('ascii', 8, 12) === 'WAVE') return ext;
+  if (ext === '.ogg' && data.toString('ascii', 0, 4) === 'OggS') return ext;
+  if (ext === '.mp3' && (data.toString('ascii', 0, 3) === 'ID3' || (data[0] === 0xff && (data[1] & 0xe0) === 0xe0))) return ext;
+  return null;
+}
+
+router.post('/sounds', soundUpload.single('audio'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ success: false, error: 'No audio file uploaded' });
+  const ext = soundExtension(req.file);
+  if (!ext) return res.status(400).json({ success: false, error: 'Only valid MP3, OGG and WAV files are allowed' });
+
+  try {
+    if (fs.readdirSync(soundsDir).filter((name) => SOUND_FILENAME.test(name)).length >= 32) {
+      return res.status(400).json({ success: false, error: 'Sound library limit (32 files) reached' });
+    }
+    const filename = randomUUID() + ext;
+    await fs.promises.writeFile(path.join(soundsDir, filename), req.file.buffer, { flag: 'wx' });
+    res.json({ success: true, data: { url: `/api/upload/sounds/${filename}`, filename } });
+  } catch (error) {
+    console.error('Sound upload error:', error);
+    res.status(500).json({ success: false, error: 'Unable to save audio file' });
+  }
+});
+
+router.get('/sounds/:filename', (req, res) => {
+  const { filename } = req.params;
+  if (!SOUND_FILENAME.test(filename)) return res.status(400).json({ success: false, error: 'Invalid sound filename' });
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.type(path.extname(filename));
+  res.sendFile(path.join(soundsDir, filename), (error) => {
+    if (error && !res.headersSent) res.status(404).json({ success: false, error: 'Sound not found' });
+  });
+});
+
+router.delete('/sounds/:filename', async (req, res) => {
+  const { filename } = req.params;
+  if (!SOUND_FILENAME.test(filename)) return res.status(400).json({ success: false, error: 'Invalid sound filename' });
+  try {
+    await fs.promises.unlink(path.join(soundsDir, filename));
+    res.json({ success: true });
+  } catch (error) {
+    if (error.code === 'ENOENT') return res.status(404).json({ success: false, error: 'Sound not found' });
+    res.status(500).json({ success: false, error: 'Unable to delete audio file' });
+  }
 });
 
 /**
@@ -140,6 +203,7 @@ router.use((error, req, res, next) => {
         error: 'File too large. Maximum size is 5MB',
       });
     }
+    if (req.path === '/sounds') return res.status(400).json({ success: false, error: 'Invalid audio upload' });
   }
   res.status(500).json({
     success: false,
