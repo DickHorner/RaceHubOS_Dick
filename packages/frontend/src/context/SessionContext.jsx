@@ -126,7 +126,7 @@ export function SessionProvider({ children }) {
       window.dispatchEvent(new CustomEvent('session:finished', { detail: data }))
 
       // Spectator screens must not play the finish sound and podium commentary.
-      if (window.location.pathname.startsWith('/display/scoreboard')) return
+      if (window.location.pathname.startsWith('/display/')) return
 
       // Skip podium/voice for balancing sessions
       if (data.sessionType === SessionType.BALANCING) return
@@ -201,7 +201,7 @@ export function SessionProvider({ children }) {
 
     // Best lap voice announcement (skip for balancing)
     socket.on('session:bestlap', (data) => {
-      if (window.location.pathname.startsWith('/display/scoreboard')) return
+      if (window.location.pathname.startsWith('/display/')) return
       if (data.sessionType === SessionType.BALANCING) return
       const v = voiceRef.current
       if (!v.bestLapEnabledRef.current) return
