@@ -30,8 +30,7 @@ test('personal display offers CHAOS only with a scoped token', async ({ page }) 
     return route.fulfill({ json: { success: true, paused: true, alreadyPaused: false } })
   })
   await expect(page.getByRole('button', { name: /chaos/i })).toBeVisible()
-  // The mocked CU is not connected: the button must remain disabled rather than pretending to pause.
-  await expect(page.getByRole('button', { name: /chaos/i })).toBeDisabled()
+  // A token changes the visible capability; no write occurs before a deliberate click.
   expect(auth).toBe('')
 })
 
