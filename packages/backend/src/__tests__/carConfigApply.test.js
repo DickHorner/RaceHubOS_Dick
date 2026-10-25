@@ -38,7 +38,7 @@ describe('CU vehicle configuration', () => {
     car: { id: carId, maxSpeed, brakeForce, fuelCapacity },
   });
 
-  test('sends independent speed/brake/fuel for each assigned car and defaults for unassigned slots', async () => {
+  test('sends independent speed/brake/fuel for assigned cars only', async () => {
     service.sessionDrivers = [
       driver(0, 'a', 30, 90, 70),
       driver(1, 'b', 100, 20, 40),
@@ -46,12 +46,20 @@ describe('CU vehicle configuration', () => {
 
     await service.applyCarConfigs();
 
-    expect(writes.slice(0, 6)).toEqual([
+    expect(writes).toEqual([
       ['speed', 0, 3], ['brake', 0, 9], ['fuel', 0, 7],
       ['speed', 1, 10], ['brake', 1, 2], ['fuel', 1, 4],
     ]);
-    expect(writes.slice(6, 9)).toEqual([['speed', 2, 10], ['brake', 2, 10], ['fuel', 2, 7]]);
-    expect(writes).toHaveLength(18);
+  });
+
+  test('never changes unassigned controllers without hardware readback', async () => {
+    service.sessionDrivers = [driver(2, 'c', 60, 40, 50)];
+
+    await service.applyCarConfigs();
+
+    expect(writes).toEqual([
+      ['speed', 2, 6], ['brake', 2, 4], ['fuel', 2, 5],
+    ]);
   });
 
   test('reapplies the car rather than a previous controller profile after reassignment', async () => {
