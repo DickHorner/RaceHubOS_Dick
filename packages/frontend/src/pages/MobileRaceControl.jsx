@@ -246,7 +246,7 @@ export default function MobileRaceControl() {
                 </>
               )}
             </section>
-            {session?.id === selectedId && session.type === 'race' && (
+            {((session?.id === selectedId && session.type === 'race') || vsc.status !== 'inactive') && (
               <section className="rounded-xl border border-border bg-card p-5 space-y-3">
                 <h2 className="font-bold">{t('vscTitle')}</h2>
                 <p role="status" className="text-sm">{t('vscState')}: {t(`vscStatus.${vsc.status}`)}</p>
