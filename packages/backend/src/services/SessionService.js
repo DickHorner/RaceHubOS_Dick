@@ -333,7 +333,6 @@ export class SessionService extends EventEmitter {
       data: { status: SessionStatus.ACTIVE },
     });
     this.sessionStatus = SessionStatus.ACTIVE;
-    this.syncService.startPolling();
 
     this.startHeartbeat();
     this.emit('session:started', { sessionId });
