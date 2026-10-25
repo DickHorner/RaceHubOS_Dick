@@ -524,6 +524,32 @@ export class SessionService extends EventEmitter {
 
   // ==================== Position & Leaderboard ====================
 
+  /**
+   * Persist one completed pit cycle. The times are observed by the server,
+   * not timestamped by the Carrera CU.
+   */
+  async recordPitStop({ controller, enteredAt, exitedAt, source }) {
+    if (!this.activeSessionId || this.sessionStatus !== SessionStatus.ACTIVE) return;
+    const driver = this.getDriverByController(controller);
+    if (!driver?.id) return;
+
+    const durationMs = exitedAt.getTime() - enteredAt.getTime();
+    if (!Number.isFinite(durationMs) || durationMs <= 0) return;
+
+    const pitStop = await this.prisma.pitStop.create({
+      data: {
+        sessionId: this.activeSessionId,
+        sessionDriverId: driver.id,
+        controller,
+        enteredAt,
+        exitedAt,
+        durationMs,
+        source,
+      },
+    });
+    this.emit('session:pit_stop', pitStop);
+  }
+
   getDriverByController(controller) {
     return this.sessionDrivers.find((d) => d.controller === controller);
   }

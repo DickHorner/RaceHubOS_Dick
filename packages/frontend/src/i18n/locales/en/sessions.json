@@ -48,6 +48,10 @@
     "noParticipants": "No participants",
     "lapHistory": "Lap history ({{count}})",
     "time": "Time",
-    "deleteMessage": "Delete this session?"
+    "deleteMessage": "Delete this session?",
+    "pitHistory": "Pit stops ({{count}})",
+    "pitDriver": "Driver",
+    "pitEntered": "Entry (observed)",
+    "pitDuration": "Duration (approx.)"
   }
 }

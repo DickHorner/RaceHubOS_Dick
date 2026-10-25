@@ -48,6 +48,10 @@
     "noParticipants": "Keine Teilnehmer",
     "lapHistory": "Rundenverlauf ({{count}})",
     "time": "Zeit",
-    "deleteMessage": "Diese Sitzung löschen?"
+    "deleteMessage": "Diese Sitzung löschen?",
+    "pitHistory": "Boxenstopps ({{count}})",
+    "pitDriver": "Fahrer",
+    "pitEntered": "Einfahrt (erkannt)",
+    "pitDuration": "Dauer (ca.)"
   }
 }

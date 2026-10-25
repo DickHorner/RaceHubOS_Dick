@@ -423,6 +423,8 @@ export class CarreraSimulator extends EventEmitter {
       mode: this.cuMode,
       display: this.cuDisplay,
       fuel: this.cars.map((c) => Math.round(c.fuel)),
+      pit: Array.from({ length: 8 }, (_, i) => this.cars[i]?.inPit === true),
+      source: 'simulator',
     };
   }
 

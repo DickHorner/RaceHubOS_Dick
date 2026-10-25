@@ -18,6 +18,8 @@ export class SyncService {
 
     // CU status & polling
     this.cuStatus = null;
+    this.pitStates = new Map();
+    this.pitSessionId = null;
     this.pollInterval = 500;
     this.pollTimer = null;
 
@@ -51,6 +53,8 @@ export class SyncService {
     // Clear state
     this.lastTimestamps.clear();
     this.cuStatus = null;
+    this.pitStates.clear();
+    this.pitSessionId = null;
 
     // Set new device
     this.source = device;
@@ -122,6 +126,7 @@ export class SyncService {
 
     this.cuStatus = status;
     this.io?.emit('cu:status', status);
+    this.handlePitStatus(status);
 
     // Reset CU when entering 1/5 lights (clean slate before race)
     if (isFirstLight && wasNotInLights) {
@@ -138,6 +143,71 @@ export class SyncService {
       this.setPollInterval(100);
     } else if (!isInLights && wasInLights) {
       this.setPollInterval(500);
+    }
+  }
+
+  /**
+   * Only confirmed changes in the CU pit bitmask form an observed pit stop.
+   * Two consecutive polls must agree; a pre-existing pit flag is not an entry.
+   */
+  handlePitStatus(status) {
+    const session = this.sessionService;
+    const sessionId = session?.activeSessionId;
+    if (
+      !sessionId ||
+      session.sessionStatus !== 'active' ||
+      status?.start !== 0 ||
+      (status.mode & 0x4) === 0 ||
+      !Array.isArray(status.pit)
+    ) {
+      this.pitStates.clear();
+      this.pitSessionId = null;
+      return;
+    }
+
+    if (this.pitSessionId !== sessionId) {
+      this.pitStates.clear();
+      this.pitSessionId = sessionId;
+    }
+
+    const now = Date.now();
+    for (let controller = 0; controller < 6; controller++) {
+      const inPit = status.pit[controller];
+      if (typeof inPit !== 'boolean') continue;
+
+      let state = this.pitStates.get(controller);
+      if (!state) {
+        this.pitStates.set(controller, { confirmed: inPit, candidate: inPit, count: 1, changedAt: now, enteredAt: null });
+        continue;
+      }
+
+      if (state.candidate !== inPit) {
+        state.candidate = inPit;
+        state.count = 1;
+        state.changedAt = now;
+        continue;
+      }
+
+      if (state.count < 2) state.count++;
+      if (state.count < 2 || state.confirmed === inPit) continue;
+
+      state.confirmed = inPit;
+      if (inPit) {
+        state.enteredAt = state.changedAt;
+      } else if (state.enteredAt !== null) {
+        const enteredAt = new Date(state.enteredAt);
+        const exitedAt = new Date(state.changedAt);
+        state.enteredAt = null;
+        Promise.resolve(session.recordPitStop({
+          controller,
+          enteredAt,
+          exitedAt,
+          source: status.source === 'simulator' ? 'simulator' : 'cu',
+        })).catch((error) => {
+          console.error('[SyncService] Pit stop persistence failed:', error);
+          this.io?.emit('session:pit_error', { sessionId, controller, error: error.message });
+        });
+      }
     }
   }
 
