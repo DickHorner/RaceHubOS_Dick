@@ -1,0 +1,16 @@
+{
+  "title": "Spectator display",
+  "connected": "Connected",
+  "noSignal": "No current live data",
+  "loadError": "Could not refresh session data.",
+  "loading": "Loading display…",
+  "noSession": "No race available yet.",
+  "session": "Session",
+  "untitled": "Unnamed session",
+  "laps": "Laps",
+  "remainingTime": "Time left",
+  "elapsedTime": "Elapsed",
+  "finished": "Finished",
+  "standings": "Leaderboard",
+  "readOnly": "Display only – use race control for commands"
+}

@@ -125,6 +125,9 @@ export function SessionProvider({ children }) {
       })
       window.dispatchEvent(new CustomEvent('session:finished', { detail: data }))
 
+      // Spectator screens must not play the finish sound and podium commentary.
+      if (window.location.pathname.startsWith('/display/scoreboard')) return
+
       // Skip podium/voice for balancing sessions
       if (data.sessionType === SessionType.BALANCING) return
 
@@ -198,6 +201,7 @@ export function SessionProvider({ children }) {
 
     // Best lap voice announcement (skip for balancing)
     socket.on('session:bestlap', (data) => {
+      if (window.location.pathname.startsWith('/display/scoreboard')) return
       if (data.sessionType === SessionType.BALANCING) return
       const v = voiceRef.current
       if (!v.bestLapEnabledRef.current) return
@@ -514,7 +518,10 @@ export function SessionProvider({ children }) {
   // Transform leaderboard to entries with computed fields
   // Falls back to session drivers if leaderboard is empty
   const entries = useMemo(() => {
-    const source = leaderboard.length > 0 ? leaderboard : session?.drivers || []
+    // A finished scoreboard must keep its own saved results, not a newer session's live leaderboard.
+    const source = session?.status === SessionStatus.FINISHED && session.drivers?.length > 0
+      ? session.drivers
+      : leaderboard.length > 0 ? leaderboard : session?.drivers || []
     if (source.length === 0) return []
 
     // Find fastest lap

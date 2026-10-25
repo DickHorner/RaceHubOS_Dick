@@ -1,0 +1,16 @@
+{
+  "title": "Zuschaueranzeige",
+  "connected": "Verbunden",
+  "noSignal": "Keine aktuellen Live-Daten",
+  "loadError": "Die Sitzung konnte nicht aktualisiert werden.",
+  "loading": "Lade Anzeige …",
+  "noSession": "Noch kein Rennen verfügbar.",
+  "session": "Sitzung",
+  "untitled": "Unbenannte Sitzung",
+  "laps": "Runden",
+  "remainingTime": "Restzeit",
+  "elapsedTime": "Zeit",
+  "finished": "Beendet",
+  "standings": "Rangliste",
+  "readOnly": "Nur Anzeige – Steuerung über die Rennleitung"
+}

@@ -1,0 +1,16 @@
+{
+  "title": "Écran spectateurs",
+  "connected": "Connecté",
+  "noSignal": "Aucune donnée live actuelle",
+  "loadError": "Impossible de mettre à jour la session.",
+  "loading": "Chargement de l'écran…",
+  "noSession": "Aucune course disponible.",
+  "session": "Session",
+  "untitled": "Session sans nom",
+  "laps": "Tours",
+  "remainingTime": "Temps restant",
+  "elapsedTime": "Temps écoulé",
+  "finished": "Terminé",
+  "standings": "Classement",
+  "readOnly": "Affichage uniquement – commandes depuis la direction de course"
+}
