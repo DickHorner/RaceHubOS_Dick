@@ -64,6 +64,7 @@ export default function SessionSection({
   } = useSession()
 
   const [starting, setStarting] = useState(false)
+  const [startError, setStartError] = useState('')
   const [editingName, setEditingName] = useState(false)
   const [inlineName, setInlineName] = useState('')
   const nameInputRef = useRef(null)
@@ -773,9 +774,13 @@ export default function SessionSection({
               )}
               <Button
                 onClick={async () => {
+                  setStartError('')
                   setStarting(true)
                   try {
-                    await onStart()
+                    const result = await onStart()
+                    if (result?.success === false) setStartError(result.error || 'Failed to start session')
+                  } catch (error) {
+                    setStartError(error.message)
                   } finally {
                     setStarting(false)
                   }
@@ -793,6 +798,9 @@ export default function SessionSection({
                 )}
               </Button>
             </>
+          )}
+          {startError && (
+            <span role="alert" className="text-sm text-red-600 dark:text-red-400">{startError}</span>
           )}
           {isLights && (
             <Button onClick={onTriggerCuStart} className="bg-green-500 hover:bg-green-600 animate-pulse">

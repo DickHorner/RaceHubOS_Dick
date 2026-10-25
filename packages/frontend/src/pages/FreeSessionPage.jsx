@@ -192,7 +192,7 @@ export default function FreeSessionPage() {
 
   const handleStart = async () => {
     if (!session?.id) return
-    await startSession(session.id)
+    return startSession(session.id)
   }
   const handlePause = async () => {
     if (session?.id) await pauseSession(session.id)

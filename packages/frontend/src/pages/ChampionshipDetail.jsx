@@ -217,6 +217,7 @@ export default function ChampionshipDetail() {
     if (!selectedSession) return
     const r = await startSession(selectedSession.id)
     if (r.success) fetchSessions()
+    return r
   }, [selectedSession, startSession, fetchSessions])
 
   const handlePauseSession = useCallback(async () => {
