@@ -28,6 +28,7 @@ import statsRouter from './routes/stats.js';
 import settingsRouter, { setSettingsIo } from './routes/settings.js';
 import bluetoothRouter, { setControlUnit, setSimulator, setSyncService } from './routes/bluetooth.js';
 import sessionsRouter, { setSessionService } from './routes/sessions.js';
+import raceControlRouter, { setRaceControlServices, remoteWriteGuard, mayControlSocket } from './routes/raceControl.js';
 import configRouter, { setConfigService } from './routes/config.js';
 import recordsRouter from './routes/records.js';
 import uploadRouter from './routes/upload.js';
@@ -84,6 +85,7 @@ console.log('   Connect via POST /api/bluetooth/connect { address: "SIMULATOR" |
 // Connect services
 syncService.setSessionService(sessionService);
 sessionService.setSyncService(syncService);
+setRaceControlServices(sessionService, syncService);
 
 // SessionService -> ChampionshipService (event-based)
 sessionService.on('sessionFinished', async ({ sessionId, championshipId }) => {
@@ -163,7 +165,11 @@ app.get('/api', (req, res) => {
   });
 });
 
+// The race PC keeps local admin controls; remote mutations require director authorization.
+app.use('/api', remoteWriteGuard);
+
 // Mount API routes
+app.use('/api/race-control', raceControlRouter);
 app.use('/api/drivers', driversRouter);
 app.use('/api/cars', carsRouter);
 app.use('/api/tracks', tracksRouter);
@@ -289,13 +295,21 @@ io.on('connection', (socket) => {
     console.log(`❌ Client disconnected: ${socket.id}`);
   });
 
+  const authorizeSocketWrite = () => {
+    if (mayControlSocket(socket)) return true;
+    socket.emit('race-control:error', { error: 'Remote Socket.IO race commands are disabled' });
+    return false;
+  };
+
   // Race control events (use SyncService for device-agnostic control)
   socket.on('race:start', async (data) => {
+    if (!authorizeSocketWrite()) return;
     console.log('▶️  Race start requested:', data);
     await syncService.startRace();
   });
 
   socket.on('race:pause', async () => {
+    if (!authorizeSocketWrite()) return;
     console.log('⏸️  Race pause requested');
     if (simulator.isConnected()) {
       simulator.togglePause();
@@ -303,11 +317,13 @@ io.on('connection', (socket) => {
   });
 
   socket.on('race:stop', async () => {
+    if (!authorizeSocketWrite()) return;
     console.log('⏹️  Race stop requested');
     await syncService.stopRace();
   });
 
   socket.on('car:setSpeed', (data) => {
+    if (!authorizeSocketWrite()) return;
     console.log('🏎️  Set speed:', data);
     if (simulator.isConnected()) {
       simulator.setCarSpeed(data.carId, data.speed);
@@ -316,14 +332,17 @@ io.on('connection', (socket) => {
 
   // Direct simulator control (legacy, prefer using SyncService)
   socket.on('simulator:start', () => {
+    if (!authorizeSocketWrite()) return;
     if (simulator.isConnected()) simulator.start();
   });
 
   socket.on('simulator:stop', () => {
+    if (!authorizeSocketWrite()) return;
     if (simulator.isConnected()) simulator.stop();
   });
 
   socket.on('simulator:pause', () => {
+    if (!authorizeSocketWrite()) return;
     if (simulator.isConnected()) simulator.togglePause();
   });
 

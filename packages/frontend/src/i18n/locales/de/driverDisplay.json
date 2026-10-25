@@ -23,5 +23,10 @@
   "copyLink": "Link für {{name}} kopieren",
   "linkCopied": "Link kopiert",
   "manualCopy": "Fahrerdisplay-Link kopieren:",
-  "lanHint": "Für Handys RaceHubOS zuerst über die LAN-IP statt localhost öffnen."
+  "lanHint": "Für Handys RaceHubOS zuerst über die LAN-IP statt localhost öffnen.",
+  "chaosButton": "CHAOS!",
+  "chaosDescription": "Unterbricht das gesamte Rennen. Nur die Rennleitung darf es wieder freigeben. Kein sicherheitstechnischer Not-Aus.",
+  "chaosRequested": "Rennunterbrechung angefordert.",
+  "alreadyPaused": "Das Rennen ist bereits unterbrochen.",
+  "chaosError": "Rennunterbrechung fehlgeschlagen."
 }

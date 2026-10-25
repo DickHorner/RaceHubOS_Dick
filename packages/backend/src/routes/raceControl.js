@@ -1,0 +1,220 @@
+import express from 'express';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import { SessionStatus } from '@racehubos/shared';
+
+const router = express.Router();
+const TOKEN_LIFETIME_MS = 6 * 60 * 60 * 1000;
+let sessionService;
+let syncService;
+let controlQueue = Promise.resolve();
+
+export function setRaceControlServices(session, sync) {
+  sessionService = session;
+  syncService = sync;
+}
+
+function directorSecret() {
+  const secret = process.env.RACE_CONTROL_SECRET || '';
+  return Buffer.byteLength(secret) >= 32 ? secret : null;
+}
+
+function bearer(req) {
+  const match = /^Bearer ([^\s]+)$/.exec(req.get('authorization') || '');
+  return match?.[1] || '';
+}
+
+function equals(a, b) {
+  const left = Buffer.from(a);
+  const right = Buffer.from(b);
+  return left.length === right.length && timingSafeEqual(left, right);
+}
+
+function isDirector(req) {
+  const secret = directorSecret();
+  return Boolean(secret && equals(bearer(req), secret));
+}
+
+function requireDirector(req, res, next) {
+  if (!directorSecret()) return res.status(503).json({ success: false, error: 'Race control is not configured' });
+  if (!isDirector(req)) return res.status(403).json({ success: false, error: 'Race director credential required' });
+  next();
+}
+
+export function isLoopback(address) {
+  return address === '127.0.0.1' || address === '::1' || address === '::ffff:127.0.0.1';
+}
+
+function trustedOrigin(origin, host) {
+  if (!origin) return true; // CLI and non-browser requests do not supply Origin.
+  try {
+    const url = new URL(origin);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+    const hostName = new URL(`http://${host}`).hostname;
+    const loopbackHosts = ['localhost', '127.0.0.1', '[::1]'];
+    return loopbackHosts.includes(url.hostname) && loopbackHosts.includes(hostName);
+  } catch {
+    return false;
+  }
+}
+
+// The legacy browser race controls remain available on the race PC itself.
+// Remote clients must provide the director credential for any legacy API writes.
+// The new race-control routes enforce their own finer-grained credentials.
+export function remoteWriteGuard(req, res, next) {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method) || req.path.startsWith('/race-control/')) return next();
+  const local = isLoopback(req.socket.remoteAddress) && trustedOrigin(req.get('origin'), req.get('host'));
+  if (local || isDirector(req)) return next();
+  res.status(403).json({ success: false, error: 'Remote writes require race director authorization' });
+}
+
+// Socket.IO command events are legacy controls and never accept driver tokens.
+export function mayControlSocket(socket) {
+  const request = socket.handshake;
+  return isLoopback(request.address) && trustedOrigin(request.headers.origin, request.headers.host);
+}
+
+function signDriverAccess(assignment, expiresAt) {
+  const data = Buffer.from(JSON.stringify({
+    sid: assignment.sessionId,
+    sdid: assignment.id,
+    did: assignment.driverId,
+    controller: assignment.controller,
+    exp: expiresAt,
+  })).toString('base64url');
+  const signature = createHmac('sha256', directorSecret()).update(data).digest('base64url');
+  return `${data}.${signature}`;
+}
+
+function decodeDriverAccess(token) {
+  const secret = directorSecret();
+  if (!secret || token.length > 2048) return null;
+  const parts = token.split('.');
+  if (parts.length !== 2 || !parts.every((part) => /^[A-Za-z0-9_-]+$/.test(part))) return null;
+  const expected = createHmac('sha256', secret).update(parts[0]).digest('base64url');
+  if (!equals(parts[1], expected)) return null;
+  try {
+    const data = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+    if (
+      typeof data.sid !== 'string' || !data.sid ||
+      typeof data.sdid !== 'string' || !data.sdid ||
+      typeof data.did !== 'string' || !data.did ||
+      !Number.isInteger(data.controller) || data.controller < 0 || data.controller > 5 ||
+      !Number.isSafeInteger(data.exp) || data.exp <= Date.now() || data.exp > Date.now() + TOKEN_LIFETIME_MS
+    ) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function serialize(action) {
+  const result = controlQueue.then(action);
+  controlQueue = result.catch(() => {});
+  return result;
+}
+
+router.get('/status', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ success: true, enabled: Boolean(directorSecret()) });
+});
+
+router.get('/director/check', requireDirector, (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ success: true });
+});
+
+router.post('/driver-link', requireDirector, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const { sessionId, driverId } = req.body || {};
+  if (typeof sessionId !== 'string' || !sessionId || typeof driverId !== 'string' || !driverId) {
+    return res.status(400).json({ success: false, error: 'Session and driver are required' });
+  }
+  try {
+    const session = await sessionService.prisma.session.findUnique({
+      where: { id: sessionId }, include: { drivers: true },
+    });
+    if (!session || session.deletedAt || !['draft', 'active', 'paused'].includes(session.status)) {
+      return res.status(409).json({ success: false, error: 'Session is not available for driver access' });
+    }
+    const assignments = session.drivers.filter((d) => d.driverId === driverId && !d.deletedAt);
+    if (assignments.length !== 1) {
+      return res.status(409).json({ success: false, error: 'Driver assignment is missing or ambiguous' });
+    }
+    const expiresAt = Date.now() + TOKEN_LIFETIME_MS;
+    res.json({ success: true, token: signDriverAccess({ ...assignments[0], sessionId }, expiresAt), expiresAt });
+  } catch (error) {
+    console.error('[RaceControl] Driver access issuance failed:', error);
+    res.status(500).json({ success: false, error: 'Could not issue driver access' });
+  }
+});
+
+router.post('/chaos', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const access = decodeDriverAccess(bearer(req));
+  if (!access) return res.status(403).json({ success: false, error: 'Invalid or expired driver access' });
+
+  try {
+    const result = await serialize(async () => {
+      const assignments = await sessionService.prisma.sessionDriver.findMany({
+        where: { sessionId: access.sid, driverId: access.did, deletedAt: null },
+      });
+      if (assignments.length !== 1 || assignments[0].id !== access.sdid || assignments[0].controller !== access.controller) {
+        return { code: 403, error: 'Driver assignment has changed; request a new link' };
+      }
+      if (sessionService.activeSessionId !== access.sid) {
+        return { code: 409, error: 'This driver link is not for the current session' };
+      }
+      if (sessionService.sessionStatus === SessionStatus.PAUSED) return { code: 200, paused: true, alreadyPaused: true };
+      if (sessionService.sessionStatus !== SessionStatus.ACTIVE) return { code: 409, error: 'Race is not running' };
+      if (!syncService?.isConnected()) return { code: 503, error: 'Control Unit is disconnected' };
+
+      await sessionService.pauseSession();
+      console.info(`[RaceControl] Chaos pause by driver=${access.did}, controller=${access.controller + 1}, session=${access.sid}`);
+      return { code: 200, paused: true, alreadyPaused: false };
+    });
+    if (result.error) return res.status(result.code).json({ success: false, error: result.error });
+    res.json({ success: true, paused: result.paused, alreadyPaused: result.alreadyPaused });
+  } catch (error) {
+    console.error('[RaceControl] Chaos pause failed:', error);
+    res.status(500).json({ success: false, error: 'Could not pause race' });
+  }
+});
+
+router.post('/director/:action', requireDirector, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const { action } = req.params;
+  if (!['pause', 'resume', 'stop'].includes(action)) {
+    return res.status(400).json({ success: false, error: 'Unknown race control action' });
+  }
+  const { sessionId } = req.body || {};
+  if (typeof sessionId !== 'string' || !sessionId) {
+    return res.status(400).json({ success: false, error: 'Session is required' });
+  }
+  try {
+    const result = await serialize(async () => {
+      if (sessionService.activeSessionId !== sessionId) return { code: 409, error: 'Not the current session' };
+      if (!syncService?.isConnected()) return { code: 503, error: 'Control Unit is disconnected' };
+      const status = sessionService.sessionStatus;
+      if (action === 'pause') {
+        if (status === SessionStatus.PAUSED) return { code: 200, status };
+        if (status !== SessionStatus.ACTIVE) return { code: 409, error: 'Race is not running' };
+        await sessionService.pauseSession();
+      } else if (action === 'resume') {
+        if (status !== SessionStatus.PAUSED) return { code: 409, error: 'Race is not paused' };
+        await sessionService.resumeSession();
+      } else {
+        if (!['active', 'paused', 'finishing'].includes(status)) return { code: 409, error: 'Race cannot be stopped' };
+        await sessionService.stopSession();
+      }
+      console.info(`[RaceControl] Director ${action} for session=${sessionId}`);
+      return { code: 200, status: sessionService.sessionStatus };
+    });
+    if (result.error) return res.status(result.code).json({ success: false, error: result.error });
+    res.json({ success: true, status: result.status });
+  } catch (error) {
+    console.error('[RaceControl] Director action failed:', error);
+    res.status(500).json({ success: false, error: 'Race control failed' });
+  }
+});
+
+export default router;

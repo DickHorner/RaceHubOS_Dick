@@ -23,5 +23,10 @@
   "copyLink": "Copier le lien pour {{name}}",
   "linkCopied": "Lien copié",
   "manualCopy": "Copiez le lien d'affichage pilote :",
-  "lanHint": "Sur téléphone, ouvrez RaceHubOS via l'adresse IP du réseau local plutôt que localhost."
+  "lanHint": "Sur téléphone, ouvrez RaceHubOS via l'adresse IP du réseau local plutôt que localhost.",
+  "chaosButton": "CHAOS !",
+  "chaosDescription": "Interrompt toute la course. Seule la direction peut reprendre. Ce n'est pas un arrêt d'urgence de sécurité.",
+  "chaosRequested": "Interruption demandée.",
+  "alreadyPaused": "La course est déjà interrompue.",
+  "chaosError": "Impossible d'interrompre la course."
 }

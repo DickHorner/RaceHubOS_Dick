@@ -371,23 +371,21 @@ export class SessionService extends EventEmitter {
   async pauseSession() {
     if (!this.activeSessionId) return null;
 
+    if (!this.syncService?.isConnected()) throw new Error('Control Unit disconnected');
+
+    // Stop the physical race before reporting a successful pause.
+    await this.syncService.stopRace();
+
     const now = Date.now();
-
-    // Add pause entry to history
-    const pauses = this.sessionConfig?.pauses || [];
-    pauses.push({ start: now, end: null });
-    this.sessionConfig.pauses = pauses;
-
+    const pauses = [...(this.sessionConfig?.pauses || []), { start: now, end: null }];
     await this.prisma.session.update({
       where: { id: this.activeSessionId },
       data: { status: SessionStatus.PAUSED, pauses: JSON.stringify(pauses) },
     });
+    this.sessionConfig.pauses = pauses;
 
     const previousStatus = this.sessionStatus;
     this.sessionStatus = 'paused';
-
-    // Stop CU/Simulator
-    await this.syncService?.stopRace();
 
     this.emit('session:paused', { sessionId: this.activeSessionId });
     this.emitStatusChanged('paused', previousStatus);
@@ -402,16 +400,17 @@ export class SessionService extends EventEmitter {
   async resumeSession() {
     if (!this.activeSessionId || this.sessionStatus !== SessionStatus.PAUSED) return null;
 
-    // Set status to active but keep pause open until GO
+    if (!this.syncService?.isConnected()) throw new Error('Control Unit disconnected');
+
+    // Start the CU lights before reporting the session as resumed.
+    await this.syncService.prepareRace();
+
+    // Keep the pause open until GO (handled by onRaceStart).
     await this.prisma.session.update({
       where: { id: this.activeSessionId },
       data: { status: SessionStatus.ACTIVE },
     });
-
     this.sessionStatus = 'active';
-
-    // Start CU lights sequence (pause closes at GO via onRaceStart)
-    await this.syncService?.prepareRace();
 
     this.emit('session:resumed', { sessionId: this.activeSessionId });
     this.emitStatusChanged('active', 'paused');
