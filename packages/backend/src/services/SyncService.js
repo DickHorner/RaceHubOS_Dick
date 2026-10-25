@@ -27,7 +27,11 @@ export class SyncService {
     this._onTimer = (event) => this.handleTimerEvent(event);
     this._onStatus = (status) => this.handleStatus(status);
     this._onConnected = () => this.io?.emit('cu:connected');
-    this._onDisconnected = () => this.io?.emit('cu:disconnected');
+    this._onDisconnected = () => {
+      this.pitStates.clear();
+      this.pitSessionId = null;
+      this.io?.emit('cu:disconnected');
+    };
   }
 
   setSessionService(sessionService) {
