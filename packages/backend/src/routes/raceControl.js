@@ -1,9 +1,13 @@
 import express from 'express';
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import fs from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { SessionStatus } from '@racehubos/shared';
 
 const router = express.Router();
 const TOKEN_LIFETIME_MS = 6 * 60 * 60 * 1000;
+const directorEnvPath = fileURLToPath(new URL('../../.env', import.meta.url));
+let setupInProgress = false;
 let sessionService;
 let syncService;
 let controlQueue = Promise.resolve();
@@ -115,7 +119,52 @@ function serialize(action) {
 
 router.get('/status', (req, res) => {
   res.set('Cache-Control', 'no-store');
-  res.json({ success: true, enabled: Boolean(directorSecret()) });
+  const local = isLoopback(req.socket.remoteAddress) &&
+    trustedOrigin('http://localhost', req.get('host'));
+  res.json({ success: true, enabled: Boolean(directorSecret()), setupAvailable: !directorSecret() && local });
+});
+
+// Only the browser running on the race PC may bootstrap a director credential.
+// The server generates and stores the key; never accept a secret from remote input.
+router.post('/setup', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (!isLoopback(req.socket.remoteAddress) ||
+      !req.get('origin') || !trustedOrigin(req.get('origin'), req.get('host'))) {
+    return res.status(403).json({ success: false, error: 'Initial setup is only available on the race PC at localhost' });
+  }
+  if (directorSecret()) return res.status(409).json({ success: false, error: 'Race control is already configured' });
+  if (process.env.RACE_CONTROL_SECRET) {
+    return res.status(409).json({ success: false, error: 'Existing invalid RACE_CONTROL_SECRET must be corrected in the server configuration' });
+  }
+  if (setupInProgress) return res.status(409).json({ success: false, error: 'Race control setup is already running' });
+
+  setupInProgress = true;
+  try {
+    let existing = '';
+    let envExists = true;
+    try {
+      existing = await fs.readFile(directorEnvPath, 'utf8');
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      envExists = false;
+    }
+    if (/^\s*(?:export\s+)?RACE_CONTROL_SECRET\s*=/m.test(existing)) {
+      return res.status(409).json({ success: false, error: 'RACE_CONTROL_SECRET already exists in .env; correct it there' });
+    }
+
+    if (envExists) await fs.chmod(directorEnvPath, 0o600);
+    const secret = randomBytes(32).toString('hex');
+    const prefix = existing && !existing.endsWith('\n') ? '\n' : '';
+    await fs.appendFile(directorEnvPath, `${prefix}RACE_CONTROL_SECRET=${secret}\n`, { mode: 0o600 });
+    process.env.RACE_CONTROL_SECRET = secret;
+
+    res.json({ success: true, secret });
+  } catch (error) {
+    console.error('[RaceControl] Local setup failed:', error);
+    res.status(500).json({ success: false, error: 'Could not save the race-control secret; check server file permissions' });
+  } finally {
+    setupInProgress = false;
+  }
 });
 
 router.get('/director/check', requireDirector, (req, res) => {
