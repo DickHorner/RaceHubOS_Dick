@@ -1,6 +1,6 @@
 import { createPrismaClient } from '../lib/prisma.js';
 import EventEmitter from 'events';
-import { SESSION_TYPES, SessionStatus, SessionType, isSessionType } from '@racehubos/shared';
+import { SESSION_TYPES, SessionStatus, SessionType, isSessionType, toLevel } from '@racehubos/shared';
 import { sessionName } from '../lib/sessionNames.js';
 
 const DEFAULT_GRACE_PERIOD_MS = 30000;
@@ -32,6 +32,7 @@ export class SessionService extends EventEmitter {
 
     // Driver states
     this.sessionDrivers = [];
+    this.firstCrossingProgrammed = new Set();
     this.previousPositions = new Map(); // controller -> previous position
     this.displayedDeltas = new Map(); // controller -> delta to display
 
@@ -58,28 +59,49 @@ export class SessionService extends EventEmitter {
    * @param {{ controller: number, timestamp: number, lapTime: number, sector: number }} data
    */
   async handleLap(data) {
-    const { controller, lapTime, sector } = data;
+    const { controller, timestamp, lapTime, sector } = data;
 
     // Ignore stale hardware events when there is no running session.
     if (!this.activeSessionId || !this.isActive()) {
       return;
     }
 
-    // Only process finish line (sector 1) with valid lap time
-    if (sector !== 1 || lapTime <= 0) {
-      return;
-    }
+    if (sector !== 1) return;
 
     const driver = this.getDriverByController(controller);
-    if (!driver) {
-      return;
+    if (!driver || this.hasDriverFinished(driver)) return;
+
+    // The first finish-line crossing often has lapTime=0; reapply before discarding it.
+    if (
+      this.sessionStatus === SessionStatus.ACTIVE &&
+      timestamp > 0 &&
+      lapTime >= 0 &&
+      driver.carId &&
+      driver.car &&
+      !this.firstCrossingProgrammed.has(controller)
+    ) {
+      const device = this.syncService?.getDevice();
+      if (device?.setSpeed && device?.setBrake) {
+        this.firstCrossingProgrammed.add(controller);
+        let field = 'speed';
+        try {
+          await device.setSpeed(controller, toLevel(driver.car.maxSpeed));
+          field = 'brake';
+          await device.setBrake(controller, toLevel(driver.car.brakeForce));
+        } catch (error) {
+          console.warn(`[SessionService] First-crossing ${field} failed for controller ${controller + 1}:`, error.message);
+          this.emit('session:config_error', {
+            sessionId: this.activeSessionId,
+            controller,
+            field,
+            error: error.message,
+          });
+        }
+      }
     }
 
-    // A driver who has already crossed their finish line must not record
-    // additional laps while the other drivers use the grace period.
-    if (this.hasDriverFinished(driver)) {
-      return;
-    }
+    // Only record laps with a valid measured time.
+    if (lapTime <= 0) return;
 
     // Track crossings - first crossing is start, doesn't count as lap
     // const isFirstCrossing = driver.crossings === 0; // DISABLED: count first lap
@@ -214,6 +236,9 @@ export class SessionService extends EventEmitter {
       throw new Error(`Session ${sessionId} not found`);
     }
 
+    if (this.activeSessionId !== session.id || session.status === SessionStatus.DRAFT) {
+      this.firstCrossingProgrammed.clear();
+    }
     this.activeSessionId = session.id;
     this.activeTrackId = session.trackId;
     // A lap's phase is its session's type; the ladder this replaces spelled out
@@ -317,41 +342,29 @@ export class SessionService extends EventEmitter {
    * Note: startedAt is set later by onRaceStart() when CU goes to racing (GO!)
    */
   async startSession(sessionId) {
-    // Check device connection
     if (!this.syncService?.isConnected()) {
       throw new Error('No device connected. Connect a CU or Simulator first.');
     }
 
-    // Reset sync service
-    await this.syncService?.reset();
+    // Apply vehicle profiles while the CU is stopped, before starting the lights.
+    // A failed write must not leave the session active or start the race.
+    await this.syncService.reset();
+    await this.loadSession(sessionId);
+    await this.applyCarConfigs();
+    await this.syncService.prepareRace();
 
     await this.prisma.session.update({
       where: { id: sessionId },
       data: { status: SessionStatus.ACTIVE },
     });
+    this.sessionStatus = SessionStatus.ACTIVE;
 
-    await this.loadSession(sessionId);
-    this.sessionStatus = 'active';
-
-    // Start polling to receive CU status and lap data
-    this.syncService?.startPolling();
-
-    // Put CU in L1 state (waiting for START)
-    await this.syncService?.prepareRace();
-
-    // Apply each car's profile (speed/brake/fuel) to the CU
-    // Done AFTER prepareRace so the START press isn't blocked by 18 setword commands
-    await this.applyCarConfigs();
-
-    // Start heartbeat
     this.startHeartbeat();
-
     this.emit('session:started', { sessionId });
     this.emitStatusChanged('active', 'draft');
 
     return this.getState();
   }
-
   /**
    * Pause session
    */
@@ -436,6 +449,7 @@ export class SessionService extends EventEmitter {
     this.gracePeriodEndsAt = null;
     this.activeSessionId = null;
     this.activeTrackId = null;
+    this.firstCrossingProgrammed.clear();
     this.currentPhase = SessionType.PRACTICE;
     this.sessionConfig = null;
     this.sessionStatus = null;
@@ -902,34 +916,42 @@ export class SessionService extends EventEmitter {
    */
   async applyCarConfigs() {
     const device = this.syncService?.getDevice();
-    if (!device?.setSpeed) return;
+    if (!device?.setSpeed) return; // The simulator does not program physical car decoders.
+    if (!device.setBrake || !device.setFuel) {
+      throw new Error('Connected device does not support speed, brake and fuel programming');
+    }
 
-    // The CU has 10 levels for speed, brake and fuel alike (manual 30352,
-    // "Setting of the cars' basic speed": 1-10). The protocol carries a nibble,
-    // which is the field size, not the scale.
-    const toLevel = (v) => Math.max(1, Math.min(10, Math.round((v ?? 100) / 10)));
-    const toSpeedBrake = toLevel;
-    const toFuel = toLevel;
+    const missingCar = this.sessionDrivers.find((driver) => driver.carId && !driver.car);
+    if (missingCar) {
+      throw new Error(`Car ${missingCar.carId} not found for controller ${missingCar.controller + 1}`);
+    }
 
-    const driverByController = new Map(this.sessionDrivers.map((d) => [d.controller, d]));
+    const driverByController = new Map(this.sessionDrivers.map((driver) => [driver.controller, driver]));
 
     for (let addr = 0; addr < 6; addr++) {
       const driver = driverByController.get(addr);
-      const car = driver?.car;
-      const speed = car ? toSpeedBrake(car.maxSpeed) : 10;
-      const brake = car ? toSpeedBrake(car.brakeForce) : 10;
-      const fuel = car ? toFuel(car.fuelCapacity) : 7;
+      if (!driver?.carId) continue;
+      const car = driver.car;
+      const speed = toLevel(car.maxSpeed);
+      const brake = toLevel(car.brakeForce);
+      const fuel = toLevel(car.fuelCapacity);
+
+      let field = 'speed';
       try {
         await device.setSpeed(addr, speed);
-        if (device.setBrake) await device.setBrake(addr, brake);
-        if (device.setFuel) await device.setFuel(addr, fuel);
-        if (driver) driver._throttled = false;
-      } catch (err) {
-        console.warn('[SessionService] applyCarConfigs failed for addr', addr, ':', err.message);
+        field = 'brake';
+        await device.setBrake(addr, brake);
+        field = 'fuel';
+        await device.setFuel(addr, fuel);
+      } catch (error) {
+        throw new Error(`CU ${field} programming failed for controller ${addr + 1}: ${error.message}`, { cause: error });
       }
+      if (driver) driver._throttled = false;
+      console.info(
+        `[SessionService] CU command acknowledged: controller=${addr + 1}, car=${car.id}, speed=${speed}, brake=${brake}, fuel=${fuel}`
+      );
     }
   }
-
   async calculateDNF() {
     const maxLaps = this.sessionConfig?.maxLaps;
 
