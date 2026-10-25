@@ -121,7 +121,7 @@ router.get('/status', (req, res) => {
   res.set('Cache-Control', 'no-store');
   const local = isLoopback(req.socket.remoteAddress) &&
     trustedOrigin('http://localhost', req.get('host'));
-  res.json({ success: true, enabled: Boolean(directorSecret()), setupAvailable: !directorSecret() && local });
+  res.json({ success: true, enabled: Boolean(directorSecret()), setupAvailable: !process.env.RACE_CONTROL_SECRET && local });
 });
 
 // Only the browser running on the race PC may bootstrap a director credential.
