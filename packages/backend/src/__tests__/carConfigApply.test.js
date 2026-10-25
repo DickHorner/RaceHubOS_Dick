@@ -137,4 +137,109 @@ describe('CU vehicle configuration', () => {
     expect(service.prisma.session.update).not.toHaveBeenCalled();
     expect(service.sessionStatus).not.toBe(SessionStatus.ACTIVE);
   });
+
+  describe('first finish-line crossing', () => {
+    beforeEach(() => {
+      service.activeSessionId = 'session-1';
+      service.sessionStatus = SessionStatus.ACTIVE;
+      service.sessionDrivers = [
+        driver(0, 'a', 30, 90, 70),
+        driver(2, 'b', 100, 20, 40),
+      ];
+    });
+
+    test('reapplies speed and brake on the first crossing even when lapTime is zero', async () => {
+      await service.handleLap({ controller: 0, timestamp: 0, lapTime: 0, sector: 1 });
+      await service.handleLap({ controller: 0, timestamp: 1000, lapTime: 0, sector: 2 });
+      expect(writes).toEqual([]);
+
+      await service.handleLap({ controller: 0, timestamp: 1000, lapTime: 0, sector: 1 });
+      await service.handleLap({ controller: 0, timestamp: 2000, lapTime: 0, sector: 1 });
+
+      expect(writes).toEqual([['speed', 0, 3], ['brake', 0, 9]]);
+      expect(device.setFuel).not.toHaveBeenCalled();
+      expect(service.firstCrossingProgrammed.has(0)).toBe(true);
+    });
+
+    test('configures only the car assigned to each controller, one time each', async () => {
+      await service.handleLap({ controller: 3, timestamp: 1000, lapTime: 0, sector: 1 });
+      await service.handleLap({ controller: 2, timestamp: 1500, lapTime: 0, sector: 1 });
+      await service.handleLap({ controller: 0, timestamp: 1600, lapTime: 0, sector: 1 });
+      await service.handleLap({ controller: 2, timestamp: 2500, lapTime: 0, sector: 1 });
+
+      expect(writes).toEqual([
+        ['speed', 2, 10], ['brake', 2, 2],
+        ['speed', 0, 3], ['brake', 0, 9],
+      ]);
+    });
+
+    test('duplicate notifications while writes are pending do not duplicate commands', async () => {
+      let finishSpeed;
+      device.setSpeed.mockImplementationOnce(() => new Promise((resolve) => { finishSpeed = resolve; }));
+      const first = service.handleLap({ controller: 0, timestamp: 1000, lapTime: 0, sector: 1 });
+      const duplicate = service.handleLap({ controller: 0, timestamp: 1000, lapTime: 0, sector: 1 });
+
+      expect(device.setSpeed).toHaveBeenCalledTimes(1);
+      finishSpeed();
+      await Promise.all([first, duplicate]);
+      expect(device.setBrake).toHaveBeenCalledTimes(1);
+    });
+
+    test('does not reprogram while paused or finishing', async () => {
+      service.sessionStatus = SessionStatus.PAUSED;
+      await service.handleLap({ controller: 0, timestamp: 1000, lapTime: 0, sector: 1 });
+      service.sessionStatus = SessionStatus.FINISHING;
+      await service.handleLap({ controller: 0, timestamp: 2000, lapTime: 0, sector: 1 });
+
+      expect(writes).toEqual([]);
+    });
+
+    test('reports a failed first-crossing write without dropping the timer event', async () => {
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      try {
+        device.setBrake.mockRejectedValueOnce(new Error('write timeout'));
+        await expect(
+          service.handleLap({ controller: 0, timestamp: 1000, lapTime: 0, sector: 1 })
+        ).resolves.toBeUndefined();
+        await service.handleLap({ controller: 0, timestamp: 2000, lapTime: 0, sector: 1 });
+
+        expect(service.io.emit).toHaveBeenCalledWith('session:config_error', {
+          sessionId: 'session-1',
+          controller: 0,
+          field: 'brake',
+          error: 'write timeout',
+        });
+        expect(device.setSpeed).toHaveBeenCalledTimes(1);
+        expect(device.setBrake).toHaveBeenCalledTimes(1);
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
+    test('retains the one-shot marker on an active reload, resets for the next session', async () => {
+      service.firstCrossingProgrammed.add(0);
+      service.prisma.session.findUnique = jest.fn().mockResolvedValue({
+        id: 'session-1',
+        status: SessionStatus.ACTIVE,
+        type: 'practice',
+        drivers: [],
+        trackId: 'track-1',
+      });
+      service.recalculatePositions = jest.fn();
+      service.emitLeaderboard = jest.fn();
+
+      await service.loadSession('session-1');
+      expect(service.firstCrossingProgrammed.has(0)).toBe(true);
+
+      service.prisma.session.findUnique.mockResolvedValue({
+        id: 'session-2',
+        status: SessionStatus.DRAFT,
+        type: 'practice',
+        drivers: [],
+        trackId: 'track-1',
+      });
+      await service.loadSession('session-2');
+      expect(service.firstCrossingProgrammed.size).toBe(0);
+    });
+  });
 });
