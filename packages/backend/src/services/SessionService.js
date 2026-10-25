@@ -904,10 +904,11 @@ export class SessionService extends EventEmitter {
 
     for (let addr = 0; addr < 6; addr++) {
       const driver = driverByController.get(addr);
-      const car = driver?.car;
-      const speed = car ? toLevel(car.maxSpeed) : 10;
-      const brake = car ? toLevel(car.brakeForce) : 10;
-      const fuel = car ? toLevel(car.fuelCapacity) : 7;
+      if (!driver?.carId) continue;
+      const car = driver.car;
+      const speed = toLevel(car.maxSpeed);
+      const brake = toLevel(car.brakeForce);
+      const fuel = toLevel(car.fuelCapacity);
 
       let field = 'speed';
       try {
@@ -921,7 +922,7 @@ export class SessionService extends EventEmitter {
       }
       if (driver) driver._throttled = false;
       console.info(
-        `[SessionService] CU command acknowledged: controller=${addr + 1}, car=${car?.id ?? 'default'}, speed=${speed}, brake=${brake}, fuel=${fuel}`
+        `[SessionService] CU command acknowledged: controller=${addr + 1}, car=${car.id}, speed=${speed}, brake=${brake}, fuel=${fuel}`
       );
     }
   }
