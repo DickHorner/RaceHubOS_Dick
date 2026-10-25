@@ -132,6 +132,15 @@ describe('race director and driver-scoped chaos access', () => {
     expect(remoteHost.body.setupAvailable).toBe(false);
   });
 
+  test('an invalid preconfigured secret does not offer first-run setup', async () => {
+    const { app } = setup();
+    process.env.RACE_CONTROL_SECRET = 'short';
+
+    const status = await request(app).get('/api/race-control/status')
+      .set('Host', 'localhost:3001').expect(200);
+    expect(status.body).toMatchObject({ success: true, enabled: false, setupAvailable: false });
+  });
+
   test('first-run setup generates and saves a key without restarting', async () => {
     const { app } = setup();
     delete process.env.RACE_CONTROL_SECRET;
