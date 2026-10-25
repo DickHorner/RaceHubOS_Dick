@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals';
+import { EventEmitter } from 'node:events';
 import { SyncService } from '../services/SyncService.js';
 import { SessionService } from '../services/SessionService.js';
 import { CarreraSimulator } from '../services/simulator.js';
@@ -83,6 +84,20 @@ describe('pit stop observations', () => {
     sample(false, 900);
     sample(false, 1000);
     await Promise.resolve();
+    expect(session.recordPitStop).not.toHaveBeenCalled();
+  });
+
+  test('disconnect clears an open pit observation', async () => {
+    const device = new EventEmitter();
+    sync.setDevice(device);
+    sample(false, 0);
+    sample(true, 100);
+    sample(true, 200);
+    device.emit('disconnected');
+    sample(false, 300);
+    sample(false, 400);
+    await Promise.resolve();
+
     expect(session.recordPitStop).not.toHaveBeenCalled();
   });
 
