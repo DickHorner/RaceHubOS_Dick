@@ -28,6 +28,7 @@ const BalancingPage = lazy(() => import('./pages/BalancingPage'))
 const Championships = lazy(() => import('./pages/Championships'))
 const ChampionshipDetail = lazy(() => import('./pages/ChampionshipDetail'))
 const SpectatorScoreboard = lazy(() => import('./pages/SpectatorScoreboard'))
+const DriverDisplay = lazy(() => import('./pages/DriverDisplay'))
 
 function App() {
   return (
@@ -213,6 +214,15 @@ function App() {
                     element={
                       <Suspense>
                         <SpectatorScoreboard />
+                      </Suspense>
+                    }
+                  />
+
+                  <Route
+                    path="display/driver/:driverId"
+                    element={
+                      <Suspense>
+                        <DriverDisplay />
                       </Suspense>
                     }
                   />

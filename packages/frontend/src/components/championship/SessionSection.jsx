@@ -65,6 +65,7 @@ export default function SessionSection({
 
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState('')
+  const [copiedDriverId, setCopiedDriverId] = useState(null)
   const [editingName, setEditingName] = useState(false)
   const [inlineName, setInlineName] = useState('')
   const nameInputRef = useRef(null)
@@ -195,6 +196,20 @@ export default function SessionSection({
       await onSaveConfig({ drivers: driversPayload })
     } catch (err) {
       console.error('Failed to copy from practice:', err)
+    }
+  }
+
+  async function copyDriverLink(driverId) {
+    const link = `${window.location.origin}/display/driver/${encodeURIComponent(driverId)}`
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      window.prompt(t('driverDisplay:manualCopy') + ' ' + t('driverDisplay:lanHint'), link)
+      return
+    }
+    try {
+      await navigator.clipboard.writeText(link)
+      setCopiedDriverId(driverId)
+    } catch {
+      window.prompt(t('driverDisplay:manualCopy'), link)
     }
   }
 
@@ -394,6 +409,31 @@ export default function SessionSection({
           </span>
         </div>
       </div>
+
+      {session.type !== SessionType.BALANCING && sessionDrivers.some((sd) => sd.driverId) && (
+        <div className="px-4 py-3 border-b border-border space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">{t('driverDisplay:linksTitle')}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            {sessionDrivers.filter((sd) => sd.driverId).map((sd) => (
+              <Button
+                key={sd.id}
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => copyDriverLink(sd.driverId)}
+                title={t('driverDisplay:copyLink', { name: sd.driver?.name || `Ctrl ${sd.controller + 1}` })}
+              >
+                <Copy className="size-3.5" />
+                {sd.driver?.name || `Ctrl ${sd.controller + 1}`}
+              </Button>
+            ))}
+            {copiedDriverId && <span role="status" className="text-xs text-green-600">{t('driverDisplay:linkCopied')}</span>}
+          </div>
+          {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
+            <p className="text-xs text-muted-foreground">{t('driverDisplay:lanHint')}</p>
+          )}
+        </div>
+      )}
 
       {/* Session config + Controllers table */}
       {canEdit && (
