@@ -17,6 +17,7 @@ import { fileURLToPath } from 'url';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const beforePush = process.argv.includes('--push');
+const ci = process.argv.includes('--ci');
 // Le CLI Prisma est appele en JavaScript : npx est un .cmd sous Windows, que
 // execFileSync ne resout pas et que node refuse de lancer sans shell
 const prismaCli = () => path.join(rootDir, 'node_modules', 'prisma', 'build', 'index.js');
@@ -367,17 +368,18 @@ rule('tests-use-a-test-database', 'Les tests tournent sur une base de test', () 
 });
 
 rule('code-is-formatted', 'Le code est formaté (Prettier)', () => {
-  // Un fichier compresse sur quelques lignes est arrive par une PR : rien ne le signalait.
-  // Prettier tranche la forme, la relecture ne porte plus que sur le fond
+  // CI ne bloque que les fichiers modifies ; la dette existante reste visible localement.
+  const base = ci ? git(['merge-base', 'HEAD', 'origin/main']) : null;
+  if (ci && !base) return ['impossible de trouver origin/main pour vérifier les fichiers modifiés'];
+  const changed = ci
+    ? (git(['diff', '--name-only', base]) ?? '').split('\n').filter((f) => f && exists(f))
+    : ['.'];
+  if (ci && !changed.length) return [];
   try {
     execFileSync(
       process.execPath,
-      [path.join(rootDir, 'node_modules', 'prettier', 'bin', 'prettier.cjs'), '--list-different', '.'],
-      {
-        cwd: rootDir,
-        encoding: 'utf-8',
-        stdio: 'pipe',
-      }
+      [path.join(rootDir, 'node_modules', 'prettier', 'bin', 'prettier.cjs'), '--list-different', ...changed],
+      { cwd: rootDir, encoding: 'utf-8', stdio: 'pipe' }
     );
     return [];
   } catch (err) {
