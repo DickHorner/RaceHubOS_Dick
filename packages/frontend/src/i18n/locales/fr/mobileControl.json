@@ -21,5 +21,22 @@
   "controller": "Contrôleur",
   "linkWarning": "Toute personne possédant ce lien peut déclencher Chaos pour ce pilote. Ne le partagez pas publiquement. Valable six heures uniquement tant que l'affectation reste inchangée.",
   "linkError": "Impossible de créer le lien du pilote.",
-  "copyLink": "Copié si le presse-papiers est disponible. Sinon sélectionnez et copiez le lien. Utilisez l'adresse IP LAN plutôt que localhost sur d'autres appareils."
+  "copyLink": "Copié si le presse-papiers est disponible. Sinon sélectionnez et copiez le lien. Utilisez l'adresse IP LAN plutôt que localhost sur d'autres appareils.",
+  "vscTitle": "Voiture de sécurité virtuelle (VSC)",
+  "vscState": "État du VSC",
+  "vscCap": "Limite de vitesse (1–10)",
+  "vscDuration": "Durée en secondes (0 = manuelle)",
+  "vscRemaining": "Encore {{seconds}} s",
+  "vscWarning": "Limitation envoyée à la CU ; vérifier l'effet réel. Ce n'est pas un arrêt d'urgence.",
+  "vscStart": "Activer le VSC",
+  "vscEnd": "Terminer le VSC / retenter la restauration",
+  "vscError": "Commande VSC échouée",
+  "vscStatus": {
+    "inactive": "Inactif",
+    "activating": "Activation",
+    "active": "Limitation envoyée",
+    "restoring": "Rétablissement des vitesses",
+    "restore_failed": "Rétablissement échoué",
+    "disconnected": "CU déconnectée"
+  }
 }

@@ -96,6 +96,13 @@ export function SessionProvider({ children }) {
       window.dispatchEvent(new CustomEvent('session:status_changed', { detail: data }))
     })
 
+    socket.on('session:vsc', (data) => {
+      window.dispatchEvent(new CustomEvent('session:vsc', { detail: data }))
+    })
+    socket.on('session:vsc_error', (data) => {
+      window.dispatchEvent(new CustomEvent('session:vsc_error', { detail: data }))
+    })
+
     // Session finishing
     socket.on('session:finishing', (data) => {
       setFinishingSession({

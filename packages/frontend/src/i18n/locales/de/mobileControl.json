@@ -21,5 +21,22 @@
   "controller": "Regler",
   "linkWarning": "Jeder mit diesem Link darf für den betreffenden Fahrer Chaos auslösen. Link nicht öffentlich teilen. Gültig für sechs Stunden und nur bei unveränderter Zuordnung.",
   "linkError": "Fahrerlink konnte nicht erstellt werden.",
-  "copyLink": "Link kopiert, falls die Browser-Zwischenablage verfügbar ist. Sonst hier markieren und kopieren. Auf anderen Geräten muss statt localhost die LAN-IP verwendet werden."
+  "copyLink": "Link kopiert, falls die Browser-Zwischenablage verfügbar ist. Sonst hier markieren und kopieren. Auf anderen Geräten muss statt localhost die LAN-IP verwendet werden.",
+  "vscTitle": "Virtuelles Safety-Car (VSC)",
+  "vscState": "VSC-Status",
+  "vscCap": "Tempolimit (Stufe 1–10)",
+  "vscDuration": "Dauer in Sekunden (0 = manuell)",
+  "vscRemaining": "Noch {{seconds}} s",
+  "vscWarning": "Die CU wird nur per Befehl begrenzt; physische Wirkung prüfen. VSC ersetzt keinen Not-Aus.",
+  "vscStart": "VSC aktivieren",
+  "vscEnd": "VSC beenden / Rückstellung erneut versuchen",
+  "vscError": "VSC-Befehl fehlgeschlagen",
+  "vscStatus": {
+    "inactive": "Aus",
+    "activating": "Wird aktiviert",
+    "active": "Begrenzung gesendet",
+    "restoring": "Geschwindigkeit wird zurückgestellt",
+    "restore_failed": "Rückstellung fehlgeschlagen",
+    "disconnected": "CU-Verbindung unterbrochen"
+  }
 }

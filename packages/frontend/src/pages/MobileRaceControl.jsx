@@ -19,6 +19,10 @@ export default function MobileRaceControl() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [issuedLink, setIssuedLink] = useState('')
+  const [vsc, setVsc] = useState({ status: 'inactive', active: false })
+  const [vscCap, setVscCap] = useState(3)
+  const [vscDuration, setVscDuration] = useState(0)
+  const [now, setNow] = useState(Date.now())
   const updating = useRef(false)
 
   const refresh = useCallback(async () => {
@@ -30,6 +34,11 @@ export default function MobileRaceControl() {
       if (!response.ok) throw new Error(t('loadError'))
       const result = await response.json()
       if (!result.success) throw new Error(t('loadError'))
+      const vscResponse = await fetch(`${API_URL}/api/race-control/vsc`)
+      if (!vscResponse.ok) throw new Error(t('loadError'))
+      const vscResult = await vscResponse.json()
+      if (!vscResult.success) throw new Error(t('loadError'))
+      setVsc(vscResult.data)
       const available = result.data || []
       setSessions(available)
       const id = available.some((s) => s.id === selectedId) ? selectedId : available[0]?.id || ''
@@ -50,6 +59,11 @@ export default function MobileRaceControl() {
   }, [selectedId, fetchSession, clearSession, t])
 
   useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(tick)
+  }, [])
+
+  useEffect(() => {
     fetch(`${API_URL}/api/race-control/status`)
       .then((response) => response.json())
       .then((result) => setConfigured(result.enabled === true))
@@ -62,11 +76,15 @@ export default function MobileRaceControl() {
     const onVisible = () => { if (!document.hidden) refresh() }
     window.addEventListener('session:status_changed', refresh)
     window.addEventListener('session:finished', refresh)
+    window.addEventListener('session:vsc', refresh)
+    window.addEventListener('session:vsc_error', refresh)
     document.addEventListener('visibilitychange', onVisible)
     return () => {
       clearInterval(interval)
       window.removeEventListener('session:status_changed', refresh)
       window.removeEventListener('session:finished', refresh)
+      window.removeEventListener('session:vsc', refresh)
+      window.removeEventListener('session:vsc_error', refresh)
       document.removeEventListener('visibilitychange', onVisible)
     }
   }, [refresh])
@@ -109,6 +127,29 @@ export default function MobileRaceControl() {
       await refresh()
     } catch (cause) {
       setError(cause.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function controlVsc(action) {
+    const id = action === 'end' ? vsc.sessionId : session?.id
+    if (!id || !directorKey || busy) return
+    setError('')
+    setBusy(true)
+    try {
+      const response = await fetch(`${API_URL}/api/race-control/director/vsc/${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${directorKey}` },
+        body: JSON.stringify({ sessionId: id, cap: vscCap, durationSeconds: vscDuration }),
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error(result.error || t('vscError'))
+      setVsc(result.data)
+      await refresh()
+    } catch (cause) {
+      setError(cause.message)
+      await refresh()
     } finally {
       setBusy(false)
     }
@@ -205,6 +246,42 @@ export default function MobileRaceControl() {
                 </>
               )}
             </section>
+            {session?.id === selectedId && session.type === 'race' && (
+              <section className="rounded-xl border border-border bg-card p-5 space-y-3">
+                <h2 className="font-bold">{t('vscTitle')}</h2>
+                <p role="status" className="text-sm">{t('vscState')}: {t(`vscStatus.${vsc.status}`)}</p>
+                {vsc.expiresAt && vsc.status === 'active' && (
+                  <p className="font-mono text-lg tabular-nums">
+                    {t('vscRemaining', { seconds: Math.max(0, Math.ceil((Date.parse(vsc.expiresAt) - now) / 1000)) })}
+                  </p>
+                )}
+                {vsc.error && <p role="alert" className="text-sm text-red-500">{vsc.error}</p>}
+                {vsc.status === 'inactive' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="text-sm">{t('vscCap')}
+                      <input type="number" min="1" max="10" value={vscCap}
+                        onChange={(event) => setVscCap(Number(event.target.value))}
+                        className="w-full rounded-md border border-border bg-background px-3 py-2 mt-1" />
+                    </label>
+                    <label className="text-sm">{t('vscDuration')}
+                      <input type="number" min="0" max="3600" value={vscDuration}
+                        onChange={(event) => setVscDuration(Number(event.target.value))}
+                        className="w-full rounded-md border border-border bg-background px-3 py-2 mt-1" />
+                    </label>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">{t('vscWarning')}</p>
+                {vsc.status === 'inactive' ? (
+                  <Button onClick={() => controlVsc('start')} disabled={busy || !connected || session.status !== 'active' || vscCap < 1 || vscCap > 10 || vscDuration < 0 || vscDuration > 3600 || (vscDuration > 0 && vscDuration < 5)}>
+                    {t('vscStart')}
+                  </Button>
+                ) : (
+                  <Button variant="outline" disabled={busy || !connected} onClick={() => controlVsc('end')}>
+                    {t('vscEnd')}
+                  </Button>
+                )}
+              </section>
+            )}
             {session?.id === selectedId && assigned.length > 0 && (
               <section className="rounded-xl border border-border bg-card p-5 space-y-3">
                 <h2 className="font-bold">{t('driverLinks')}</h2>

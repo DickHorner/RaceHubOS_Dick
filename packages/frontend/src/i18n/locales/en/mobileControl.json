@@ -21,5 +21,22 @@
   "controller": "Controller",
   "linkWarning": "Anyone with a link may request chaos for that driver. Do not share publicly. Valid for six hours and only while the assignment remains unchanged.",
   "linkError": "Could not issue driver link.",
-  "copyLink": "Copied if clipboard is available. Otherwise select and copy this link. On other devices use the LAN IP instead of localhost."
+  "copyLink": "Copied if clipboard is available. Otherwise select and copy this link. On other devices use the LAN IP instead of localhost.",
+  "vscTitle": "Virtual safety car (VSC)",
+  "vscState": "VSC status",
+  "vscCap": "Speed cap (level 1–10)",
+  "vscDuration": "Duration in seconds (0 = manual)",
+  "vscRemaining": "{{seconds}} s remaining",
+  "vscWarning": "The CU receives speed commands; verify physical behavior. Not an emergency stop.",
+  "vscStart": "Start VSC",
+  "vscEnd": "End VSC / retry restoration",
+  "vscError": "VSC command failed",
+  "vscStatus": {
+    "inactive": "Off",
+    "activating": "Applying",
+    "active": "Speed cap sent",
+    "restoring": "Restoring speeds",
+    "restore_failed": "Restoration failed",
+    "disconnected": "CU disconnected"
+  }
 }

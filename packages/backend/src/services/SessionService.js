@@ -1071,6 +1071,9 @@ export class SessionService extends EventEmitter {
         for (const [controller, config] of baseline) {
           await this.writeRaceSpeed(controller, config.speed);
         }
+        if (!this.syncService?.isConnected() || vsc.status === 'disconnected') {
+          throw new Error('CU disconnected during VSC activation');
+        }
       } catch (error) {
         try {
           await this.restoreVscBaseline(true);
