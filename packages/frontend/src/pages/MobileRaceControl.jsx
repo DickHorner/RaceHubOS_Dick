@@ -11,6 +11,9 @@ export default function MobileRaceControl() {
   const { connected, socketConnected } = useDevice()
   const { session, fetchSession, clearSession } = useSession()
   const [configured, setConfigured] = useState(null)
+  const [setupAvailable, setSetupAvailable] = useState(false)
+  const [generatedSecret, setGeneratedSecret] = useState('')
+  const [secretCopied, setSecretCopied] = useState(false)
   const [secretInput, setSecretInput] = useState('')
   const [directorKey, setDirectorKey] = useState('')
   const [sessions, setSessions] = useState([])
@@ -52,7 +55,10 @@ export default function MobileRaceControl() {
   useEffect(() => {
     fetch(`${API_URL}/api/race-control/status`)
       .then((response) => response.json())
-      .then((result) => setConfigured(result.enabled === true))
+      .then((result) => {
+        setConfigured(result.enabled === true)
+        setSetupAvailable(result.setupAvailable === true)
+      })
       .catch(() => setConfigured(false))
   }, [])
 
@@ -74,6 +80,36 @@ export default function MobileRaceControl() {
   useEffect(() => {
     if (socketConnected) refresh()
   }, [socketConnected, refresh])
+
+  async function setupRaceControl() {
+    if (busy || !setupAvailable) return
+    setError('')
+    setBusy(true)
+    try {
+      const response = await fetch(`${API_URL}/api/race-control/setup`, { method: 'POST' })
+      const result = await response.json()
+      if (!response.ok || !result.success || !result.secret) throw new Error(result.error || t('setupError'))
+      setDirectorKey(result.secret)
+      setGeneratedSecret(result.secret)
+      setSecretCopied(false)
+      setConfigured(true)
+      setSetupAvailable(false)
+    } catch (cause) {
+      setError(cause.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function copyGeneratedSecret() {
+    try {
+      await navigator.clipboard.writeText(generatedSecret)
+      setSecretCopied(true)
+    } catch {
+      document.getElementById('generated-director-key')?.select()
+      setSecretCopied(false)
+    }
+  }
 
   async function authorize(event) {
     event.preventDefault()
@@ -152,7 +188,37 @@ export default function MobileRaceControl() {
         </header>
 
         {error && <p role="alert" className="rounded-lg border border-red-500/40 text-red-500 p-3">{error}</p>}
-        {configured === false && <p role="alert" className="rounded-lg border border-amber-500/40 text-amber-500 p-4">{t('notConfigured')}</p>}
+        {configured === false && (
+          <section className="rounded-lg border border-amber-500/40 bg-card p-4 space-y-3">
+            <p role="status" className="text-sm">{t('notConfigured')}</p>
+            {setupAvailable ? (
+              <>
+                <p className="text-sm text-muted-foreground">{t('setupHere')}</p>
+                <Button type="button" disabled={busy} onClick={setupRaceControl}>{t('setupButton')}</Button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground">{t('setupOnRacePc')}</p>
+                <Button type="button" variant="outline" onClick={() => window.location.reload()}>{t('retryStatus')}</Button>
+              </>
+            )}
+          </section>
+        )}
+        {generatedSecret && (
+          <section className="rounded-lg border border-border bg-card p-4 space-y-3">
+            <label className="block text-sm font-medium" htmlFor="generated-director-key">{t('setupSecretLabel')}</label>
+            <input
+              id="generated-director-key"
+              readOnly
+              value={generatedSecret}
+              onFocus={(event) => event.target.select()}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 font-mono text-sm"
+            />
+            <p className="text-sm text-muted-foreground">{t('setupSecretHint')}</p>
+            <Button type="button" variant="outline" onClick={copyGeneratedSecret}>{t('copySecret')}</Button>
+            {secretCopied && <p role="status" className="text-sm text-green-600">{t('setupSecretCopied')}</p>}
+          </section>
+        )}
         {configured && !directorKey && (
           <form onSubmit={authorize} className="rounded-xl border border-border bg-card p-5 space-y-3">
             <label className="block text-sm font-medium" htmlFor="director-credential">{t('credential')}</label>
@@ -173,7 +239,7 @@ export default function MobileRaceControl() {
           <>
             <div className="flex items-center justify-between gap-3">
               <span role="status" className="text-sm text-green-500">{t('authorized')}</span>
-              <Button variant="outline" size="sm" onClick={() => { setDirectorKey(''); setIssuedLink('') }}>
+              <Button variant="outline" size="sm" onClick={() => { setDirectorKey(''); setIssuedLink(''); setGeneratedSecret('') }}>
                 {t('lock')}
               </Button>
             </div>
