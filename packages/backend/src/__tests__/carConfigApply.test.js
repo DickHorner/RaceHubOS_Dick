@@ -15,6 +15,11 @@ describe('CU vehicle configuration', () => {
       setFuel: jest.fn(async (address, value) => { writes.push(['fuel', address, value]); }),
     };
     service = new SessionService({ emit: jest.fn() });
+    const prisma = service.prisma;
+    service.prisma = {
+      session: { update: jest.fn() },
+      $disconnect: () => prisma.$disconnect(),
+    };
     service.syncService = {
       getDevice: () => device,
       isConnected: () => true,
@@ -112,5 +117,16 @@ describe('CU vehicle configuration', () => {
     );
     expect(service.syncService.prepareRace).not.toHaveBeenCalled();
     expect(service.prisma.session.update).not.toHaveBeenCalled();
+  });
+
+  test('failed start-light command also leaves the session in draft', async () => {
+    service.loadSession = jest.fn(async () => {
+      service.sessionDrivers = [driver(0, 'a', 30, 90, 70)];
+    });
+    service.syncService.prepareRace.mockRejectedValueOnce(new Error('CU start timeout'));
+
+    await expect(service.startSession('session-1')).rejects.toThrow('CU start timeout');
+    expect(service.prisma.session.update).not.toHaveBeenCalled();
+    expect(service.sessionStatus).not.toBe(SessionStatus.ACTIVE);
   });
 });
