@@ -161,6 +161,27 @@ describe('CU vehicle configuration', () => {
       expect(service.firstCrossingProgrammed.has(0)).toBe(true);
     });
 
+    test('does not interrupt ordinary lap counting after reapplying on a measured lap', async () => {
+      const activeDriver = service.sessionDrivers[0];
+      Object.assign(activeDriver, {
+        totalLaps: 0, crossings: 0, totalTime: 0, bestLapTime: null,
+      });
+      service.sessionDrivers[1].totalLaps = 0;
+      service.recalculatePositions = jest.fn();
+      service.getSessionBestLapTime = jest.fn().mockReturnValue(null);
+      service.saveLap = jest.fn().mockResolvedValue();
+      service.updateSessionDriver = jest.fn().mockResolvedValue();
+      service.emitLeaderboard = jest.fn();
+      service.throttleIfFinished = jest.fn().mockResolvedValue();
+      service.checkSessionComplete = jest.fn().mockResolvedValue();
+
+      await service.handleLap({ controller: 0, timestamp: 12000, lapTime: 12000, sector: 1 });
+
+      expect(writes).toEqual([['speed', 0, 3], ['brake', 0, 9]]);
+      expect(activeDriver.totalLaps).toBe(1);
+      expect(service.saveLap).toHaveBeenCalledWith(activeDriver, 12000);
+    });
+
     test('configures only the car assigned to each controller, one time each', async () => {
       await service.handleLap({ controller: 3, timestamp: 1000, lapTime: 0, sector: 1 });
       await service.handleLap({ controller: 2, timestamp: 1500, lapTime: 0, sector: 1 });
