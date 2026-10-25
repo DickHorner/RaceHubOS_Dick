@@ -148,6 +148,10 @@ router.get('/:id', async (req, res) => {
           include: { driver: true },
           orderBy: { timestamp: 'asc' },
         },
+        pitStops: {
+          include: { sessionDriver: { include: { driver: true, car: true } } },
+          orderBy: { enteredAt: 'asc' },
+        },
       },
     });
 

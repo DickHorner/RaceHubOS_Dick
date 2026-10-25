@@ -154,6 +154,7 @@ model Session {
   track          Track           @relation(fields: [trackId], references: [id])
   drivers        SessionDriver[]
   trackRecords   TrackRecord[]
+  pitStops       PitStop[]
 }
 
 model SessionDriver {
@@ -175,8 +176,25 @@ model SessionDriver {
   car             Car?     @relation(fields: [carId], references: [id])
   driver          Driver?  @relation(fields: [driverId], references: [id])
   session         Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  pitStops        PitStop[]
 
   @@unique([sessionId, controller])
+}
+
+model PitStop {
+  id              String        @id @default(cuid())
+  sessionId       String
+  sessionDriverId String?
+  controller      Int
+  enteredAt       DateTime
+  exitedAt        DateTime
+  durationMs      Int
+  source          String        // cu | simulator
+  session         Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionDriver   SessionDriver? @relation(fields: [sessionDriverId], references: [id], onDelete: SetNull)
+
+  @@index([sessionId, enteredAt])
+  @@index([sessionDriverId])
 }
 
 model Lap {

@@ -48,6 +48,10 @@
     "noParticipants": "Aucun participant",
     "lapHistory": "Historique des tours ({{count}})",
     "time": "Temps",
-    "deleteMessage": "Supprimer cette session ?"
+    "deleteMessage": "Supprimer cette session ?",
+    "pitHistory": "Arrêts aux stands ({{count}})",
+    "pitDriver": "Pilote",
+    "pitEntered": "Entrée (observée)",
+    "pitDuration": "Durée (env.)"
   }
 }
