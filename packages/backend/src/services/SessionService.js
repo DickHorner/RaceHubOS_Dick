@@ -574,18 +574,159 @@ export class SessionService extends EventEmitter {
     const durationMs = exitedAt.getTime() - enteredAt.getTime();
     if (!Number.isFinite(durationMs) || durationMs <= 0) return;
 
-    const pitStop = await this.prisma.pitStop.create({
-      data: {
-        sessionId: this.activeSessionId,
-        sessionDriverId: driver.id,
-        controller,
-        enteredAt,
-        exitedAt,
-        durationMs,
-        source,
-      },
+    const sessionId = this.activeSessionId;
+    return this.queueDamage(async () => {
+      if (this.activeSessionId !== sessionId || this.sessionStatus !== SessionStatus.ACTIVE) return;
+
+      const data = { sessionId, sessionDriverId: driver.id, controller, enteredAt, exitedAt, durationMs, source };
+      const repair = source === 'simulator' &&
+        driver.damageStatus === DamageStatus.ACTIVE &&
+        durationMs >= this.sessionConfig.damagePitSeconds * 1000 &&
+        enteredAt.getTime() >= new Date(driver.damageTriggeredAt).getTime() &&
+        this.raceClock(exitedAt.getTime()).elapsedTime < driver.damageDeadlineElapsedMs &&
+        this.raceClock().elapsedTime < driver.damageDeadlineElapsedMs;
+      let pitStop;
+      if (repair) {
+        pitStop = await this.prisma.$transaction(async (tx) => {
+          const pit = await tx.pitStop.create({ data });
+          await tx.sessionDriver.update({
+            where: { id: driver.id },
+            data: {
+              damageStatus: DamageStatus.REPAIRED,
+              damageRepairedAt: exitedAt,
+              damageRepairPitStopId: pit.id,
+              damageRepairSource: 'simulator',
+            },
+          });
+          return pit;
+        });
+        driver.damageStatus = DamageStatus.REPAIRED;
+        driver.damageRepairedAt = exitedAt;
+        driver.damageRepairPitStopId = pitStop.id;
+        driver.damageRepairSource = 'simulator';
+        this.emit('session:damage_changed', { sessionId, sessionDriverId: driver.id, controller, damageStatus: driver.damageStatus });
+        this.emitLeaderboard();
+      } else {
+        // Physical CU pit flags are observations, never automatic proof of a repair.
+        pitStop = await this.prisma.pitStop.create({ data });
+      }
+      this.emit('session:pit_stop', pitStop);
+      return pitStop;
     });
-    this.emit('session:pit_stop', pitStop);
+  }
+
+  // As with VSC writes, state-changing operations must not race a deadline.
+  queueDamage(action) {
+    const result = this.damageOperation.then(action);
+    this.damageOperation = result.catch(() => {});
+    return result;
+  }
+
+  raceClock(now = Date.now()) {
+    const pauses = this.sessionConfig?.pauses || [];
+    let totalPauseDuration = 0;
+    let currentPauseDuration = null;
+    for (const pause of pauses) {
+      const duration = Math.max(0, Math.min(pause.end ?? now, now) - pause.start);
+      totalPauseDuration += duration;
+      if (pause.end === null && now >= pause.start) currentPauseDuration = duration;
+    }
+    const startedAt = this.sessionConfig?.startedAt;
+    const elapsedTime = startedAt
+      ? Math.max(0, now - new Date(startedAt).getTime() - totalPauseDuration)
+      : 0;
+    return { pauses, totalPauseDuration, currentPauseDuration, elapsedTime };
+  }
+
+  async triggerDamage(driver, lapTime) {
+    const threshold = this.sessionConfig?.damageLapThresholdMs;
+    if (this.currentPhase !== SessionType.RACE || this.sessionStatus !== SessionStatus.ACTIVE ||
+        !this.sessionConfig?.startedAt || threshold == null || lapTime <= threshold ||
+        (driver.damageStatus && driver.damageStatus !== DamageStatus.NONE)) return;
+
+    const sessionId = this.activeSessionId;
+    return this.queueDamage(async () => {
+      if (sessionId !== this.activeSessionId || this.sessionStatus !== SessionStatus.ACTIVE ||
+          (driver.damageStatus && driver.damageStatus !== DamageStatus.NONE)) return;
+
+      const now = Date.now();
+      const data = {
+        damageStatus: DamageStatus.ACTIVE,
+        damageLapNumber: driver.totalLaps,
+        damageTriggeredAt: new Date(now),
+        damageDeadlineElapsedMs: this.raceClock(now).elapsedTime + this.sessionConfig.damageRepairSeconds * 1000,
+      };
+      await this.prisma.sessionDriver.update({ where: { id: driver.id }, data });
+      Object.assign(driver, data);
+      this.emit('session:damage_changed', {
+        sessionId, sessionDriverId: driver.id, controller: driver.controller, ...data,
+      });
+    });
+  }
+
+  async expireDamage(force = false) {
+    if (!this.activeSessionId || this.currentPhase !== SessionType.RACE ||
+        (!force && ![SessionStatus.ACTIVE, SessionStatus.FINISHING].includes(this.sessionStatus))) return;
+
+    return this.queueDamage(async () => {
+      const elapsed = this.raceClock().elapsedTime;
+      let changed = false;
+      for (const driver of this.sessionDrivers) {
+        if (driver.damageStatus !== DamageStatus.ACTIVE ||
+            (!force && elapsed < driver.damageDeadlineElapsedMs)) continue;
+
+        await this.prisma.sessionDriver.update({
+          where: { id: driver.id },
+          data: { damageStatus: DamageStatus.DNF, isDNF: true },
+        });
+        driver.damageStatus = DamageStatus.DNF;
+        driver.isDNF = true;
+        changed = true;
+        this.emit('session:damage_changed', {
+          sessionId: this.activeSessionId, sessionDriverId: driver.id,
+          controller: driver.controller, damageStatus: DamageStatus.DNF,
+        });
+      }
+      if (changed) this.emitLeaderboard();
+    });
+  }
+
+  confirmDamageRepair(sessionId, sessionDriverId, pitStopId) {
+    return this.queueDamage(async () => {
+      if (sessionId !== this.activeSessionId || this.currentPhase !== SessionType.RACE ||
+          ![SessionStatus.ACTIVE, SessionStatus.PAUSED, SessionStatus.FINISHING].includes(this.sessionStatus)) {
+        throw Object.assign(new Error('Race is not available for repair confirmation'), { status: 409 });
+      }
+      const driver = this.sessionDrivers.find((row) => row.id === sessionDriverId);
+      if (driver?.damageStatus !== DamageStatus.ACTIVE) {
+        throw Object.assign(new Error('Driver has no repairable damage'), { status: 409 });
+      }
+      if (this.raceClock().elapsedTime >= driver.damageDeadlineElapsedMs) {
+        throw Object.assign(new Error('Repair deadline has passed'), { status: 409 });
+      }
+      const pitStop = await this.prisma.pitStop.findUnique({ where: { id: pitStopId } });
+      if (!pitStop || pitStop.sessionId !== sessionId || pitStop.sessionDriverId !== driver.id ||
+          pitStop.controller !== driver.controller || pitStop.source !== 'cu' ||
+          pitStop.durationMs < this.sessionConfig.damagePitSeconds * 1000 ||
+          new Date(pitStop.enteredAt).getTime() < new Date(driver.damageTriggeredAt).getTime() ||
+          this.raceClock(new Date(pitStop.exitedAt).getTime()).elapsedTime >= driver.damageDeadlineElapsedMs) {
+        throw Object.assign(new Error('No eligible observed pit interval for this repair'), { status: 409 });
+      }
+
+      const data = {
+        damageStatus: DamageStatus.REPAIRED,
+        damageRepairedAt: new Date(),
+        damageRepairPitStopId: pitStop.id,
+        damageRepairSource: 'director',
+      };
+      await this.prisma.sessionDriver.update({ where: { id: driver.id }, data });
+      Object.assign(driver, data);
+      this.emit('session:damage_changed', {
+        sessionId, sessionDriverId, controller: driver.controller, ...data,
+      });
+      this.emitLeaderboard();
+      return data;
+    });
   }
 
   getDriverByController(controller) {
@@ -724,26 +865,12 @@ export class SessionService extends EventEmitter {
 
       const now = Date.now();
 
-      // Calculate total pause duration from pauses array
-      const pauses = this.sessionConfig?.pauses || [];
-      let totalPauseDuration = 0;
-      let currentPauseDuration = null;
-
-      for (const p of pauses) {
-        if (p.end) {
-          totalPauseDuration += p.end - p.start;
-        } else {
-          // Open pause (currently paused)
-          currentPauseDuration = now - p.start;
-          totalPauseDuration += currentPauseDuration;
-        }
-      }
-
-      // Elapsed racing time = wall clock time - pause time
-      let elapsedTime = 0;
-      if (this.sessionConfig?.startedAt) {
-        const wallTime = now - new Date(this.sessionConfig.startedAt).getTime();
-        elapsedTime = wallTime - totalPauseDuration;
+      const { pauses, totalPauseDuration, currentPauseDuration, elapsedTime } = this.raceClock(now);
+      try {
+        await this.expireDamage();
+      } catch (error) {
+        console.error('[SessionService] Damage deadline update failed:', error);
+        this.emit('session:damage_error', { sessionId: this.activeSessionId, error: error.message });
       }
 
       let remainingTime = null;
