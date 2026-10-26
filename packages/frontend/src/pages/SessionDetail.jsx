@@ -53,7 +53,9 @@ export default function SessionDetail() {
       if (detail?.sessionId !== id) return
       fetch(`${API_URL}/api/sessions/${id}`)
         .then((response) => response.json())
-        .then((result) => { if (result.success) setSession(result.data) })
+        .then((result) => {
+          if (result.success) setSession(result.data)
+        })
         .catch((error) => console.error('Error refreshing penalties:', error))
     }
     window.addEventListener('session:penalties_changed', onPenaltyChange)
@@ -75,12 +77,14 @@ export default function SessionDetail() {
 
     // Sort
     const isRace = session.type === SessionType.RACE
-    const sorted = isRace ? rankedRaceDrivers : [...drivers].sort((a, b) => {
-      if (!a.bestLapTime && !b.bestLapTime) return 0
-      if (!a.bestLapTime) return 1
-      if (!b.bestLapTime) return -1
-      return a.bestLapTime - b.bestLapTime
-    })
+    const sorted = isRace
+      ? rankedRaceDrivers
+      : [...drivers].sort((a, b) => {
+          if (!a.bestLapTime && !b.bestLapTime) return 0
+          if (!a.bestLapTime) return 1
+          if (!b.bestLapTime) return -1
+          return a.bestLapTime - b.bestLapTime
+        })
 
     const leader = sorted[0]
 
@@ -239,13 +243,17 @@ export default function SessionDetail() {
           <Card>
             <CardContent className="p-0 overflow-hidden">
               <Podium
-                drivers={session.type === SessionType.RACE
-                  ? rankedRaceDrivers.filter((driver) => !driver.isDNF).map((driver) => ({
-                      ...driver,
-                      totalLaps: driver.classifiedLaps,
-                      totalTime: driver.classifiedTime,
-                    }))
-                  : session.drivers}
+                drivers={
+                  session.type === SessionType.RACE
+                    ? rankedRaceDrivers
+                        .filter((driver) => !driver.isDNF)
+                        .map((driver) => ({
+                          ...driver,
+                          totalLaps: driver.classifiedLaps,
+                          totalTime: driver.classifiedTime,
+                        }))
+                    : session.drivers
+                }
                 sessionType={session.type}
                 stats={{
                   duration: sessionDuration ? Math.floor(sessionDuration / 1000) : null,
@@ -343,9 +351,10 @@ export default function SessionDetail() {
                   <tbody className="divide-y divide-border">
                     {session.penalties.map((penalty) => {
                       const assignment = session.drivers?.find((driver) => driver.id === penalty.sessionDriverId)
-                      const value = penalty.kind === PenaltyKind.LAP
-                        ? t('profile.penaltyLaps', { count: penalty.amount })
-                        : t('profile.penaltyTime', { seconds: penalty.amount / 1000 })
+                      const value =
+                        penalty.kind === PenaltyKind.LAP
+                          ? t('profile.penaltyLaps', { count: penalty.amount })
+                          : t('profile.penaltyTime', { seconds: penalty.amount / 1000 })
                       return (
                         <tr key={penalty.id}>
                           <td className="px-4 py-2">{assignment?.driver?.name || `Ctrl ${penalty.controller + 1}`}</td>
@@ -353,11 +362,19 @@ export default function SessionDetail() {
                           <td className="px-4 py-2">{penalty.reason}</td>
                           <td className="px-4 py-2">
                             <Badge variant={penalty.status === PenaltyStatus.ACTIVE ? 'default' : 'secondary'}>
-                              {t(penalty.status === PenaltyStatus.ACTIVE ? 'profile.penaltyActive' : 'profile.penaltyRevoked')}
+                              {t(
+                                penalty.status === PenaltyStatus.ACTIVE
+                                  ? 'profile.penaltyActive'
+                                  : 'profile.penaltyRevoked'
+                              )}
                             </Badge>
-                            <div className="text-xs text-muted-foreground">{formatDate(penalty.issuedAt, i18n.language)}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {formatDate(penalty.issuedAt, i18n.language)}
+                            </div>
                             {penalty.revokedAt && (
-                              <div className="text-xs text-muted-foreground">{formatDate(penalty.revokedAt, i18n.language)}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {formatDate(penalty.revokedAt, i18n.language)}
+                              </div>
                             )}
                           </td>
                         </tr>
