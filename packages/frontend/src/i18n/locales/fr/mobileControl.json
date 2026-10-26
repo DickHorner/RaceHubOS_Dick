@@ -30,5 +30,22 @@
   "setupSecretHint": "Copiez et conservez cette clé en lieu sûr. Elle permet de déverrouiller la direction sur un téléphone. Le serveur l'enregistre dans packages/backend/.env ; elle ne sera plus affichée ici.",
   "copySecret": "Copier la clé",
   "setupSecretCopied": "Clé copiée",
-  "setupError": "Impossible de configurer la direction de course."
+  "setupError": "Impossible de configurer la direction de course.",
+  "vscTitle": "Voiture de sécurité virtuelle (VSC)",
+  "vscState": "État du VSC",
+  "vscCap": "Limite de vitesse (1–10)",
+  "vscDuration": "Durée en secondes (0 = manuelle)",
+  "vscRemaining": "Encore {{seconds}} s",
+  "vscWarning": "Limitation envoyée à la CU ; vérifier l'effet réel. Ce n'est pas un arrêt d'urgence.",
+  "vscStart": "Activer le VSC",
+  "vscEnd": "Terminer le VSC / retenter la restauration",
+  "vscError": "Commande VSC échouée",
+  "vscStatus": {
+    "inactive": "Inactif",
+    "activating": "Activation",
+    "active": "Limitation envoyée",
+    "restoring": "Rétablissement des vitesses",
+    "restore_failed": "Rétablissement échoué",
+    "disconnected": "CU déconnectée"
+  }
 }

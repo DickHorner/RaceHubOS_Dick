@@ -30,5 +30,22 @@
   "setupSecretHint": "Diesen Schlüssel jetzt kopieren und sicher aufbewahren. Er ist nötig, um die Rennleitung auf dem Smartphone zu entsperren. Auf dem Server liegt er in packages/backend/.env; hier wird er später nicht erneut angezeigt.",
   "copySecret": "Schlüssel kopieren",
   "setupSecretCopied": "Schlüssel kopiert",
-  "setupError": "Rennleitung konnte nicht eingerichtet werden."
+  "setupError": "Rennleitung konnte nicht eingerichtet werden.",
+  "vscTitle": "Virtuelles Safety-Car (VSC)",
+  "vscState": "VSC-Status",
+  "vscCap": "Tempolimit (Stufe 1–10)",
+  "vscDuration": "Dauer in Sekunden (0 = manuell)",
+  "vscRemaining": "Noch {{seconds}} s",
+  "vscWarning": "Die CU wird nur per Befehl begrenzt; physische Wirkung prüfen. VSC ersetzt keinen Not-Aus.",
+  "vscStart": "VSC aktivieren",
+  "vscEnd": "VSC beenden / Rückstellung erneut versuchen",
+  "vscError": "VSC-Befehl fehlgeschlagen",
+  "vscStatus": {
+    "inactive": "Aus",
+    "activating": "Wird aktiviert",
+    "active": "Begrenzung gesendet",
+    "restoring": "Geschwindigkeit wird zurückgestellt",
+    "restore_failed": "Rückstellung fehlgeschlagen",
+    "disconnected": "CU-Verbindung unterbrochen"
+  }
 }

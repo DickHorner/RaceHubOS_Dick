@@ -30,5 +30,22 @@
   "setupSecretHint": "Copy this key now and store it securely. You need it to unlock control on a phone. It is saved on the server in packages/backend/.env and will not be shown here again.",
   "copySecret": "Copy credential",
   "setupSecretCopied": "Credential copied",
-  "setupError": "Race control setup failed."
+  "setupError": "Race control setup failed.",
+  "vscTitle": "Virtual safety car (VSC)",
+  "vscState": "VSC status",
+  "vscCap": "Speed cap (level 1–10)",
+  "vscDuration": "Duration in seconds (0 = manual)",
+  "vscRemaining": "{{seconds}} s remaining",
+  "vscWarning": "The CU receives speed commands; verify physical behavior. Not an emergency stop.",
+  "vscStart": "Start VSC",
+  "vscEnd": "End VSC / retry restoration",
+  "vscError": "VSC command failed",
+  "vscStatus": {
+    "inactive": "Off",
+    "activating": "Applying",
+    "active": "Speed cap sent",
+    "restoring": "Restoring speeds",
+    "restore_failed": "Restoration failed",
+    "disconnected": "CU disconnected"
+  }
 }
