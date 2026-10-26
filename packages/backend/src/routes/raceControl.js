@@ -66,6 +66,9 @@ function trustedOrigin(origin, host) {
 // The new race-control routes enforce their own finer-grained credentials.
 export function remoteWriteGuard(req, res, next) {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method) || req.path.startsWith('/race-control/')) return next();
+  if (req.path === '/bluetooth/set-speed' && sessionService?.vsc) {
+    return res.status(409).json({ success: false, error: 'Direct car speed changes are blocked during VSC' });
+  }
   const local = isLoopback(req.socket.remoteAddress) && trustedOrigin(req.get('origin'), req.get('host'));
   if (local || isDirector(req)) return next();
   res.status(403).json({ success: false, error: 'Remote writes require race director authorization' });
@@ -226,6 +229,52 @@ router.post('/chaos', async (req, res) => {
   } catch (error) {
     console.error('[RaceControl] Chaos pause failed:', error);
     res.status(500).json({ success: false, error: 'Could not pause race' });
+  }
+});
+
+router.get('/vsc', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ success: true, data: sessionService.getVscState() });
+});
+
+router.post('/director/vsc/:action', requireDirector, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const { action } = req.params;
+  if (!['start', 'end'].includes(action)) {
+    return res.status(400).json({ success: false, error: 'Unknown VSC action' });
+  }
+  const { sessionId, cap, durationSeconds = 0 } = req.body || {};
+  if (typeof sessionId !== 'string' || !sessionId) {
+    return res.status(400).json({ success: false, error: 'Session is required' });
+  }
+  if (action === 'start' &&
+      (!Number.isInteger(cap) || cap < 1 || cap > 10 ||
+       !Number.isInteger(durationSeconds) || durationSeconds < 0 || durationSeconds > 3600 ||
+       (durationSeconds > 0 && durationSeconds < 5))) {
+    return res.status(400).json({ success: false, error: 'Invalid VSC cap/duration' });
+  }
+  try {
+    const result = await serialize(async () => {
+      const existing = sessionService.getVscState();
+      if (action === 'start') {
+        if (sessionService.activeSessionId !== sessionId) {
+          return { code: 409, error: 'Not the current session' };
+        }
+        const state = await sessionService.startVsc(cap, durationSeconds);
+        return { code: 200, state };
+      }
+      if (existing.status !== 'inactive' && existing.sessionId !== sessionId) {
+        return { code: 409, error: 'VSC belongs to another session' };
+      }
+      const state = await sessionService.endVsc();
+      return { code: 200, state };
+    });
+    if (result.error) return res.status(result.code).json({ success: false, error: result.error });
+    console.info(`[RaceControl] Director VSC ${action} for session=${sessionId}`);
+    res.json({ success: true, data: result.state });
+  } catch (error) {
+    console.error('[RaceControl] VSC command failed:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

@@ -200,6 +200,7 @@ describe('CU vehicle configuration', () => {
       const first = service.handleLap({ controller: 0, timestamp: 1000, lapTime: 0, sector: 1 });
       const duplicate = service.handleLap({ controller: 0, timestamp: 1000, lapTime: 0, sector: 1 });
 
+      await Promise.resolve();
       expect(device.setSpeed).toHaveBeenCalledTimes(1);
       finishSpeed();
       await Promise.all([first, duplicate]);

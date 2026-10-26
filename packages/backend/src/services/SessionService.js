@@ -33,6 +33,9 @@ export class SessionService extends EventEmitter {
     // Driver states
     this.sessionDrivers = [];
     this.firstCrossingProgrammed = new Set();
+    this.speedWrites = Promise.resolve();
+    this.vscOperation = Promise.resolve();
+    this.vsc = null;
     this.previousPositions = new Map(); // controller -> previous position
     this.displayedDeltas = new Map(); // controller -> delta to display
 
@@ -85,7 +88,7 @@ export class SessionService extends EventEmitter {
         this.firstCrossingProgrammed.add(controller);
         let field = 'speed';
         try {
-          await device.setSpeed(controller, toLevel(driver.car.maxSpeed));
+          await this.writeRaceSpeed(controller, toLevel(driver.car.maxSpeed));
           field = 'brake';
           await device.setBrake(controller, toLevel(driver.car.brakeForce));
         } catch (error) {
@@ -207,7 +210,7 @@ export class SessionService extends EventEmitter {
     if (!device?.setSpeed) return;
 
     try {
-      await device.setSpeed(driver.controller, 1);
+      await this.writeRaceSpeed(driver.controller, 1);
       driver._throttled = true;
     } catch (err) {
       console.warn('[SessionService] throttle failed:', err.message);
@@ -348,6 +351,7 @@ export class SessionService extends EventEmitter {
 
     // Apply vehicle profiles while the CU is stopped, before starting the lights.
     // A failed write must not leave the session active or start the race.
+    if (this.vsc) throw new Error('VSC speed restoration is unresolved; clear it before the next race');
     await this.syncService.reset();
     await this.loadSession(sessionId);
     await this.applyCarConfigs();
@@ -375,6 +379,13 @@ export class SessionService extends EventEmitter {
 
     // Stop the physical race before reporting a successful pause.
     await this.syncService.stopRace();
+    if (this.vsc) {
+      try {
+        await this.endVsc(true);
+      } catch (error) {
+        console.error('[SessionService] VSC restore after pause failed:', error.message);
+      }
+    }
 
     const now = Date.now();
     const pauses = [...(this.sessionConfig?.pauses || []), { start: now, end: null }];
@@ -401,6 +412,7 @@ export class SessionService extends EventEmitter {
     if (!this.activeSessionId || this.sessionStatus !== SessionStatus.PAUSED) return null;
 
     if (!this.syncService?.isConnected()) throw new Error('Control Unit disconnected');
+    if (this.vsc) await this.endVsc(true);
 
     // Start the CU lights before reporting the session as resumed.
     await this.syncService.prepareRace();
@@ -436,6 +448,14 @@ export class SessionService extends EventEmitter {
    */
   async resetForNewSession() {
     this.stopHeartbeat();
+    if (this.vsc) {
+      try {
+        await this.syncService?.stopRace();
+        await this.endVsc(true);
+      } catch (error) {
+        console.error('[SessionService] VSC cleanup failed; speed values may remain limited:', error.message);
+      }
+    }
 
     // Keep sessionDrivers for leaderboard queries until new session loads
     if (this.previousPositions) {
@@ -963,7 +983,7 @@ export class SessionService extends EventEmitter {
 
       let field = 'speed';
       try {
-        await device.setSpeed(addr, speed);
+        await this.writeRaceSpeed(addr, speed);
         field = 'brake';
         await device.setBrake(addr, brake);
         field = 'fuel';
@@ -977,6 +997,162 @@ export class SessionService extends EventEmitter {
       );
     }
   }
+  // Serialize speed writes from first-crossing tuning, finish throttling and VSC.
+  // Hardware acknowledgments are not a physical decoder readback.
+  writeRaceSpeed(controller, level) {
+    const device = this.syncService?.getDevice();
+    const write = this.speedWrites.then(async () => {
+      if (!device?.setSpeed || this.syncService?.isConnected?.() === false) {
+        throw new Error('CU speed programming unavailable');
+      }
+      if (this.vsc && this.syncService?.getDevice() !== this.vsc.device) {
+        throw new Error('CU device changed while VSC settings are pending');
+      }
+      const cap = this.vsc && ['activating', 'active'].includes(this.vsc.status) ? this.vsc.cap : null;
+      await device.setSpeed(controller, cap === null ? level : Math.min(level, cap));
+    });
+    this.speedWrites = write.catch(() => {});
+    return write;
+  }
+
+  getVscState() {
+    if (!this.vsc) return { status: 'inactive', active: false };
+    const { sessionId, cap, expiresAt, status: vscStatus, error } = this.vsc;
+    return { sessionId, cap, expiresAt, status: vscStatus, active: vscStatus === 'active', error };
+  }
+
+  // A single queue serializes manual activation, timer expiry and cleanup.
+  queueVsc(action) {
+    const result = this.vscOperation.then(action);
+    this.vscOperation = result.catch(() => {});
+    return result;
+  }
+
+  startVsc(cap, durationSeconds = 0) {
+    return this.queueVsc(async () => {
+      if (!Number.isInteger(cap) || cap < 1 || cap > 10 ||
+          !Number.isInteger(durationSeconds) || durationSeconds < 0 || durationSeconds > 3600 ||
+          (durationSeconds > 0 && durationSeconds < 5)) {
+        throw new Error('VSC speed must be 1-10; duration must be 0 or 5-3600 seconds');
+      }
+      if (this.vsc) {
+        if (this.getVscState().active) return this.getVscState();
+        throw new Error('VSC restoration is pending');
+      }
+      if (!this.activeSessionId || this.sessionStatus !== SessionStatus.ACTIVE ||
+          this.currentPhase !== SessionType.RACE || this.syncService?.getCuStatus?.()?.start !== 0) {
+        throw new Error('VSC requires a race running on the CU (not the start lights)');
+      }
+      const device = this.syncService?.getDevice();
+      if (!this.syncService?.isConnected() || !device?.setSpeed) {
+        throw new Error('Connected CU does not support VSC speed programming');
+      }
+
+      const drivers = this.sessionDrivers.filter((driver) =>
+        driver.carId && driver.car && !this.hasDriverFinished(driver) && !driver._throttled
+      );
+      const baseline = new Map(drivers.map((driver) => [driver.controller, {
+        id: driver.id,
+        carId: driver.carId,
+        speed: toLevel(driver.car.maxSpeed),
+      }]));
+      if (baseline.size !== drivers.length || baseline.size === 0) {
+        throw new Error('No distinct assigned cars available for VSC');
+      }
+
+      const vsc = {
+        sessionId: this.activeSessionId,
+        device, baseline, cap, status: 'activating',
+        expiresAt: durationSeconds ? new Date(Date.now() + durationSeconds * 1000).toISOString() : null,
+        error: null, timer: null,
+      };
+      this.vsc = vsc;
+      try {
+        for (const [controller, config] of baseline) {
+          await this.writeRaceSpeed(controller, config.speed);
+        }
+        if (!this.syncService?.isConnected() || vsc.status === 'disconnected') {
+          throw new Error('CU disconnected during VSC activation');
+        }
+      } catch (error) {
+        try {
+          await this.restoreVscBaseline(true);
+          this.vsc = null;
+        } catch (restoreError) {
+          vsc.status = 'restore_failed';
+          vsc.error = restoreError.message;
+          this.emit('session:vsc_error', this.getVscState());
+        }
+        throw new Error(`VSC could not limit all cars: ${error.message}`, { cause: error });
+      }
+
+      vsc.status = 'active';
+      if (durationSeconds) {
+        vsc.timer = setTimeout(() => {
+          this.endVsc(false, vsc).catch((error) =>
+            console.error('[SessionService] Timed VSC restoration failed:', error.message)
+          );
+        }, durationSeconds * 1000);
+      }
+      this.emit('session:vsc', this.getVscState());
+      return this.getVscState();
+    });
+  }
+
+  async restoreVscBaseline(cleanup) {
+    const vsc = this.vsc;
+    if (!vsc) return;
+    vsc.status = 'restoring';
+    if (!this.syncService?.isConnected() || this.syncService.getDevice() !== vsc.device) {
+      throw new Error('Cannot restore VSC speeds while the original CU is disconnected');
+    }
+
+    const failures = [];
+    for (const [controller, config] of vsc.baseline) {
+      const driver = this.getDriverByController(controller);
+      if (driver?.id !== config.id || driver.carId !== config.carId) {
+        failures.push(`controller ${controller + 1}: vehicle assignment changed`);
+        continue;
+      }
+      const speed = !cleanup && (driver._throttled || this.hasDriverFinished(driver)) ? 1 : config.speed;
+      try {
+        await this.writeRaceSpeed(controller, speed);
+      } catch (error) {
+        failures.push(`controller ${controller + 1}: ${error.message}`);
+      }
+    }
+    if (failures.length) throw new Error(failures.join('; '));
+  }
+
+  endVsc(cleanup = false, expected = null) {
+    return this.queueVsc(async () => {
+      const vsc = this.vsc;
+      if (!vsc || (expected && vsc !== expected)) return this.getVscState();
+      if (vsc.timer) clearTimeout(vsc.timer);
+      vsc.timer = null;
+      try {
+        await this.restoreVscBaseline(cleanup);
+        this.vsc = null;
+        this.emit('session:vsc', this.getVscState());
+        return this.getVscState();
+      } catch (error) {
+        vsc.status = 'restore_failed';
+        vsc.error = error.message;
+        this.emit('session:vsc_error', this.getVscState());
+        throw error;
+      }
+    });
+  }
+
+  onVscDisconnect() {
+    if (!this.vsc) return;
+    if (this.vsc.timer) clearTimeout(this.vsc.timer);
+    this.vsc.timer = null;
+    this.vsc.status = 'disconnected';
+    this.vsc.error = 'CU disconnected before VSC speeds could be verified or restored';
+    this.emit('session:vsc_error', this.getVscState());
+  }
+
   async calculateDNF() {
     const maxLaps = this.sessionConfig?.maxLaps;
 
