@@ -152,7 +152,7 @@ describe('championship car rotation', () => {
   });
 
   it('rejects duplicate draft controller or car assignments without erasing the previous grid', async () => {
-    const { championship, carIds, oldRace, drivers } = await fixture(2, 2);
+    const { carIds, oldRace, drivers } = await fixture(2, 2);
     const first = await request(app).put(`/api/sessions/${oldRace.id}/drivers`).send({
       drivers: [{ controller: 0, driverId: drivers[0].id, carId: carIds[0] }],
     });
