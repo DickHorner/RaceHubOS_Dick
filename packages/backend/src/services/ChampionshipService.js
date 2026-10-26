@@ -605,7 +605,6 @@ export class ChampionshipService {
             },
           },
         },
-        pointsSystem: true,
       },
     });
 
@@ -615,7 +614,7 @@ export class ChampionshipService {
     const driverPoints = new Map();
 
     for (const session of championship.sessions) {
-      const points = this.getPointsForSession(session, championship.pointsSystem);
+      const points = this.getPointsForSession(session);
 
       for (const sd of session.drivers) {
         if (!sd.driverId) continue;
@@ -642,7 +641,7 @@ export class ChampionshipService {
 
     // Sort by total points descending
     const standings = Array.from(driverPoints.values())
-      .sort((a, b) => b.totalPoints - a.totalPoints)
+      .sort((a, b) => b.totalPoints - a.totalPoints || a.driverId.localeCompare(b.driverId))
       .map((entry, index) => ({
         position: index + 1,
         ...entry,
@@ -654,20 +653,10 @@ export class ChampionshipService {
   /**
    * Get points distribution for a session type
    */
-  getPointsForSession(session, pointsSystem) {
-    if (!pointsSystem) {
-      // Default F1-style points
-      return { 1: 25, 2: 18, 3: 15, 4: 12, 5: 10, 6: 8, 7: 6, 8: 4, 9: 2, 10: 1 };
-    }
-
-    // Use points system based on session type
-    if (session.type === SessionType.RACE) {
-      return pointsSystem.racePoints || {};
-    } else if (session.type === SessionType.QUALIF) {
-      return pointsSystem.qualifPoints || {};
-    }
-
-    return {};
+  getPointsForSession(session) {
+    if (session.type !== SessionType.RACE) return {};
+    // Default F1-style race points; custom point systems are not persisted.
+    return { 1: 25, 2: 18, 3: 15, 4: 12, 5: 10, 6: 8, 7: 6, 8: 4, 9: 2, 10: 1 };
   }
 
   /**
