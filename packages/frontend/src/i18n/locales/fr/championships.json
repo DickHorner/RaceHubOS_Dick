@@ -73,6 +73,20 @@
       "finishing": "Fin de session...",
       "finished": "Terminé",
       "draft": "Brouillon"
+    },
+    "weather": {
+      "title": "Météo de course",
+      "off": "Désactivée",
+      "on": "Activée",
+      "initial": "Conditions initiales",
+      "dry": "Sec",
+      "rain": "Pluie",
+      "chance": "Risque de pluie (%)",
+      "interval": "Intervalle (s)",
+      "seed": "Graine",
+      "advanceDuringPause": "La météo continue pendant les pauses",
+      "displayOnly": "Affichage déterministe uniquement ; aucun effet sur la CU ni les véhicules.",
+      "invalid": "Météo invalide : probabilité 0–100 %, intervalle 10–3600 s, graine 0–2147483647."
     }
   },
   "bracket": {

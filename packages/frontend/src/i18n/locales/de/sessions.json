@@ -40,7 +40,17 @@
     "update": "Aktualisieren",
     "loadError": "Daten konnten nicht geladen werden",
     "trackRequired": "Eine Strecke ist erforderlich",
-    "driverRequired": "Mindestens eine vollständige Zuordnung aus Fahrer, Auto und Regler ist erforderlich"
+    "driverRequired": "Mindestens eine vollständige Zuordnung aus Fahrer, Auto und Regler ist erforderlich",
+    "weatherEnabled": "Virtuelles Rennwetter (nur Anzeige)",
+    "weatherInitial": "Wetter beim Start",
+    "weatherDry": "Trocken",
+    "weatherRain": "Regen",
+    "weatherChance": "Regenwahrscheinlichkeit pro Intervall (%)",
+    "weatherInterval": "Wechselintervall (Sekunden)",
+    "weatherSeed": "Seed (Wiederholbarkeit)",
+    "weatherAdvanceDuringPause": "Wetter läuft während Rennpausen weiter",
+    "weatherHint": "Der gleiche Seed und dieselbe Wetterzeit ergeben denselben Verlauf. Keine Auswirkungen auf die CU oder das Fahrzeugtempo.",
+    "weatherInvalid": "Ungültiges Wetter: Wahrscheinlichkeit 0–100 %, Intervall 10–3600 s, Seed 0–2147483647."
   },
   "profile": {
     "notFound": "Sitzung nicht gefunden",
@@ -52,6 +62,7 @@
     "pitHistory": "Boxenstopps ({{count}})",
     "pitDriver": "Fahrer",
     "pitEntered": "Einfahrt (erkannt)",
-    "pitDuration": "Dauer (ca.)"
+    "pitDuration": "Dauer (ca.)",
+    "weatherFinal": "Rennwetter: {{condition}}"
   }
 }

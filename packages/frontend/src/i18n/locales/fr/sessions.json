@@ -40,7 +40,17 @@
     "update": "Mettre à jour",
     "loadError": "Erreur lors du chargement des données",
     "trackRequired": "Le circuit est requis",
-    "driverRequired": "Au moins un pilote complet est requis (pilote, voiture, contrôleur)"
+    "driverRequired": "Au moins un pilote complet est requis (pilote, voiture, contrôleur)",
+    "weatherEnabled": "Météo virtuelle de course (affichage seul)",
+    "weatherInitial": "Conditions au départ",
+    "weatherDry": "Sec",
+    "weatherRain": "Pluie",
+    "weatherChance": "Probabilité de pluie par intervalle (%)",
+    "weatherInterval": "Intervalle de changement (secondes)",
+    "weatherSeed": "Graine (reproductible)",
+    "weatherAdvanceDuringPause": "La météo continue pendant les pauses",
+    "weatherHint": "La même graine et le même temps météo reproduisent les mêmes conditions. Aucun effet sur la CU ou la vitesse.",
+    "weatherInvalid": "Météo invalide : probabilité 0–100 %, intervalle 10–3600 s, graine 0–2147483647."
   },
   "profile": {
     "notFound": "Session introuvable",
@@ -52,6 +62,7 @@
     "pitHistory": "Arrêts aux stands ({{count}})",
     "pitDriver": "Pilote",
     "pitEntered": "Entrée (observée)",
-    "pitDuration": "Durée (env.)"
+    "pitDuration": "Durée (env.)",
+    "weatherFinal": "Météo de course : {{condition}}"
   }
 }

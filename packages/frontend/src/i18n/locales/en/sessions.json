@@ -40,7 +40,17 @@
     "update": "Update",
     "loadError": "Error loading data",
     "trackRequired": "Track is required",
-    "driverRequired": "At least one complete driver is required (driver, car, controller)"
+    "driverRequired": "At least one complete driver is required (driver, car, controller)",
+    "weatherEnabled": "Virtual race weather (display only)",
+    "weatherInitial": "Initial conditions",
+    "weatherDry": "Dry",
+    "weatherRain": "Rain",
+    "weatherChance": "Rain probability per interval (%)",
+    "weatherInterval": "Transition interval (seconds)",
+    "weatherSeed": "Seed (reproducible)",
+    "weatherAdvanceDuringPause": "Weather continues during race pauses",
+    "weatherHint": "The same seed and weather time produce the same weather. CU settings and vehicle speed are unaffected.",
+    "weatherInvalid": "Invalid weather: chance 0–100%, interval 10–3600 s, seed 0–2147483647."
   },
   "profile": {
     "notFound": "Session not found",
@@ -52,6 +62,7 @@
     "pitHistory": "Pit stops ({{count}})",
     "pitDriver": "Driver",
     "pitEntered": "Entry (observed)",
-    "pitDuration": "Duration (approx.)"
+    "pitDuration": "Duration (approx.)",
+    "weatherFinal": "Race weather: {{condition}}"
   }
 }
