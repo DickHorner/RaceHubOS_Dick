@@ -1,6 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, PanelRightClose, PanelRightOpen, FlaskConical, Clock, Flag } from 'lucide-react'
+import {
+  Plus,
+  PanelRightClose,
+  PanelRightOpen,
+  FlaskConical,
+  Clock,
+  Flag,
+  SlidersHorizontal,
+  ArrowUp,
+  ArrowDown,
+} from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useDevice } from '../context/DeviceContext'
 import { useSession } from '../context/SessionContext'
@@ -28,6 +38,7 @@ const TAB_STYLE = {
 }
 
 const emptyStandings = () => Object.fromEntries(STANDARD_SESSION_TYPES.map((type) => [type, []]))
+const WIDGETS = ['leaderboard', 'standings']
 
 export default function FreeSessionPage() {
   const { t } = useTranslation('freeSession')
@@ -50,8 +61,7 @@ export default function FreeSessionPage() {
   const [tracks, setTracks] = useState([])
   const [loading, setLoading] = useState(false)
   const {
-    showStandings,
-    toggleStandings,
+    showStandings: legacyShowStandings,
     freeTrack: selectedTrackId,
     setFreeTrack: setSelectedTrackId,
     freeType: selectedType,
@@ -61,6 +71,70 @@ export default function FreeSessionPage() {
   const [practiceSortBy, setPracticeSortBy] = useState('laps')
   const [drivers, setDrivers] = useState([])
   const [cars, setCars] = useState([])
+  const [widgetOrder, setWidgetOrder] = useState(() => (legacyShowStandings ? [...WIDGETS] : ['leaderboard']))
+  const [layoutLoaded, setLayoutLoaded] = useState(false)
+  const [layoutBusy, setLayoutBusy] = useState(false)
+  const [layoutOpen, setLayoutOpen] = useState(false)
+  const [layoutError, setLayoutError] = useState(null)
+
+  useEffect(() => {
+    let active = true
+    fetch(`${API_URL}/api/preferences/freeSession:widgets`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.json()
+      })
+      .then((result) => {
+        if (!result.success) throw new Error(result.error)
+        if (active && Array.isArray(result.data)) {
+          setWidgetOrder([...new Set(result.data.filter((id) => WIDGETS.includes(id)))])
+        }
+      })
+      .catch(() => {
+        if (active) setLayoutError('loadError')
+      })
+      .finally(() => {
+        if (active) setLayoutLoaded(true)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  async function saveWidgetOrder(next) {
+    if (!layoutLoaded || layoutBusy) return
+    setLayoutBusy(true)
+    setLayoutError(null)
+    try {
+      const res = await fetch(`${API_URL}/api/preferences/freeSession:widgets`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: next }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const result = await res.json()
+      if (!result.success) throw new Error(result.error)
+      setWidgetOrder(next)
+    } catch {
+      setLayoutError('saveError')
+    } finally {
+      setLayoutBusy(false)
+    }
+  }
+
+  function toggleWidget(id) {
+    saveWidgetOrder(widgetOrder.includes(id) ? widgetOrder.filter((widget) => widget !== id) : [...widgetOrder, id])
+  }
+
+  function moveWidget(id, delta) {
+    const index = widgetOrder.indexOf(id)
+    if (index < 0 || index + delta < 0 || index + delta >= widgetOrder.length) return
+    const next = [...widgetOrder]
+    const moving = next[index]
+    next[index] = next[index + delta]
+    next[index + delta] = moving
+    saveWidgetOrder(next)
+  }
 
   useEffect(() => {
     const fetchData = async () => {
@@ -303,6 +377,38 @@ export default function FreeSessionPage() {
   const isSessionActive =
     session && ['active', 'paused', 'finishing'].includes(session.status) && session.type === selectedType
 
+  // Preserve the existing race-time standings auto-hide without changing the saved preference.
+  const visibleWidgets = isSessionActive ? widgetOrder.filter((id) => id !== 'standings') : widgetOrder
+  const showSecondWidget = visibleWidgets.length > 1
+  const widgetViews = {
+    leaderboard:
+      session &&
+      (maxLapsCompleted === 0 && session.status !== SessionStatus.FINISHED ? (
+        <StartingGrid entries={entries} />
+      ) : (
+        <SessionLeaderboard
+          entries={entries}
+          expanded={!showSecondWidget}
+          sortBy={
+            session.type === SessionType.PRACTICE
+              ? practiceSortBy
+              : session.type === SessionType.QUALIF
+                ? 'bestLap'
+                : 'race'
+          }
+          onSortChange={session.type === SessionType.PRACTICE ? setPracticeSortBy : undefined}
+          sessionType={session.type}
+          sessionStatus={session.status}
+        />
+      )),
+    standings: (
+      <>
+        <h2 className="text-sm font-semibold mb-3">{t('standings.title')}</h2>
+        <StandingsTabs standings={standings} drivers={drivers} activeTab={selectedType} onTabChange={setSelectedType} />
+      </>
+    ),
+  }
+
   return (
     <div className="h-full flex flex-col">
       {/* Top bar */}
@@ -352,21 +458,99 @@ export default function FreeSessionPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={toggleStandings}
-            title={showStandings ? t('topBar.hideStandings') : t('topBar.showStandings')}
-            className={showStandings ? 'bg-primary/10 text-primary' : ''}
+            onClick={() => toggleWidget('standings')}
+            disabled={!layoutLoaded || layoutBusy || isSessionActive}
+            title={
+              isSessionActive
+                ? t('layout.autoHidden')
+                : widgetOrder.includes('standings')
+                  ? t('topBar.hideStandings')
+                  : t('topBar.showStandings')
+            }
+            className={widgetOrder.includes('standings') && !isSessionActive ? 'bg-primary/10 text-primary' : ''}
           >
-            {showStandings ? <PanelRightClose className="size-4" /> : <PanelRightOpen className="size-4" />}
+            {widgetOrder.includes('standings') && !isSessionActive ? (
+              <PanelRightClose className="size-4" />
+            ) : (
+              <PanelRightOpen className="size-4" />
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setLayoutOpen((open) => !open)}
+            aria-expanded={layoutOpen}
+            aria-controls="free-widget-layout"
+          >
+            <SlidersHorizontal className="size-4" />
+            {t('layout.configure')}
           </Button>
         </div>
       </div>
 
+      {layoutOpen && (
+        <fieldset
+          id="free-widget-layout"
+          className="border-b px-4 py-3 space-y-2"
+          disabled={!layoutLoaded || layoutBusy}
+        >
+          <legend className="text-sm font-semibold">{t('layout.title')}</legend>
+          <p className="text-xs text-muted-foreground">{t('layout.pinned')}</p>
+          <div className="flex flex-wrap gap-3">
+            {[...widgetOrder, ...WIDGETS.filter((id) => !widgetOrder.includes(id))].map((id) => {
+              const index = widgetOrder.indexOf(id)
+              const disabled = id === 'standings' && isSessionActive
+              return (
+                <div key={id} className="flex items-center gap-2 rounded-lg border px-2 py-1">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={index !== -1}
+                      disabled={disabled}
+                      onChange={() => toggleWidget(id)}
+                    />
+                    {t(`layout.widgets.${id}`)}
+                  </label>
+                  {index !== -1 && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        disabled={disabled || index === 0}
+                        aria-label={t('layout.moveUp', { widget: t(`layout.widgets.${id}`) })}
+                        onClick={() => moveWidget(id, -1)}
+                      >
+                        <ArrowUp className="size-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        disabled={disabled || index === widgetOrder.length - 1}
+                        aria-label={t('layout.moveDown', { widget: t(`layout.widgets.${id}`) })}
+                        onClick={() => moveWidget(id, 1)}
+                      >
+                        <ArrowDown className="size-3.5" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          {isSessionActive && <p className="text-xs text-muted-foreground">{t('layout.autoHidden')}</p>}
+        </fieldset>
+      )}
+      {layoutError && (
+        <p role="alert" className="px-4 py-2 text-sm text-destructive">
+          {t(`layout.${layoutError}`)}
+        </p>
+      )}
+
       {/* Main content */}
       <div className="@container flex-1 overflow-auto p-4">
         <Soundboard />
-        <div className={`grid grid-cols-1 ${showStandings ? '@4xl:grid-cols-3' : ''} gap-4`}>
-          {/* Left: Session + Leaderboard */}
-          <div className={`${showStandings ? '@4xl:col-span-2' : ''} space-y-4`}>
+        <div className={`grid grid-cols-1 ${showSecondWidget ? '@4xl:grid-cols-3' : ''} gap-4`}>
+          <div className={`${showSecondWidget ? '@4xl:col-span-2' : ''} space-y-4`}>
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="animate-spin rounded-full size-10 border-b-2 border-primary" />
@@ -387,41 +571,14 @@ export default function FreeSessionPage() {
                   onDelete={handleDeleteSession}
                   onReset={handleResetSession}
                 />
-
-                {session &&
-                  (maxLapsCompleted === 0 && session.status !== SessionStatus.FINISHED ? (
-                    <StartingGrid entries={entries} />
-                  ) : (
-                    <SessionLeaderboard
-                      entries={entries}
-                      expanded={!showStandings}
-                      sortBy={
-                        session.type === SessionType.PRACTICE
-                          ? practiceSortBy
-                          : session.type === SessionType.QUALIF
-                            ? 'bestLap'
-                            : 'race'
-                      }
-                      onSortChange={session.type === SessionType.PRACTICE ? setPracticeSortBy : undefined}
-                      sessionType={session.type}
-                      sessionStatus={session.status}
-                    />
-                  ))}
+                {visibleWidgets[0] && (
+                  <section data-testid={`free-widget-${visibleWidgets[0]}`}>{widgetViews[visibleWidgets[0]]}</section>
+                )}
               </>
             )}
           </div>
-
-          {/* Right: Standings */}
-          {showStandings && (
-            <div>
-              <h2 className="text-sm font-semibold mb-3">{t('standings.title')}</h2>
-              <StandingsTabs
-                standings={standings}
-                drivers={drivers}
-                activeTab={selectedType}
-                onTabChange={setSelectedType}
-              />
-            </div>
+          {visibleWidgets[1] && (
+            <section data-testid={`free-widget-${visibleWidgets[1]}`}>{widgetViews[visibleWidgets[1]]}</section>
           )}
         </div>
       </div>
