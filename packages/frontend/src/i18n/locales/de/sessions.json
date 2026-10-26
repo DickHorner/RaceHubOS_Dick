@@ -10,7 +10,7 @@
     "copyLink": "Link kopieren",
     "print": "Drucken",
     "manualCopy": "Link manuell kopieren.",
-    "lanHint": "Nur im lokalen Netzwerk erreichbar, solange RaceHubOS läuft. Für andere Geräte statt localhost die LAN-Adresse des Rechners verwenden.",
+    "lanHint": "Für das lokale Netzwerk gedacht, nicht automatisch im Internet veröffentlicht. Auf anderen Geräten statt localhost die LAN-Adresse des Rechners verwenden.",
     "loading": "Ergebnisse werden geladen …",
     "onlyFinished": "Eine Druckansicht ist nur für abgeschlossene Rennen und Qualifyings verfügbar.",
     "track": "Strecke",
