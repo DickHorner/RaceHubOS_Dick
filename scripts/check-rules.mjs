@@ -367,7 +367,7 @@ rule('tests-use-a-test-database', 'Les tests tournent sur une base de test', () 
   return offenders;
 });
 
-rule('code-is-formatted', 'Le code est formaté (Prettier)', () => {
+rule('code-is-formatted', 'Le code est formaté (Prettier)', async () => {
   // CI ne bloque que les fichiers modifies ; la dette existante reste visible localement.
   const base = ci ? git(['merge-base', 'HEAD', 'origin/main']) : null;
   if (ci && !base) return ['impossible de trouver origin/main pour vérifier les fichiers modifiés'];
@@ -387,7 +387,30 @@ rule('code-is-formatted', 'Le code est formaté (Prettier)', () => {
   } catch (err) {
     const files = (err.stdout ?? '').split('\n').filter(Boolean);
     if (!files.length) throw err;
-    return files.map((f) => `${f} — lancer "npm run format"`);
+    if (!ci) return files.map((f) => `${f} — lancer "npm run format"`);
+
+    // Do not make pre-existing unformatted files block an unrelated CI change.
+    const { check, resolveConfig } = await import('prettier');
+    const offenders = [];
+    for (const file of files) {
+      let previous = null;
+      try {
+        previous = execFileSync('git', ['show', `${base}:${file}`], {
+          cwd: rootDir,
+          encoding: 'utf-8',
+          stdio: 'pipe',
+        });
+      } catch {
+        // New files must be formatted.
+      }
+      if (previous !== null) {
+        const filePath = path.join(rootDir, file);
+        const config = await resolveConfig(filePath);
+        if (!(await check(previous, { ...config, filepath: filePath }))) continue;
+      }
+      offenders.push(`${file} — lancer "npm run format"`);
+    }
+    return offenders;
   }
 });
 
