@@ -1036,7 +1036,7 @@ export class SessionService extends EventEmitter {
         throw new Error('VSC speed must be 1-10; duration must be 0 or 5-3600 seconds');
       }
       if (this.vsc) {
-        if (this.vsc.status === 'active') return this.getVscState();
+        if (this.getVscState().active) return this.getVscState();
         throw new Error('VSC restoration is pending');
       }
       if (!this.activeSessionId || this.sessionStatus !== SessionStatus.ACTIVE ||
