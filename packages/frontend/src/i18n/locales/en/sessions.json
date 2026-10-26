@@ -10,7 +10,7 @@
     "copyLink": "Copy link",
     "print": "Print",
     "manualCopy": "Copy the link manually.",
-    "lanHint": "Accessible only on the local network while RaceHubOS is running. On another device, use the computer's LAN address instead of localhost.",
+    "lanHint": "Intended for the local network, not automatically published on the internet. On another device, use the computer's LAN address instead of localhost.",
     "loading": "Loading results…",
     "onlyFinished": "Printable results are available only for finished races and qualifying sessions.",
     "track": "Track",
