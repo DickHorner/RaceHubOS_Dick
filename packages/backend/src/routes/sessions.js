@@ -419,31 +419,54 @@ router.put('/:id/drivers', async (req, res) => {
       return res.status(400).json({ success: false, error: 'drivers must be an array' });
     }
 
-    const session = await prisma().session.findUnique({ where: { id } });
+    const session = await prisma().session.findUnique({ where: { id, deletedAt: null } });
     if (!session) {
       return res.status(404).json({ success: false, error: 'Session not found' });
     }
+    if (session.status !== SessionStatus.DRAFT) {
+      return res.status(409).json({ success: false, error: 'Only draft session assignments can be changed' });
+    }
 
-    await prisma().sessionDriver.deleteMany({ where: { sessionId: id } });
+    // Accept partial configs for drafts, never duplicate a driver or physical car in a heat.
+    const validDrivers = drivers.filter((d) => d && (d.driverId || d.carId));
+    const unique = (values) =>
+      new Set(values.filter((value) => value != null)).size === values.filter((value) => value != null).length;
+    if (
+      validDrivers.length > 6 ||
+      validDrivers.some(
+        (d) =>
+          !Number.isInteger(Number(d.controller)) ||
+          Number(d.controller) < 0 ||
+          Number(d.controller) > 5 ||
+          d.controller === null ||
+          d.controller === undefined
+      ) ||
+      !unique(validDrivers.map((d) => Number(d.controller))) ||
+      (session.type !== SessionType.BALANCING && !unique(validDrivers.map((d) => d.driverId))) ||
+      !unique(validDrivers.map((d) => d.carId))
+    ) {
+      return res.status(400).json({ success: false, error: 'Duplicate or invalid controller, driver or car' });
+    }
 
     // Balancing measures cars, not drivers: every entry belongs to the reference
     // driver, whoever actually holds the controller. Without one configured, the
     // chosen drivers are kept and the UI warns about it.
     const reference = session.type === SessionType.BALANCING ? await getReferenceDriver(prisma()) : null;
 
-    // Accept partial configs (driver OR car) for draft sessions
-    const validDrivers = drivers.filter((d) => (d.driverId || d.carId) && d.controller !== undefined);
-    if (validDrivers.length > 0) {
-      await prisma().sessionDriver.createMany({
-        data: validDrivers.map((d, idx) => ({
-          sessionId: id,
-          driverId: reference?.id ?? d.driverId ?? null,
-          carId: d.carId || null,
-          controller: Number(d.controller),
-          gridPos: d.gridPos ?? idx + 1,
-        })),
-      });
-    }
+    await prisma().$transaction(async (tx) => {
+      await tx.sessionDriver.deleteMany({ where: { sessionId: id } });
+      if (validDrivers.length > 0) {
+        await tx.sessionDriver.createMany({
+          data: validDrivers.map((d, idx) => ({
+            sessionId: id,
+            driverId: reference?.id ?? d.driverId ?? null,
+            carId: d.carId || null,
+            controller: Number(d.controller),
+            gridPos: d.gridPos ?? idx + 1,
+          })),
+        });
+      }
+    });
 
     const updatedSession = await prisma().session.findUnique({
       where: { id },

@@ -46,6 +46,7 @@ export default function ChampionshipConfigModal({
   sessions = [],
   tracks = [],
   drivers: allDrivers = [],
+  cars = [],
   open,
   onClose,
   onSave,
@@ -87,6 +88,52 @@ export default function ChampionshipConfigModal({
     if (!current || tracks.some((tr) => tr.id === current.id)) return tracks
     return [...tracks, { ...current, isDeleted: true }]
   }, [tracks, championship?.track])
+
+  const [rotationCars, setRotationCars] = useState([])
+  const [rotationPlan, setRotationPlan] = useState(null)
+  const [rotationSaving, setRotationSaving] = useState(false)
+
+  const previewRotation = async () => {
+    setError('')
+    setRotationPlan(null)
+    try {
+      const res = await fetch(`${API_URL}/api/championships/${championship.id}/car-rotation/preview`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ carIds: rotationCars }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || t('configModal.genericError'))
+      setRotationPlan(data.data)
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  const applyRotation = async () => {
+    if (!rotationPlan) return
+    setRotationSaving(true)
+    setError('')
+    try {
+      const res = await fetch(`${API_URL}/api/championships/${championship.id}/car-rotation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          carIds: rotationCars,
+          participantIds: rotationPlan.participantIds,
+          sessionNames: sessionNames(),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || t('configModal.genericError'))
+      setRotationPlan(null)
+      onSessionsChange?.()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setRotationSaving(false)
+    }
+  }
 
   const [addingDriver, setAddingDriver] = useState('')
 
@@ -406,6 +453,60 @@ export default function ChampionshipConfigModal({
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {isAuto && !isFinished && (
+            <div className="border border-border rounded-lg p-3 space-y-3">
+              <div className="text-sm font-semibold">{t('configModal.rotationTitle')}</div>
+              <p className="text-xs text-muted-foreground">{t('configModal.rotationHint')}</p>
+              <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                {cars.map((car) => (
+                  <label key={car.id} className="flex items-center gap-2 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={rotationCars.includes(car.id)}
+                      onChange={(e) => {
+                        setRotationCars((ids) =>
+                          e.target.checked ? [...ids, car.id] : ids.filter((id) => id !== car.id)
+                        )
+                        setRotationPlan(null)
+                      }}
+                    />
+                    <span>
+                      {car.brand} {car.model}
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={previewRotation}
+                disabled={rotationCars.length < 2 || rotationCars.length > 6}
+              >
+                {t('configModal.rotationPreview')}
+              </Button>
+              {rotationPlan && (
+                <div className="space-y-2">
+                  <div className="text-xs">{t('configModal.rotationCount', { count: rotationPlan.races.length })}</div>
+                  <div className="max-h-52 overflow-y-auto space-y-2 text-xs">
+                    {rotationPlan.races.map((race) => (
+                      <div key={race.round} className="border border-border rounded p-2">
+                        <div className="font-semibold">R{race.round}</div>
+                        {race.drivers.map((entry) => (
+                          <div key={entry.controller}>
+                            {entry.controller + 1}. {entry.driver.name} — {entry.car.brand} {entry.car.model}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                  <Button size="sm" onClick={applyRotation} disabled={rotationSaving}>
+                    {t('configModal.rotationApply')}
+                  </Button>
+                </div>
+              )}
             </div>
           )}
 

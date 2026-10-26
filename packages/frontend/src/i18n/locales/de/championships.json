@@ -190,7 +190,12 @@
       "lapsUnit": "Runden"
     },
     "deletedTrack": "{{name}} (gelöscht)",
-    "finishedLocked": "Meisterschaft beendet: Die Konfiguration ist gesperrt. Öffne sie wieder, um Änderungen vorzunehmen."
+    "finishedLocked": "Meisterschaft beendet: Die Konfiguration ist gesperrt. Öffne sie wieder, um Änderungen vorzunehmen.",
+    "rotationTitle": "Fahrzeugrotation",
+    "rotationHint": "Wähle 2 bis 6 Fahrzeuge. Vorschau vor Anwendung; bestehende gestartete Rennen bleiben geschützt.",
+    "rotationPreview": "Rotationsplan anzeigen",
+    "rotationCount": "{{count}} Rennen geplant",
+    "rotationApply": "Rotation anwenden"
   },
   "sessionConfigModal": {
     "title": "Sitzung konfigurieren",

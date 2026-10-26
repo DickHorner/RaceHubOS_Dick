@@ -736,6 +736,31 @@ router.get('/:id/bracket', async (req, res) => {
   }
 });
 
+// POST /api/championships/:id/car-rotation/preview
+router.post('/:id/car-rotation/preview', async (req, res) => {
+  try {
+    const plan = await championshipService.previewCarRotation(req.params.id, req.body.carIds);
+    res.json({ success: true, data: plan });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
+// POST /api/championships/:id/car-rotation
+router.post('/:id/car-rotation', async (req, res) => {
+  try {
+    const result = await championshipService.applyCarRotation(
+      req.params.id,
+      req.body.carIds,
+      req.body.participantIds,
+      req.body.sessionNames
+    );
+    res.json({ success: true, data: result });
+  } catch (error) {
+    res.status(400).json({ success: false, error: error.message });
+  }
+});
+
 // PUT /api/championships/:id/participants - Update participants
 router.put('/:id/participants', async (req, res) => {
   try {
