@@ -7,7 +7,7 @@ import { analyzeSessionLaps } from '../../lib/lapAnalysis'
 
 export default function SessionLapChart({ session }) {
   const { t, i18n } = useTranslation('sessions')
-  const { series, chartData, leaders, incomplete } = useMemo(() => analyzeSessionLaps(session), [session])
+  const { series, chartData, leaders, incomplete, sampled } = useMemo(() => analyzeSessionLaps(session), [session])
   const [hidden, setHidden] = useState([])
   const selected = series.filter((item) => !hidden.includes(item.controller))
   const selectedKeys = new Set(selected.map((item) => item.key))
@@ -109,7 +109,7 @@ export default function SessionLapChart({ session }) {
           <p className="text-sm text-muted-foreground">{t('lapAnalysis.noSeries')}</p>
         )}
 
-        {chartData.length < new Set((session.laps || []).map((lap) => lap.lapNumber)).size && (
+        {sampled && (
           <p className="text-xs text-muted-foreground">{t('lapAnalysis.sampled')}</p>
         )}
 
