@@ -1517,6 +1517,9 @@ export class SessionService extends EventEmitter {
   writeRaceSpeed(controller, level) {
     const device = this.syncService?.getDevice();
     const write = this.speedWrites.then(async () => {
+      if (!Number.isInteger(controller) || controller < 0 || controller > 5) {
+        throw new Error(`Controller ${controller} is not a human CU slot`);
+      }
       if (!device?.setSpeed || this.syncService?.isConnected?.() === false) {
         throw new Error('CU speed programming unavailable');
       }
