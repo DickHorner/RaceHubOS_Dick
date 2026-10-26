@@ -102,11 +102,12 @@ test('localhost sharing asks for manual copying instead of promising a LAN-acces
   await page.route('**/api/sessions/race-print', (route) => route.fulfill({ json: { success: true, data: race } }))
   await page.goto('/results/race-print')
 
-  const dialog = page.waitForEvent('dialog')
+  const dialog = page.waitForEvent('dialog').then(async (prompt) => {
+    expect(prompt.type()).toBe('prompt')
+    expect(prompt.defaultValue()).toContain('/results/race-print')
+    expect(prompt.message()).toContain('réseau local')
+    await prompt.dismiss()
+  })
   await page.getByRole('button', { name: 'Copier le lien' }).click()
-  const prompt = await dialog
-  expect(prompt.type()).toBe('prompt')
-  expect(prompt.defaultValue()).toContain('/results/race-print')
-  expect(prompt.message()).toContain('réseau local')
-  await prompt.dismiss()
+  await dialog
 })
