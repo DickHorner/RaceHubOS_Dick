@@ -3,14 +3,23 @@ import { test, expect } from '@playwright/test'
 test.use({ locale: 'en-US' })
 
 const participant = {
-  id: 'entry-1', driverId: 'driver-1', controller: 0,
-  position: 1, totalLaps: 3, bestLapTime: 12300, lastLapTime: 12400,
+  id: 'entry-1',
+  driverId: 'driver-1',
+  controller: 0,
+  position: 1,
+  totalLaps: 3,
+  bestLapTime: 12300,
+  lastLapTime: 12400,
   driver: { id: 'driver-1', name: 'Driver One', number: 11, color: '#ef4444' },
   car: { brand: 'BMW', model: 'M4' },
 }
 const race = {
-  id: 'race-1', name: 'Chaos Race', type: 'race', status: 'active',
-  track: { name: 'Circuit E2E' }, drivers: [participant],
+  id: 'race-1',
+  name: 'Chaos Race',
+  type: 'race',
+  status: 'active',
+  track: { name: 'Circuit E2E' },
+  drivers: [participant],
 }
 
 async function mockRace(page, session) {
@@ -38,8 +47,10 @@ test('director credential and individual driver links stay out of the URL', asyn
   await mockRace(page, race)
   await page.route('**/api/race-control/status', (route) => route.fulfill({ json: { success: true, enabled: true } }))
   await page.route('**/api/race-control/director/check', (route) =>
-    route.fulfill({ json: { success: route.request().headers().authorization === 'Bearer test-secret' },
-      status: route.request().headers().authorization === 'Bearer test-secret' ? 200 : 403 })
+    route.fulfill({
+      json: { success: route.request().headers().authorization === 'Bearer test-secret' },
+      status: route.request().headers().authorization === 'Bearer test-secret' ? 200 : 403,
+    })
   )
   await page.route('**/api/race-control/driver-link', (route) =>
     route.fulfill({ json: { success: true, token: 'signed-driver-token', expiresAt: Date.now() + 10000 } })
@@ -50,7 +61,9 @@ test('director credential and individual driver links stay out of the URL', asyn
   await page.getByRole('button', { name: /unlock/i }).click()
   await expect(page.getByRole('status').filter({ hasText: /authorized/i })).toBeVisible()
   await page.getByRole('button', { name: /Driver One/i }).click()
-  await expect(page.locator('#issued-driver-link')).toHaveValue(/\/display\/driver\/driver-1#chaos=signed-driver-token$/)
+  await expect(page.locator('#issued-driver-link')).toHaveValue(
+    /\/display\/driver\/driver-1#chaos=signed-driver-token$/
+  )
   expect(page.url()).not.toContain('test-secret')
   expect(page.url()).not.toContain('signed-driver-token')
 })

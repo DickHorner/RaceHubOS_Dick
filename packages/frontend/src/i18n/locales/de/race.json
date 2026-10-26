@@ -37,7 +37,12 @@
     "last": "Letzte Runde",
     "gap": "Abstand",
     "total": "Gesamt",
-    "virtualFuel": "Virtueller Tank: {{percent}} %"
+    "tyreDry": "Trockenreifen",
+    "tyreWet": "Regenreifen",
+    "tyrePending": "Wechsel vorgemerkt",
+    "simulatedBest": "Sim.",
+    "simulatedTotal": "Simulierte Gesamtzeit",
+    "virtualFuel": "Virtueller Tank: {{percent}} %",
     "penaltyLaps": "−{{count}} Runden Strafe",
     "penaltyTime": "+{{seconds}} s Strafe"
   },

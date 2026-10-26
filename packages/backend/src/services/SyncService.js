@@ -183,7 +183,13 @@ export class SyncService {
 
       let state = this.pitStates.get(controller);
       if (!state) {
-        this.pitStates.set(controller, { confirmed: inPit, candidate: inPit, count: 1, changedAt: now, enteredAt: null });
+        this.pitStates.set(controller, {
+          confirmed: inPit,
+          candidate: inPit,
+          count: 1,
+          changedAt: now,
+          enteredAt: null,
+        });
         continue;
       }
 
@@ -204,12 +210,14 @@ export class SyncService {
         const enteredAt = new Date(state.enteredAt);
         const exitedAt = new Date(state.changedAt);
         state.enteredAt = null;
-        Promise.resolve(session.recordPitStop({
-          controller,
-          enteredAt,
-          exitedAt,
-          source: status.source === 'simulator' ? 'simulator' : 'cu',
-        })).catch((error) => {
+        Promise.resolve(
+          session.recordPitStop({
+            controller,
+            enteredAt,
+            exitedAt,
+            source: status.source === 'simulator' ? 'simulator' : 'cu',
+          })
+        ).catch((error) => {
           console.error('[SyncService] Pit stop persistence failed:', error);
           this.io?.emit('session:pit_error', { sessionId, controller, error: error.message });
         });

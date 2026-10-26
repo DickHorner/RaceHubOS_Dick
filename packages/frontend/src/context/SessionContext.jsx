@@ -106,6 +106,9 @@ export function SessionProvider({ children }) {
     socket.on('session:vsc_error', (data) => {
       window.dispatchEvent(new CustomEvent('session:vsc_error', { detail: data }))
     })
+    socket.on('session:tyre_changed', (data) => {
+      window.dispatchEvent(new CustomEvent('session:tyre_changed', { detail: data }))
+    })
 
     // Session finishing
     socket.on('session:finishing', (data) => {
@@ -122,7 +125,12 @@ export function SessionProvider({ children }) {
       setSession((prev) => {
         if (prev?.id !== data.sessionId) return prev
         const drivers = data.leaderboard?.length > 0 ? data.leaderboard : prev.drivers
-        return { ...prev, status: SessionStatus.FINISHED, drivers }
+        return {
+          ...prev,
+          status: SessionStatus.FINISHED,
+          drivers,
+          weatherCondition: data.weatherCondition ?? prev.weatherCondition,
+        }
       })
       setFinishingSession(null)
       // Keep final leaderboard
@@ -204,6 +212,12 @@ export function SessionProvider({ children }) {
       setTotalPauseDuration(data.totalPauseDuration ? Math.floor(data.totalPauseDuration / 1000) : 0)
       setPauses(data.pauses || [])
       if (data.startedAt) setStartedAt(data.startedAt)
+      if (data.weatherCondition !== undefined) {
+        setSession((prev) => {
+          if (!prev || prev.id !== data.sessionId || prev.weatherCondition === data.weatherCondition) return prev
+          return { ...prev, weatherCondition: data.weatherCondition }
+        })
+      }
       // Update leaderboard from heartbeat (ensures data sync on refresh)
       if (data.leaderboard && Array.isArray(data.leaderboard)) {
         setLeaderboard(data.leaderboard)
@@ -530,13 +544,17 @@ export function SessionProvider({ children }) {
   // Falls back to session drivers if leaderboard is empty
   const entries = useMemo(() => {
     // A finished scoreboard must keep its own saved results, not a newer session's live leaderboard.
-    const source = session?.status === SessionStatus.FINISHED && session.drivers?.length > 0
-      ? session.drivers
-      : leaderboard.length > 0 ? leaderboard : session?.drivers || []
+    const source =
+      session?.status === SessionStatus.FINISHED && session.drivers?.length > 0
+        ? session.drivers
+        : leaderboard.length > 0
+          ? leaderboard
+          : session?.drivers || []
     if (source.length === 0) return []
-    const rankedSource = session?.status === SessionStatus.FINISHED && session?.type === SessionType.RACE
-      ? rankRaceDrivers(source, session.penalties || [])
-      : source
+    const rankedSource =
+      session?.status === SessionStatus.FINISHED && session?.type === SessionType.RACE
+        ? rankRaceDrivers(source, session.penalties || [])
+        : source
 
     // Find fastest lap
     const allBestLaps = source.map((p) => p.bestLapTime).filter((t) => t && t > 0)
@@ -549,12 +567,19 @@ export function SessionProvider({ children }) {
         driver: p.driver,
         car: p.car,
         gridPos: p.gridPos ?? null,
+        tyreType: p.tyreType,
+        pendingTyreType: p.pendingTyreType,
+        simulatedTotalTime: p.simulatedTotalTime,
+        simulatedBestLapTime: p.simulatedBestLapTime,
         virtualFuelUnits: p.virtualFuelUnits ?? null,
         stats: {
           laps: p.classifiedLaps ?? p.totalLaps ?? 0,
           bestLap: p.bestLapTime || null,
           lastLap: p.lastLapTime || null,
           totalTime: p.classifiedTime ?? p.totalTime ?? 0,
+          rankTime: p.classifiedSimulatedTime,
+          simulatedTotalTime: p.simulatedTotalTime,
+          simulatedBestLapTime: p.simulatedBestLapTime,
           gap: p.gap ?? null,
         },
         penaltyLaps: p.penaltyLaps || 0,

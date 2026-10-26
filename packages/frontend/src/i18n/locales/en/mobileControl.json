@@ -48,6 +48,12 @@
     "restore_failed": "Restoration failed",
     "disconnected": "CU disconnected"
   },
+  "tyreConfirmTitle": "Pit-lane tyre changes",
+  "tyreConfirmWarning": "CU pit signals are not hardware-verified. Confirm only after personally observing a real pit stop. This changes virtual tyres only.",
+  "tyreDry": "Dry",
+  "tyreWet": "Wet",
+  "tyreConfirm": "Confirm change",
+  "tyreConfirmError": "Could not confirm tyre change.",
   "penaltiesTitle": "Manual race penalties",
   "penaltyDriver": "Driver",
   "penaltyKind": "Penalty type",

@@ -73,6 +73,22 @@
       "finishing": "Sitzung wird beendet …",
       "finished": "Beendet",
       "draft": "Entwurf"
+    },
+    "weather": {
+      "title": "Rennwetter",
+      "off": "Aus",
+      "on": "Ein",
+      "initial": "Startwetter",
+      "dry": "Trocken",
+      "rain": "Regen",
+      "chance": "Regenchance (%)",
+      "interval": "Wechselintervall (s)",
+      "seed": "Seed",
+      "advanceDuringPause": "Wetter läuft während Rennpausen weiter",
+      "displayOnly": "Deterministische Anzeige; keine Änderungen an der CU oder am Fahrverhalten.",
+      "invalid": "Ungültiges Wetter: Regenchance 0–100 %, Intervall 10–3600 s, Seed 0–2147483647.",
+      "tyreMismatchPercent": "Zeitmalus bei falscher Bereifung (%)",
+      "tyreHint": "Nur simulierte Rundenzeiten, keine CU-Geschwindigkeitsänderung. 0 % deaktiviert den Effekt."
     }
   },
   "bracket": {

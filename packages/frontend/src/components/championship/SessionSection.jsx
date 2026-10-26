@@ -31,7 +31,7 @@ const SESSION_TYPE_ICONS = {
 }
 
 import { CONTROLLER_COLORS } from '../../lib/colors'
-import { SessionStatus, SessionType, sessionTypeAbbrKey } from '@racehubos/shared'
+import { SessionStatus, SessionType, WeatherCondition, sessionTypeAbbrKey } from '@racehubos/shared'
 
 export default function SessionSection({
   session,
@@ -53,6 +53,7 @@ export default function SessionSection({
   const { t } = useTranslation('championships')
   const { cuStatus, socketConnected, connected: deviceConnected } = useDevice()
   const {
+    session: liveSession,
     elapsed: elapsedTime,
     maxLapsCompleted,
     gracePeriodRemaining,
@@ -65,6 +66,7 @@ export default function SessionSection({
 
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState('')
+  const [weatherError, setWeatherError] = useState('')
   const [copiedDriverId, setCopiedDriverId] = useState(null)
   const [editingName, setEditingName] = useState(false)
   const [inlineName, setInlineName] = useState('')
@@ -119,6 +121,16 @@ export default function SessionSection({
     if (e.key === 'Escape') {
       setInlineName(session?.name || '')
       setEditingName(false)
+    }
+  }
+
+  async function saveWeather(changes) {
+    setWeatherError('')
+    try {
+      const result = await onSaveConfig(changes)
+      if (result?.success === false) setWeatherError(result.error || t('sessionSection.weather.invalid'))
+    } catch (error) {
+      setWeatherError(error.message)
     }
   }
 
@@ -407,6 +419,16 @@ export default function SessionSection({
           >
             {statusConfig.label}
           </span>
+          {session.type === SessionType.RACE && session.weatherSeed != null && (
+            <span
+              role="status"
+              className="rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-semibold text-blue-600 dark:text-blue-400"
+            >
+              {t(
+                `sessionSection.weather.${(liveSession?.id === session.id ? liveSession.weatherCondition : session.weatherCondition) || session.weatherInitial}`
+              )}
+            </span>
+          )}
         </div>
       </div>
 
@@ -414,20 +436,26 @@ export default function SessionSection({
         <div className="px-4 py-3 border-b border-border space-y-2">
           <p className="text-xs font-medium text-muted-foreground">{t('driverDisplay:linksTitle')}</p>
           <div className="flex flex-wrap items-center gap-2">
-            {sessionDrivers.filter((sd) => sd.driverId).map((sd) => (
-              <Button
-                key={sd.id}
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => copyDriverLink(sd.driverId)}
-                title={t('driverDisplay:copyLink', { name: sd.driver?.name || `Ctrl ${sd.controller + 1}` })}
-              >
-                <Copy className="size-3.5" />
-                {sd.driver?.name || `Ctrl ${sd.controller + 1}`}
-              </Button>
-            ))}
-            {copiedDriverId && <span role="status" className="text-xs text-green-600">{t('driverDisplay:linkCopied')}</span>}
+            {sessionDrivers
+              .filter((sd) => sd.driverId)
+              .map((sd) => (
+                <Button
+                  key={sd.id}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => copyDriverLink(sd.driverId)}
+                  title={t('driverDisplay:copyLink', { name: sd.driver?.name || `Ctrl ${sd.controller + 1}` })}
+                >
+                  <Copy className="size-3.5" />
+                  {sd.driver?.name || `Ctrl ${sd.controller + 1}`}
+                </Button>
+              ))}
+            {copiedDriverId && (
+              <span role="status" className="text-xs text-green-600">
+                {t('driverDisplay:linkCopied')}
+              </span>
+            )}
           </div>
           {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
             <p className="text-xs text-muted-foreground">{t('driverDisplay:lanHint')}</p>
@@ -436,7 +464,12 @@ export default function SessionSection({
       )}
 
       <div className="px-4 py-2 border-b border-border">
-        <a href="/display/control" target="_blank" rel="noopener noreferrer" className="text-sm text-primary underline underline-offset-2">
+        <a
+          href="/display/control"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-primary underline underline-offset-2"
+        >
           {t('mobileControl:title')}
         </a>
       </div>
@@ -551,6 +584,114 @@ export default function SessionSection({
                   )
                   .join(' · ')}
               </p>
+            </div>
+          )}
+          {session.type === SessionType.RACE && (
+            <div className="rounded-md border border-border p-3 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold text-muted-foreground">{t('sessionSection.weather.title')}</p>
+                <Select
+                  value={session.weatherSeed == null ? 'off' : 'on'}
+                  onValueChange={(value) =>
+                    saveWeather({
+                      weatherSeed: value === 'on' ? 1 : null,
+                      ...(value === 'off' ? { tyreMismatchPercent: 0 } : {}),
+                    })
+                  }
+                >
+                  <SelectTrigger className="w-40 h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="off">{t('sessionSection.weather.off')}</SelectItem>
+                    <SelectItem value="on">{t('sessionSection.weather.on')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {session.weatherSeed != null && (
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    {t('sessionSection.weather.initial')}
+                    <Select
+                      value={session.weatherInitial}
+                      onValueChange={(value) => saveWeather({ weatherInitial: value })}
+                    >
+                      <SelectTrigger className="mt-1 h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={WeatherCondition.DRY}>{t('sessionSection.weather.dry')}</SelectItem>
+                        <SelectItem value={WeatherCondition.RAIN}>{t('sessionSection.weather.rain')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </label>
+                  {[
+                    ['weatherRainChance', 'chance', 0, 100],
+                    ['weatherIntervalSeconds', 'interval', 10, 3600],
+                    ['weatherSeed', 'seed', 0, 2147483647],
+                  ].map(([key, label, min, max]) => (
+                    <label key={key} className="text-xs font-medium text-muted-foreground">
+                      {t(`sessionSection.weather.${label}`)}
+                      <Input
+                        key={`${session.id}-${key}-${session[key]}`}
+                        type="number"
+                        min={min}
+                        max={max}
+                        step="1"
+                        defaultValue={session[key]}
+                        onBlur={(event) => {
+                          const value = Number(event.target.value)
+                          if (!Number.isInteger(value) || value < min || value > max) {
+                            setWeatherError(t('sessionSection.weather.invalid'))
+                            return
+                          }
+                          if (value !== session[key]) saveWeather({ [key]: value })
+                        }}
+                        className="mt-1 h-8 text-xs"
+                      />
+                    </label>
+                  ))}
+                </div>
+              )}
+              {session.weatherSeed != null && (
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={session.weatherAdvanceDuringPause}
+                    onChange={(event) => saveWeather({ weatherAdvanceDuringPause: event.target.checked })}
+                  />
+                  {t('sessionSection.weather.advanceDuringPause')}
+                </label>
+              )}
+              {session.weatherSeed != null && (
+                <label className="block text-xs text-muted-foreground">
+                  {t('sessionSection.weather.tyreMismatchPercent')}
+                  <Input
+                    type="number"
+                    min="0"
+                    max="30"
+                    step="1"
+                    key={`${session.id}-tyres-${session.tyreMismatchPercent}`}
+                    defaultValue={session.tyreMismatchPercent ?? 0}
+                    onBlur={(event) => {
+                      const value = Number(event.target.value)
+                      if (!Number.isInteger(value) || value < 0 || value > 30) {
+                        setWeatherError(t('sessionSection.weather.invalid'))
+                        return
+                      }
+                      if (value !== session.tyreMismatchPercent) saveWeather({ tyreMismatchPercent: value })
+                    }}
+                    className="mt-1 h-8 text-xs"
+                  />
+                </label>
+              )}
+              <p className="text-xs text-muted-foreground">{t('sessionSection.weather.tyreHint')}</p>
+              <p className="text-xs text-muted-foreground">{t('sessionSection.weather.displayOnly')}</p>
+              {weatherError && (
+                <p role="alert" className="text-xs text-destructive">
+                  {weatherError}
+                </p>
+              )}
             </div>
           )}
           {session.type !== SessionType.PRACTICE && (
@@ -846,7 +987,9 @@ export default function SessionSection({
             </>
           )}
           {startError && (
-            <span role="alert" className="text-sm text-red-600 dark:text-red-400">{startError}</span>
+            <span role="alert" className="text-sm text-red-600 dark:text-red-400">
+              {startError}
+            </span>
           )}
           {isLights && (
             <Button onClick={onTriggerCuStart} className="bg-green-500 hover:bg-green-600 animate-pulse">

@@ -21,6 +21,8 @@ export function withRacePenalties(driver, penalties = []) {
     penaltyTimeMs,
     classifiedLaps: Math.max(0, (driver.totalLaps || 0) - penaltyLaps),
     classifiedTime: (driver.totalTime || 0) + penaltyTimeMs,
+    // Simulated tyre time (when enabled) is the same-lap tie-breaker; measured totalTime is unchanged.
+    classifiedSimulatedTime: (driver.simulatedTotalTime ?? driver.totalTime ?? 0) + penaltyTimeMs,
   };
 }
 
@@ -30,8 +32,8 @@ export function compareRaceClassification(a, b) {
   const lapsA = a.classifiedLaps ?? a.totalLaps ?? 0;
   const lapsB = b.classifiedLaps ?? b.totalLaps ?? 0;
   if (lapsA !== lapsB) return lapsB - lapsA;
-  const timeA = a.classifiedTime ?? a.totalTime ?? 0;
-  const timeB = b.classifiedTime ?? b.totalTime ?? 0;
+  const timeA = a.classifiedSimulatedTime ?? a.classifiedTime ?? a.totalTime ?? 0;
+  const timeB = b.classifiedSimulatedTime ?? b.classifiedTime ?? b.totalTime ?? 0;
   if (timeA !== timeB) return timeA - timeB;
   return (a.controller ?? 0) - (b.controller ?? 0);
 }
