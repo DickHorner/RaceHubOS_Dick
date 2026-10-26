@@ -36,7 +36,8 @@
     "best": "Best",
     "last": "Last",
     "gap": "Gap",
-    "total": "Total"
+    "total": "Total",
+    "virtualFuel": "Virtual fuel: {{percent}}%"
   },
   "resultsModal": {
     "title": "Results",

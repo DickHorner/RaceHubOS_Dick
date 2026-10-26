@@ -40,7 +40,11 @@
     "update": "Mettre à jour",
     "loadError": "Erreur lors du chargement des données",
     "trackRequired": "Le circuit est requis",
-    "driverRequired": "Au moins un pilote complet est requis (pilote, voiture, contrôleur)"
+    "driverRequired": "Au moins un pilote complet est requis (pilote, voiture, contrôleur)",
+    "virtualFuel": "Carburant virtuel (indépendant de la CU)",
+    "virtualFuelRate": "Consommation (% par minute de course)",
+    "virtualFuelInvalid": "La consommation virtuelle doit être comprise entre 1 et 100 % par minute.",
+    "virtualFuelHint": "Calcul logiciel : durée du tour mesurée × taux / 60 secondes. Chaque voiture commence à 100 %. Seuls les arrêts aux stands confirmés du simulateur ravitaillent automatiquement. Les données CU restent inchangées."
   },
   "profile": {
     "notFound": "Session introuvable",

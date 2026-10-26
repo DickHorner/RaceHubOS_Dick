@@ -36,7 +36,8 @@
     "best": "Bestzeit",
     "last": "Letzte Runde",
     "gap": "Abstand",
-    "total": "Gesamt"
+    "total": "Gesamt",
+    "virtualFuel": "Virtueller Tank: {{percent}} %"
   },
   "resultsModal": {
     "title": "Ergebnisse",
