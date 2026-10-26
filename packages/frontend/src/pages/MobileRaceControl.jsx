@@ -3,14 +3,14 @@ import { useTranslation } from 'react-i18next'
 import { useDevice } from '../context/DeviceContext'
 import { useSession } from '../context/SessionContext'
 import { Button } from '@/components/ui/button'
-import { SessionStatus, SessionType, PenaltyKind, PenaltyStatus, TyreType } from '@racehubos/shared'
+import { SessionStatus, SessionType, PenaltyKind, PenaltyStatus, TyreType, DamageStatus } from '@racehubos/shared'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
 export default function MobileRaceControl() {
   const { t } = useTranslation('mobileControl')
   const { connected, socketConnected } = useDevice()
-  const { session, fetchSession, clearSession } = useSession()
+  const { session, elapsed, fetchSession, clearSession } = useSession()
   const [configured, setConfigured] = useState(null)
   const [setupAvailable, setSetupAvailable] = useState(false)
   const [generatedSecret, setGeneratedSecret] = useState('')
@@ -97,6 +97,8 @@ export default function MobileRaceControl() {
     window.addEventListener('session:finished', refresh)
     window.addEventListener('session:vsc', refresh)
     window.addEventListener('session:vsc_error', refresh)
+    window.addEventListener('session:damage_changed', refresh)
+    window.addEventListener('session:pit_stop', refresh)
     window.addEventListener('session:tyre_changed', refresh)
     window.addEventListener('session:penalties_changed', refresh)
     document.addEventListener('visibilitychange', onVisible)
@@ -106,6 +108,8 @@ export default function MobileRaceControl() {
       window.removeEventListener('session:finished', refresh)
       window.removeEventListener('session:vsc', refresh)
       window.removeEventListener('session:vsc_error', refresh)
+      window.removeEventListener('session:damage_changed', refresh)
+      window.removeEventListener('session:pit_stop', refresh)
       window.removeEventListener('session:tyre_changed', refresh)
       window.removeEventListener('session:penalties_changed', refresh)
       document.removeEventListener('visibilitychange', onVisible)
@@ -263,6 +267,26 @@ export default function MobileRaceControl() {
       setError(cause.message)
     } finally {
       penaltyPending.current = false
+      setBusy(false)
+    }
+  }
+
+  async function confirmRepair(sessionDriverId, pitStopId) {
+    if (!session?.id || !directorKey || busy || !window.confirm(t('damageVerifyConfirm'))) return
+    setError('')
+    setBusy(true)
+    try {
+      const response = await fetch(`${API_URL}/api/race-control/director/damage/repair`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${directorKey}` },
+        body: JSON.stringify({ sessionId: session.id, sessionDriverId, pitStopId }),
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error(result.error || t('damageConfirmError'))
+      await refresh()
+    } catch (cause) {
+      setError(cause.message)
+    } finally {
       setBusy(false)
     }
   }
@@ -665,6 +689,62 @@ export default function MobileRaceControl() {
                 )}
               </section>
             )}
+            {session?.id === selectedId &&
+              session.type === SessionType.RACE &&
+              assigned.some((row) => row.damageStatus === DamageStatus.ACTIVE) && (
+                <section className="rounded-xl border border-amber-500/40 bg-card p-5 space-y-3">
+                  <h2 className="font-bold">{t('damageRepairTitle')}</h2>
+                  <p className="text-xs text-muted-foreground">{t('damageRepairWarning')}</p>
+                  {assigned
+                    .filter((row) => row.damageStatus === DamageStatus.ACTIVE)
+                    .map((row) => {
+                      const eligible = (session.pitStops || []).filter(
+                        (stop) =>
+                          stop.sessionDriverId === row.id &&
+                          stop.source === 'cu' &&
+                          stop.durationMs >= session.damagePitSeconds * 1000 &&
+                          new Date(stop.enteredAt).getTime() >= new Date(row.damageTriggeredAt).getTime()
+                      )
+                      return (
+                        <div key={row.id} className="border-t border-border pt-3 space-y-2">
+                          <p className="font-semibold">
+                            {row.driver?.name || `${t('controller')} ${row.controller + 1}`}
+                            {' · '}
+                            {t('damageRemaining', {
+                              seconds: Math.max(0, Math.ceil(row.damageDeadlineElapsedMs / 1000 - elapsed)),
+                            })}
+                          </p>
+                          {eligible.length === 0 ? (
+                            <p className="text-xs text-amber-600">{t('damageNoPit')}</p>
+                          ) : (
+                            eligible.slice(-3).map((stop) => (
+                              <div key={stop.id} className="flex items-center justify-between gap-3">
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(stop.exitedAt).toLocaleTimeString()} · ~
+                                  {(stop.durationMs / 1000).toFixed(1)} s
+                                </p>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={
+                                    busy ||
+                                    ![SessionStatus.ACTIVE, SessionStatus.PAUSED, SessionStatus.FINISHING].includes(
+                                      session.status
+                                    )
+                                  }
+                                  onClick={() => confirmRepair(row.id, stop.id)}
+                                >
+                                  {t('damageConfirm')}
+                                </Button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )
+                    })}
+                </section>
+              )}
             {session?.id === selectedId && assigned.length > 0 && (
               <section className="rounded-xl border border-border bg-card p-5 space-y-3">
                 <h2 className="font-bold">{t('driverLinks')}</h2>

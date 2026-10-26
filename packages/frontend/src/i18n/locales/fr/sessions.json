@@ -57,7 +57,14 @@
     "virtualFuel": "Carburant virtuel (indépendant de la CU)",
     "virtualFuelRate": "Consommation (% par minute de course)",
     "virtualFuelInvalid": "La consommation virtuelle doit être comprise entre 1 et 100 % par minute.",
-    "virtualFuelHint": "Calcul logiciel : durée du tour mesurée × taux / 60 secondes. Chaque voiture commence à 100 %. Seuls les arrêts aux stands confirmés du simulateur ravitaillent automatiquement. Les données CU restent inchangées."
+    "virtualFuelHint": "Calcul logiciel : durée du tour mesurée × taux / 60 secondes. Chaque voiture commence à 100 %. Seuls les arrêts aux stands confirmés du simulateur ravitaillent automatiquement. Les données CU restent inchangées.",
+    "damageTitle": "Dommages virtuels",
+    "damageEnabled": "Activer les dommages sur les tours trop lents",
+    "damageThreshold": "Seuil par tour (s)",
+    "damageDeadline": "Délai de réparation (s de course)",
+    "damagePitMinimum": "Intervalle aux stands min. (s)",
+    "damageHint": "Courses uniquement. Un tour valide au-dessus du seuil déclenche un dommage unique. La pause gèle le délai. Arrêt simulateur : réparation automatique ; CU réelle : confirmation du directeur. Aucune commande CU.",
+    "damageInvalid": "Valeurs invalides : seuil 1–600 s, délai 5–3600 s, arrêt 1–300 s et inférieur ou égal au délai."
   },
   "profile": {
     "notFound": "Session introuvable",
@@ -86,6 +93,15 @@
     "penaltyLaps": "−{{count}} tours",
     "penaltyTime": "+{{seconds}} s",
     "penaltyActive": "Active",
-    "penaltyRevoked": "Annulée"
+    "penaltyRevoked": "Annulée",
+    "damageHistory": "Dommages et réparations",
+    "damageLap": "Déclenché au tour {{lap}}",
+    "damageSimulator": "Réparation automatique du simulateur",
+    "damageDirector": "Confirmé par le directeur",
+    "damageStatus": {
+      "active": "Réparation en attente",
+      "repaired": "Réparé",
+      "dnf": "Abandon – non réparé"
+    }
   }
 }

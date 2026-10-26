@@ -218,6 +218,15 @@ export default function SessionLeaderboard({ entries = [], sortBy = 'laps', sess
                     {car.brand} {car.model || car.name || ''}
                   </span>
                 </div>
+                {entry.damageStatus && entry.damageStatus !== 'none' && (
+                  <p
+                    className={
+                      entry.damageStatus === 'dnf' ? 'text-xs font-semibold text-red-500' : 'text-xs text-amber-500'
+                    }
+                  >
+                    {t(`leaderboard.damageStatus.${entry.damageStatus}`)}
+                  </p>
+                )}
                 {entry.tyreType && (
                   <div className="text-xs text-sky-600 dark:text-sky-400">
                     {t(entry.tyreType === 'wet' ? 'leaderboard.tyreWet' : 'leaderboard.tyreDry')}

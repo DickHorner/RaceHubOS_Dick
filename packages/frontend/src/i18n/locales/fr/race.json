@@ -44,7 +44,12 @@
     "simulatedTotal": "Temps total simulé",
     "virtualFuel": "Carburant virtuel : {{percent}} %",
     "penaltyLaps": "−{{count}} tours de pénalité",
-    "penaltyTime": "+{{seconds}} s de pénalité"
+    "penaltyTime": "+{{seconds}} s de pénalité",
+    "damageStatus": {
+      "active": "Endommagé",
+      "repaired": "Réparé",
+      "dnf": "Abandon : dommage"
+    }
   },
   "resultsModal": {
     "title": "Résultats",

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { SessionStatus, SessionType, TyreType, sessionTypeFullKey } from '@racehubos/shared'
+import { SessionStatus, SessionType, TyreType, DamageStatus, sessionTypeFullKey } from '@racehubos/shared'
 import { useDevice } from '../context/DeviceContext'
 import { useSession } from '../context/SessionContext'
 import { DriverBadge } from '../components/DriverDisplays'
@@ -15,7 +15,7 @@ export default function DriverDisplay() {
   const { driverId } = useParams()
   const { t } = useTranslation('driverDisplay')
   const { connected, socketConnected, cuStatus } = useDevice()
-  const { session, entries, lastServerTime, isStale, fetchSession, clearSession } = useSession()
+  const { session, entries, elapsed, lastServerTime, isStale, fetchSession, clearSession } = useSession()
   const currentSession = useRef(session)
   currentSession.current = session
   const fetching = useRef(false)
@@ -64,12 +64,14 @@ export default function DriverDisplay() {
     }
     window.addEventListener('session:status_changed', refresh)
     window.addEventListener('session:finished', refresh)
+    window.addEventListener('session:damage_changed', refresh)
     window.addEventListener('session:tyre_changed', refresh)
     document.addEventListener('visibilitychange', onVisible)
     return () => {
       clearInterval(interval)
       window.removeEventListener('session:status_changed', refresh)
       window.removeEventListener('session:finished', refresh)
+      window.removeEventListener('session:damage_changed', refresh)
       window.removeEventListener('session:tyre_changed', refresh)
       document.removeEventListener('visibilitychange', onVisible)
     }
@@ -116,6 +118,11 @@ export default function DriverDisplay() {
       : null
   const fuelLevel = Number.isInteger(fuel) && fuel >= 0 && fuel <= 15 ? fuel : null
   const virtualFuelUnits = live?.virtualFuelUnits ?? assignment?.virtualFuelUnits ?? null
+
+  const damageStatus = live?.damageStatus ?? assignment?.damageStatus ?? DamageStatus.NONE
+  const damageDeadline = live?.damageDeadlineElapsedMs ?? assignment?.damageDeadlineElapsedMs
+  const damageRemaining =
+    !signalMissing && Number.isInteger(damageDeadline) ? Math.max(0, Math.ceil(damageDeadline / 1000 - elapsed)) : null
 
   async function requestTyres(tyreType) {
     if (!accessToken || tyrePending || !session?.id || !assignment) return
@@ -305,6 +312,25 @@ export default function DriverDisplay() {
                         {tyreError}
                       </p>
                     )}
+                  </section>
+                )}
+                {session.type === SessionType.RACE && damageStatus !== DamageStatus.NONE && (
+                  <section className="rounded-xl border border-amber-500/40 bg-card p-5 space-y-2">
+                    <h2 className="font-semibold">{t('damageTitle')}</h2>
+                    <p
+                      role="status"
+                      className={damageStatus === DamageStatus.DNF ? 'font-bold text-red-500' : 'text-amber-500'}
+                    >
+                      {t(`damageStatus.${damageStatus}`)}
+                    </p>
+                    {damageStatus === DamageStatus.ACTIVE && (
+                      <p className="font-mono tabular-nums">
+                        {damageRemaining === null
+                          ? t('damageTimeUnavailable')
+                          : t('damageRemaining', { seconds: damageRemaining })}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">{t('damageRepairHint')}</p>
                   </section>
                 )}
                 {accessToken && ['active', 'paused'].includes(session.status) && (

@@ -89,7 +89,14 @@
       "invalid": "Ungültiges Wetter: Regenchance 0–100 %, Intervall 10–3600 s, Seed 0–2147483647.",
       "tyreMismatchPercent": "Zeitmalus bei falscher Bereifung (%)",
       "tyreHint": "Nur simulierte Rundenzeiten, keine CU-Geschwindigkeitsänderung. 0 % deaktiviert den Effekt."
-    }
+    },
+    "damageTitle": "Schadenssimulation",
+    "damageEnabled": "Schaden bei überlanger Runde",
+    "damageThreshold": "Rundengrenze (s)",
+    "damageDeadline": "Frist (s Rennzeit)",
+    "damagePitMinimum": "Boxenintervall (s)",
+    "damageHint": "Einmaliger Schaden pro Fahrer. Uhr pausiert mit dem Rennen; echte CU benötigt manuelle Reparaturbestätigung.",
+    "damageInvalid": "Ungültige Werte: 1–600 s Rundengrenze, 5–3600 s Frist, 1–300 s Boxenintervall (höchstens die Frist)."
   },
   "bracket": {
     "loading": "Wird geladen …",

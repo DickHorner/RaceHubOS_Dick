@@ -44,7 +44,12 @@
     "simulatedTotal": "Simulated total time",
     "virtualFuel": "Virtual fuel: {{percent}}%",
     "penaltyLaps": "−{{count}} lap penalty",
-    "penaltyTime": "+{{seconds}} s penalty"
+    "penaltyTime": "+{{seconds}} s penalty",
+    "damageStatus": {
+      "active": "Damaged",
+      "repaired": "Repaired",
+      "dnf": "DNF: damage"
+    }
   },
   "resultsModal": {
     "title": "Results",

@@ -57,7 +57,14 @@
     "virtualFuel": "Virtual fuel (independent of the CU)",
     "virtualFuelRate": "Consumption (% per racing minute)",
     "virtualFuelInvalid": "Virtual consumption must be between 1 and 100% per minute.",
-    "virtualFuelHint": "Software calculation: measured lap duration × rate / 60 seconds. Each car starts at 100%. Only confirmed simulator pit stops refuel automatically. CU fuel readings remain unchanged."
+    "virtualFuelHint": "Software calculation: measured lap duration × rate / 60 seconds. Each car starts at 100%. Only confirmed simulator pit stops refuel automatically. CU fuel readings remain unchanged.",
+    "damageTitle": "Virtual vehicle damage",
+    "damageEnabled": "Enable damage from abnormally slow laps",
+    "damageThreshold": "Lap threshold (s)",
+    "damageDeadline": "Repair deadline (race s)",
+    "damagePitMinimum": "Minimum pit interval (s)",
+    "damageHint": "Races only. One valid lap above the threshold triggers a single damage episode. Pauses freeze the deadline. Simulator pit intervals can auto-repair; real CU stops require director confirmation. No CU commands.",
+    "damageInvalid": "Invalid values: threshold 1–600 s, deadline 5–3600 s, pit interval 1–300 s and not longer than the deadline."
   },
   "profile": {
     "notFound": "Session not found",
@@ -86,6 +93,15 @@
     "penaltyLaps": "−{{count}} laps",
     "penaltyTime": "+{{seconds}} s",
     "penaltyActive": "Active",
-    "penaltyRevoked": "Revoked"
+    "penaltyRevoked": "Revoked",
+    "damageHistory": "Damage and repairs",
+    "damageLap": "Triggered on lap {{lap}}",
+    "damageSimulator": "Automatic simulator repair",
+    "damageDirector": "Confirmed by race director",
+    "damageStatus": {
+      "active": "Repair pending",
+      "repaired": "Repaired",
+      "dnf": "DNF – not repaired"
+    }
   }
 }

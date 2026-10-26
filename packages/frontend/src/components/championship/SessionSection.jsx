@@ -31,7 +31,7 @@ const SESSION_TYPE_ICONS = {
 }
 
 import { CONTROLLER_COLORS } from '../../lib/colors'
-import { SessionStatus, SessionType, WeatherCondition, sessionTypeAbbrKey } from '@racehubos/shared'
+import { SessionStatus, SessionType, WeatherCondition, sessionTypeAbbrKey, validDamageConfig } from '@racehubos/shared'
 
 export default function SessionSection({
   session,
@@ -66,6 +66,7 @@ export default function SessionSection({
 
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState('')
+  const [damageError, setDamageError] = useState('')
   const [weatherError, setWeatherError] = useState('')
   const [copiedDriverId, setCopiedDriverId] = useState(null)
   const [editingName, setEditingName] = useState(false)
@@ -693,6 +694,58 @@ export default function SessionSection({
                 </p>
               )}
             </div>
+          )}
+          {session.type === SessionType.RACE && (
+            <fieldset className="mt-3 space-y-2 rounded-lg border border-border p-3">
+              <legend className="text-xs font-semibold text-muted-foreground">{t('sessionSection.damageTitle')}</legend>
+              <label className="flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={session.damageLapThresholdMs != null}
+                  onChange={(event) => onSaveConfig({ damageLapThresholdMs: event.target.checked ? 30000 : null })}
+                />
+                {t('sessionSection.damageEnabled')}
+              </label>
+              {session.damageLapThresholdMs != null && (
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    ['damageLapThresholdMs', 'damageThreshold', 1, 600],
+                    ['damageRepairSeconds', 'damageDeadline', 5, 3600],
+                    ['damagePitSeconds', 'damagePitMinimum', 1, 300],
+                  ].map(([key, label, min, max]) => (
+                    <label key={key} className="text-xs text-muted-foreground">
+                      {t(`sessionSection.${label}`)}
+                      <Input
+                        type="number"
+                        min={min}
+                        max={max}
+                        step="1"
+                        key={`${session.id}-${key}-${session[key]}`}
+                        defaultValue={key === 'damageLapThresholdMs' ? session[key] / 1000 : session[key]}
+                        onBlur={(event) => {
+                          const number = Number(event.target.value)
+                          const value = key === 'damageLapThresholdMs' ? number * 1000 : number
+                          const next = { ...session, [key]: value }
+                          if (!Number.isInteger(number) || number < min || number > max || !validDamageConfig(next)) {
+                            setDamageError(t('sessionSection.damageInvalid'))
+                            return
+                          }
+                          setDamageError('')
+                          if (value !== session[key]) onSaveConfig({ [key]: value })
+                        }}
+                        className="mt-1 h-8 text-xs"
+                      />
+                    </label>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">{t('sessionSection.damageHint')}</p>
+              {damageError && (
+                <p role="alert" className="text-xs text-destructive">
+                  {damageError}
+                </p>
+              )}
+            </fieldset>
           )}
           {session.type !== SessionType.PRACTICE && (
             <div className={`grid gap-3 ${session.type === SessionType.BALANCING ? 'grid-cols-3' : 'grid-cols-3'}`}>

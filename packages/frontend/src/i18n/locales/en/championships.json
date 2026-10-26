@@ -89,7 +89,14 @@
       "invalid": "Invalid weather: chance 0–100%, interval 10–3600 s, seed 0–2147483647.",
       "tyreMismatchPercent": "Time penalty for wrong tyres (%)",
       "tyreHint": "Virtual lap times only; no CU speed changes. 0% disables the effect."
-    }
+    },
+    "damageTitle": "Damage simulation",
+    "damageEnabled": "Damage on slow lap",
+    "damageThreshold": "Lap threshold (s)",
+    "damageDeadline": "Deadline (race s)",
+    "damagePitMinimum": "Pit interval (s)",
+    "damageHint": "One damage event per driver. The race clock freezes on pause; physical CU repairs need director confirmation.",
+    "damageInvalid": "Invalid threshold, deadline or minimum pit interval (or minimum exceeds deadline)."
   },
   "bracket": {
     "loading": "Loading...",

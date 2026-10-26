@@ -8,3 +8,4 @@ export * from './weather.js';
 export * from './tyres.js';
 export * from './virtualFuel.js';
 export * from './racePenalties.js';
+export * from './damage.js';

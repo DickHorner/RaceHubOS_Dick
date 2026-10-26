@@ -68,5 +68,12 @@
   "penaltyError": "Échec de la modification",
   "penaltyHistory": "Pénalités appliquées",
   "penaltyActive": "Active",
-  "penaltyRevoked": "Annulée"
+  "penaltyRevoked": "Annulée",
+  "damageRepairTitle": "Réparation du véhicule",
+  "damageRepairWarning": "Les données de stands CU ne sont pas validées sur matériel. La durée est un intervalle observé, pas une mesure fiable de l'immobilisation. Confirmer uniquement après vérification personnelle de la réparation.",
+  "damageRemaining": "Encore {{seconds}} s",
+  "damageNoPit": "Aucun intervalle aux stands CU admissible enregistré.",
+  "damageConfirm": "Confirmer la réparation",
+  "damageVerifyConfirm": "As-tu personnellement vérifié l'arrêt de réparation ?",
+  "damageConfirmError": "Impossible de confirmer la réparation."
 }

@@ -42,5 +42,15 @@
   "tyreRequestCleared": "Demande annulée.",
   "hardwareFuel": "Carburant CU (matériel)",
   "virtualFuel": "Carburant virtuel (logiciel)",
-  "virtualFuelNote": "Indépendant de la CU ; le simulateur ravitaille après un arrêt confirmé."
+  "virtualFuelNote": "Indépendant de la CU ; le simulateur ravitaille après un arrêt confirmé.",
+  "damageTitle": "Dommage du véhicule",
+  "damageRemaining": "Encore {{seconds}} s de course pour réparer",
+  "damageTimeUnavailable": "Délai de réparation indisponible",
+  "damageRepairHint": "Effectuer l'arrêt avant la fin du délai. CU réelle : confirmation du directeur.",
+  "damageStatus": {
+    "active": "Dommage – réparation aux stands nécessaire",
+    "repaired": "Réparé",
+    "dnf": "Abandon – non réparé",
+    "none": "Aucun dommage"
+  }
 }

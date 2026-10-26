@@ -89,7 +89,14 @@
       "invalid": "Météo invalide : probabilité 0–100 %, intervalle 10–3600 s, graine 0–2147483647.",
       "tyreMismatchPercent": "Pénalité avec mauvais pneus (%)",
       "tyreHint": "Temps simulés seulement, aucune modification de vitesse CU. 0 % désactive l'effet."
-    }
+    },
+    "damageTitle": "Simulation des dommages",
+    "damageEnabled": "Dommage sur tour lent",
+    "damageThreshold": "Seuil par tour (s)",
+    "damageDeadline": "Délai (s de course)",
+    "damagePitMinimum": "Intervalle aux stands (s)",
+    "damageHint": "Un seul dommage par pilote. La pause arrête le délai ; CU réelle : confirmation du directeur.",
+    "damageInvalid": "Valeurs invalides ou intervalle aux stands supérieur au délai."
   },
   "bracket": {
     "loading": "Chargement...",

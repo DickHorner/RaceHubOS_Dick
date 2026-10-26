@@ -68,5 +68,12 @@
   "penaltyError": "Strafänderung fehlgeschlagen",
   "penaltyHistory": "Verhängte Strafen",
   "penaltyActive": "Aktiv",
-  "penaltyRevoked": "Widerrufen"
+  "penaltyRevoked": "Widerrufen",
+  "damageRepairTitle": "Reparatur eines Fahrzeugschadens",
+  "damageRepairWarning": "CU-Boxenstatus ist nicht hardwareverifiziert. Die Dauer bezeichnet das beobachtete Boxenintervall, nicht zuverlässig die Standzeit. Nur nach eigener Sichtprüfung eines tatsächlich erfolgten, ausreichend langen Reparaturstopps bestätigen.",
+  "damageRemaining": "Noch {{seconds}} s",
+  "damageNoPit": "Kein passendes CU-Boxenintervall protokolliert – keine Bestätigung möglich.",
+  "damageConfirm": "Reparatur bestätigen",
+  "damageVerifyConfirm": "Hast Du den tatsächlichen Reparaturstopp selbst überprüft?",
+  "damageConfirmError": "Reparatur konnte nicht bestätigt werden."
 }

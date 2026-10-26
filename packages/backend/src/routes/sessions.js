@@ -6,6 +6,7 @@ import {
   SessionType,
   validWeatherConfig,
   validTyreMismatchPercent,
+  validDamageConfig,
   weatherForSession,
   validVirtualFuelRate,
   replayVirtualFuel,
@@ -239,6 +240,9 @@ router.put('/:id', async (req, res) => {
       weatherAdvanceDuringPause,
       tyreMismatchPercent,
       virtualFuelRate,
+      damageLapThresholdMs,
+      damageRepairSeconds,
+      damagePitSeconds,
     } = req.body;
 
     const updateData = {};
@@ -291,6 +295,25 @@ router.put('/:id', async (req, res) => {
         return res.status(409).json({ success: false, error: 'Virtual fuel cannot be changed after race start' });
       }
       updateData.virtualFuelRate = virtualFuelRate;
+    }
+    const damageUpdate = { damageLapThresholdMs, damageRepairSeconds, damagePitSeconds };
+    const damageKeys = Object.keys(damageUpdate).filter((key) => damageUpdate[key] !== undefined);
+    if (damageKeys.length || type !== undefined) {
+      const current = await prisma().session.findUnique({ where: { id: req.params.id } });
+      if (!current || current.deletedAt) {
+        return res.status(404).json({ success: false, error: 'Session not found' });
+      }
+      const next = { ...current, ...Object.fromEntries(damageKeys.map((key) => [key, damageUpdate[key]])) };
+      if (
+        !validDamageConfig(next) ||
+        (next.damageLapThresholdMs !== null && (type ?? current.type) !== SessionType.RACE)
+      ) {
+        return res.status(400).json({ success: false, error: 'Invalid race damage configuration' });
+      }
+      if (current.status !== SessionStatus.DRAFT && damageKeys.some((key) => current[key] !== next[key])) {
+        return res.status(409).json({ success: false, error: 'Damage settings cannot change after race start' });
+      }
+      for (const key of damageKeys) updateData[key] = next[key];
     }
     if (maxDuration !== undefined) updateData.maxDuration = maxDuration || null;
     if (maxLaps !== undefined) updateData.maxLaps = maxLaps || null;

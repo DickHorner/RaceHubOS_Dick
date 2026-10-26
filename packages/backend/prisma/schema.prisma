@@ -129,6 +129,9 @@ model Session {
   trackId        String
   championshipId String?
   fuelMode       String          @default("OFF") // OFF | ON — @racehubos/shared
+  damageLapThresholdMs Int?       // Null disables race damage
+  damageRepairSeconds Int         @default(60) // Deadline in active racing seconds
+  damagePitSeconds Int            @default(5) // Minimum observed pit interval
   weatherSeed    Int?            // Null = weather disabled; fixed seed reproduces each race
   weatherInitial String          @default("dry") // dry | rain — @racehubos/shared
   weatherRainChance Int          @default(35)  // Probability per interval, 0-100 %
@@ -182,6 +185,13 @@ model SessionDriver {
   bestLapTime     Int?     // Best lap time in ms
   lastLapTime     Int?     // Last lap time in ms
   isDNF           Boolean  @default(false)
+  damageStatus    String   @default("none") // none | active | repaired | dnf
+  damageLapNumber Int?
+  damageTriggeredAt DateTime?
+  damageDeadlineElapsedMs Int? // Race clock excluding pauses
+  damageRepairedAt DateTime?
+  damageRepairPitStopId String?
+  damageRepairSource String? // simulator | director
   deletedAt       DateTime?
   car             Car?     @relation(fields: [carId], references: [id])
   driver          Driver?  @relation(fields: [driverId], references: [id])

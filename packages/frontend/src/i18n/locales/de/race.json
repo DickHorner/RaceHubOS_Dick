@@ -44,7 +44,12 @@
     "simulatedTotal": "Simulierte Gesamtzeit",
     "virtualFuel": "Virtueller Tank: {{percent}} %",
     "penaltyLaps": "−{{count}} Runden Strafe",
-    "penaltyTime": "+{{seconds}} s Strafe"
+    "penaltyTime": "+{{seconds}} s Strafe",
+    "damageStatus": {
+      "active": "Schaden",
+      "repaired": "Repariert",
+      "dnf": "DNF: Schaden"
+    }
   },
   "resultsModal": {
     "title": "Ergebnisse",

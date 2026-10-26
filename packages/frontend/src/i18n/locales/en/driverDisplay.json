@@ -42,5 +42,15 @@
   "tyreRequestCleared": "Tyre request withdrawn.",
   "hardwareFuel": "CU fuel level (hardware)",
   "virtualFuel": "Virtual fuel (software)",
-  "virtualFuelNote": "Independent of the CU; confirmed simulator pit stops refuel."
+  "virtualFuelNote": "Independent of the CU; confirmed simulator pit stops refuel.",
+  "damageTitle": "Vehicle damage",
+  "damageRemaining": "{{seconds}} s of race time left to repair",
+  "damageTimeUnavailable": "Repair deadline temporarily unavailable",
+  "damageRepairHint": "Complete the pit stop before the race-time deadline. Real CU repairs require director confirmation.",
+  "damageStatus": {
+    "active": "Damaged – pit repair required",
+    "repaired": "Repaired",
+    "dnf": "DNF – repair not completed",
+    "none": "No damage"
+  }
 }
