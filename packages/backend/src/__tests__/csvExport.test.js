@@ -41,9 +41,9 @@ describe('CSV export from workbook tables', () => {
   test('uses the same results/laps as Excel, expressing times in seconds and dates in UTC', () => {
     const car = { id: 'car-1', brand: 'Audi', model: 'R8, GT', maxSpeed: 70, brakeForce: 50, fuelCapacity: 80 };
     const driver = { id: 'driver-1', name: '=SUM(1,2)', color: '#00ff00' };
-    const workbook = buildSessionWorkbook({
+    const session = {
       id: 'session-1',
-      name: 'Monaco',
+      name: 'Tours',
       type: 'race',
       status: 'finished',
       fuelMode: 'OFF',
@@ -73,7 +73,8 @@ describe('CSV export from workbook tables', () => {
           timestamp: new Date('2026-10-26T13:14:15.123Z'),
         },
       ],
-    });
+    };
+    const workbook = buildSessionWorkbook(session);
     const sheet = workbook.worksheets[1];
     const results = worksheetTableRows(sheet, 'Engagements');
     const laps = worksheetTableRows(sheet, 'Tours');
@@ -86,5 +87,9 @@ describe('CSV export from workbook tables', () => {
     expect(laps[1][8]).toBe('2026-10-26T13:14:15.123Z');
     expect(csvText(results)).toContain("'=SUM(1,2)");
     expect(worksheetTableRows(sheet, 'Not a table')).toBeNull();
+    const empty = buildSessionWorkbook({ ...session, laps: [], drivers: [] });
+    const emptyLaps = worksheetTableRows(empty.worksheets[1], 'Tours');
+    expect(emptyLaps).toHaveLength(1);
+    expect(emptyLaps[0]).toContain('Temps (s)');
   });
 });
