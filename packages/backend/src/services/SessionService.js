@@ -1,6 +1,6 @@
 import { createPrismaClient } from '../lib/prisma.js';
 import EventEmitter from 'events';
-import { SESSION_TYPES, SessionStatus, SessionType, isSessionType, toLevel } from '@racehubos/shared';
+import { SESSION_TYPES, SessionStatus, SessionType, WeatherCondition, isSessionType, toLevel, validWeatherConfig, weatherAtElapsed, weatherForSession } from '@racehubos/shared';
 import { sessionName } from '../lib/sessionNames.js';
 
 const DEFAULT_GRACE_PERIOD_MS = 30000;
@@ -29,6 +29,7 @@ export class SessionService extends EventEmitter {
     this.currentPhase = SessionType.PRACTICE;
     this.sessionConfig = null;
     this.sessionStatus = null;
+    this.lastWeatherCondition = null;
 
     // Driver states
     this.sessionDrivers = [];
@@ -266,9 +267,15 @@ export class SessionService extends EventEmitter {
       gracePeriod: session.gracePeriod || DEFAULT_GRACE_PERIOD_MS,
       startedAt: session.startedAt,
       championshipId: session.championshipId,
+      finishedAt: session.finishedAt,
+      weatherSeed: session.weatherSeed,
+      weatherInitial: session.weatherInitial,
+      weatherRainChance: session.weatherRainChance,
+      weatherIntervalSeconds: session.weatherIntervalSeconds,
       pauses: session.pauses ? JSON.parse(session.pauses) : [],
     };
     this.sessionStatus = session.status;
+    this.lastWeatherCondition = weatherForSession(this.sessionConfig, Date.now());
 
     // Initialize driver states
     this.sessionDrivers = session.drivers.map((sd) => ({
@@ -472,6 +479,7 @@ export class SessionService extends EventEmitter {
     this.currentPhase = SessionType.PRACTICE;
     this.sessionConfig = null;
     this.sessionStatus = null;
+    this.lastWeatherCondition = null;
     this.lapHistory = new Map();
 
     if (this.gracePeriodTimer) {
@@ -756,8 +764,22 @@ export class SessionService extends EventEmitter {
         await this.checkSessionComplete();
       }
 
+      // Weather follows the same pause-adjusted clock as the race. Only transitions emit a separate event.
+      const weatherCondition = this.sessionConfig
+        ? weatherAtElapsed(this.sessionConfig, elapsedTime)
+        : null;
+      if (this.activeSessionId && weatherCondition !== this.lastWeatherCondition) {
+        this.lastWeatherCondition = weatherCondition;
+        this.emit('session:weather_changed', {
+          sessionId: this.activeSessionId,
+          weatherCondition,
+          elapsedTime,
+        });
+      }
+
       this.emit('session:heartbeat', {
         sessionId: this.activeSessionId,
+        weatherCondition,
         status: this.sessionStatus,
         startedAt: this.sessionConfig?.startedAt,
         elapsedTime,
@@ -938,6 +960,7 @@ export class SessionService extends EventEmitter {
       reason,
       championshipId,
       sessionType: this.currentPhase,
+      weatherCondition: weatherForSession(this.sessionConfig, Date.now()),
       leaderboard: this.getEnrichedLeaderboard(),
     });
     this.emitStatusChanged('finished', previousStatus);
@@ -1230,7 +1253,18 @@ export class SessionService extends EventEmitter {
       order,
       gridFromQualifying,
       status: initialStatus,
+      weatherSeed = null,
+      weatherInitial = WeatherCondition.DRY,
+      weatherRainChance = 35,
+      weatherIntervalSeconds = 60,
     } = params;
+
+    if (!validWeatherConfig({ weatherSeed, weatherInitial, weatherRainChance, weatherIntervalSeconds })) {
+      throw new Error('Invalid weather configuration');
+    }
+    if (weatherSeed !== null && type !== SessionType.RACE) {
+      throw new Error('Weather is only supported for race sessions');
+    }
 
     if (!isSessionType(type)) {
       throw new Error(`Invalid session type. Must be one of: ${SESSION_TYPES.join(', ')}`);
@@ -1260,6 +1294,10 @@ export class SessionService extends EventEmitter {
         championshipId: championshipId || null,
         maxDuration: maxDuration || null,
         maxLaps: maxLaps || null,
+        weatherSeed,
+        weatherInitial,
+        weatherRainChance,
+        weatherIntervalSeconds,
         order: order ?? 0,
       },
     });
@@ -1441,6 +1479,7 @@ export class SessionService extends EventEmitter {
       activeTrackId: this.activeTrackId,
       currentPhase: this.currentPhase,
       sessionStatus: this.sessionStatus,
+      weatherCondition: this.sessionConfig ? weatherForSession(this.sessionConfig, Date.now()) : null,
       sessionDrivers: this.sessionDrivers,
     };
   }
