@@ -193,7 +193,9 @@ export default function SessionDetail() {
               {session.type === SessionType.RACE && session.weatherSeed != null && (
                 <Badge variant="outline">
                   {t('profile.weatherFinal', {
-                    condition: t(`championships:sessionSection.weather.${session.weatherCondition || session.weatherInitial}`),
+                    condition: t(
+                      `championships:sessionSection.weather.${session.weatherCondition || session.weatherInitial}`
+                    ),
                   })}
                 </Badge>
               )}
