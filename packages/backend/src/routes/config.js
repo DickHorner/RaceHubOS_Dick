@@ -68,7 +68,7 @@ router.put('/bulk', async (req, res) => {
     });
   } catch (error) {
     console.error('Error bulk updating configs:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
       error: error.message,
     });
@@ -161,7 +161,7 @@ router.put('/:controller', async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating config:', error);
-    res.status(500).json({
+    res.status(error.status || 500).json({
       success: false,
       error: error.message,
     });

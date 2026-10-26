@@ -1876,8 +1876,9 @@ export class SessionService extends EventEmitter {
 
     // Get controller configs for this track
     const configs = await this.prisma.controllerConfig.findMany({
-      where: { trackId: finalTrackId },
+      where: { trackId: finalTrackId, controller: { gte: 0, lte: 5 } },
       include: { driver: true, car: true },
+      orderBy: { controller: 'asc' },
     });
 
     // Get grid order from last qualifying if requested (for race)
