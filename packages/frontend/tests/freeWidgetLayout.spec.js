@@ -32,12 +32,8 @@ async function openRace(page, race = session) {
   await page.route('**/api/tracks', (route) => route.fulfill({ json: { success: true, data: [track] } }))
   await page.route('**/api/drivers', (route) => route.fulfill({ json: { success: true, data: [driver] } }))
   await page.route('**/api/cars', (route) => route.fulfill({ json: { success: true, data: [car] } }))
-  await page.route('**/api/sessions?*', (route) =>
-    route.fulfill({ json: { success: true, data: [race] } })
-  )
-  await page.route('**/api/sessions/layout-session', (route) =>
-    route.fulfill({ json: { success: true, data: race } })
-  )
+  await page.route('**/api/sessions?*', (route) => route.fulfill({ json: { success: true, data: [race] } }))
+  await page.route('**/api/sessions/layout-session', (route) => route.fulfill({ json: { success: true, data: race } }))
   await page.route('**/api/sessions/layout-session/leaderboard', (route) =>
     route.fulfill({ json: { success: true, data: [] } })
   )
@@ -45,9 +41,7 @@ async function openRace(page, race = session) {
     route.fulfill({ json: { success: true, data: { practice: [], qualif: [], race: [] } } })
   )
   if (race.status === 'active') {
-    await page.route('**/api/sync/load-session/layout-session', (route) =>
-      route.fulfill({ json: { success: true } })
-    )
+    await page.route('**/api/sync/load-session/layout-session', (route) => route.fulfill({ json: { success: true } }))
   }
   await page.goto('/race')
   await expect(page.getByTestId('session-section')).toBeVisible()
@@ -64,9 +58,9 @@ async function storedLayout(page) {
 }
 
 async function visibleOrder(page) {
-  return page.locator('[data-testid^="free-widget-"]').evaluateAll((nodes) =>
-    nodes.map((node) => node.dataset.testid.replace('free-widget-', ''))
-  )
+  return page
+    .locator('[data-testid^="free-widget-"]')
+    .evaluateAll((nodes) => nodes.map((node) => node.dataset.testid.replace('free-widget-', '')))
 }
 
 test('a missing preference preserves the prior session and leaderboard/standings layout', async ({ page }) => {
@@ -94,7 +88,7 @@ test('unknown IDs are ignored and visible widgets are reordered, hidden, saved a
   await expect.poll(() => visibleOrder(page)).toEqual(['leaderboard', 'standings'])
   await expect.poll(() => storedLayout(page)).toEqual(['leaderboard', 'standings'])
 
-  await standings.uncheck()
+  await standings.click()
   await expect(page.getByTestId('free-widget-standings')).toHaveCount(0)
   await expect.poll(() => storedLayout(page)).toEqual(['leaderboard'])
 
@@ -103,7 +97,7 @@ test('unknown IDs are ignored and visible widgets are reordered, hidden, saved a
   await expect.poll(() => visibleOrder(page)).toEqual(['leaderboard'])
 
   await page.getByRole('button', { name: 'Disposition' }).click()
-  await page.getByRole('checkbox', { name: 'Classement général' }).check()
+  await page.getByRole('checkbox', { name: 'Classement général' }).click()
   await expect.poll(() => storedLayout(page)).toEqual(['leaderboard', 'standings'])
   await page.setViewportSize({ width: 390, height: 850 })
   const left = await page.getByTestId('free-widget-leaderboard').boundingBox()
@@ -120,7 +114,7 @@ test('hiding every configurable widget keeps the race controls visible', async (
   await expect(page.locator('[data-testid^="free-widget-"]')).toHaveCount(0)
   await page.getByRole('button', { name: 'Disposition' }).click()
   await expect(page.getByRole('checkbox', { name: 'Classement en direct' })).not.toBeChecked()
-  await page.getByRole('checkbox', { name: 'Classement en direct' }).check()
+  await page.getByRole('checkbox', { name: 'Classement en direct' }).click()
   await expect.poll(() => storedLayout(page)).toEqual(['leaderboard'])
 })
 
@@ -135,7 +129,7 @@ test('a failed preference write leaves the previous layout intact', async ({ pag
   await openRace(page)
 
   await page.getByRole('button', { name: 'Disposition' }).click()
-  await page.getByRole('checkbox', { name: 'Classement général' }).uncheck()
+  await page.getByRole('checkbox', { name: 'Classement général' }).click()
   await expect(page.getByRole('alert')).toContainText('Disposition non enregistrée')
   await expect.poll(() => visibleOrder(page)).toEqual(['leaderboard', 'standings'])
   await expect.poll(() => storedLayout(page)).toEqual(['leaderboard', 'standings'])
