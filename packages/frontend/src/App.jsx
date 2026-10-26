@@ -238,6 +238,16 @@ function App() {
                     }
                   />
 
+                  {/* Standalone read-only print view */}
+                  <Route
+                    path="results/:sessionId"
+                    element={
+                      <Suspense>
+                        <SessionResults />
+                      </Suspense>
+                    }
+                  />
+
                   {/* Routes without sidebar */}
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
