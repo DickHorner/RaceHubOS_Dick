@@ -85,8 +85,18 @@ describe('championship points without a custom points schema', () => {
     expect(byDriver.get(drivers[0].id).totalPoints).toBe(43);
     expect(byDriver.get(drivers[1].id).totalPoints).toBe(43);
     expect(byDriver.get(drivers[2].id).totalPoints).toBe(0);
-    expect(byDriver.get(drivers[0].id).sessions.map((s) => s.points).sort((a, b) => a - b)).toEqual([0, 18, 25]);
-    expect(byDriver.get(drivers[1].id).sessions.map((s) => s.points).sort((a, b) => a - b)).toEqual([18, 25]);
+    expect(
+      byDriver
+        .get(drivers[0].id)
+        .sessions.map((s) => s.points)
+        .sort((a, b) => a - b)
+    ).toEqual([0, 18, 25]);
+    expect(
+      byDriver
+        .get(drivers[1].id)
+        .sessions.map((s) => s.points)
+        .sort((a, b) => a - b)
+    ).toEqual([18, 25]);
     expect(standings.slice(0, 2).map((s) => s.driverId)).toEqual([drivers[0].id, drivers[1].id].sort());
     expect(standings.map((s) => s.position)).toEqual([1, 2, 3]);
   });
@@ -98,11 +108,13 @@ describe('championship points without a custom points schema', () => {
   });
 
   it('rejects unsupported custom points at creation without persisting a championship', async () => {
-    const response = await request(app).post('/api/championships').send({
-      name: 'Unsupported cup',
-      season: '2026',
-      pointsSystem: { racePoints: { 1: 100 } },
-    });
+    const response = await request(app)
+      .post('/api/championships')
+      .send({
+        name: 'Unsupported cup',
+        season: '2026',
+        pointsSystem: { racePoints: { 1: 100 } },
+      });
     expect(response.status).toBe(400);
     expect(response.body.error).toBe('Custom points systems are not supported');
     expect(await prisma.championship.count()).toBe(1);
