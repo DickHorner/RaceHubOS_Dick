@@ -28,5 +28,15 @@
   "chaosDescription": "Unterbricht das gesamte Rennen. Nur die Rennleitung darf es wieder freigeben. Kein sicherheitstechnischer Not-Aus.",
   "chaosRequested": "Rennunterbrechung angefordert.",
   "alreadyPaused": "Das Rennen ist bereits unterbrochen.",
-  "chaosError": "Rennunterbrechung fehlgeschlagen."
+  "chaosError": "Rennunterbrechung fehlgeschlagen.",
+  "damageTitle": "Fahrzeugschaden",
+  "damageRemaining": "Noch {{seconds}} s Rennzeit für die Reparatur",
+  "damageTimeUnavailable": "Reparaturfrist momentan nicht berechenbar",
+  "damageRepairHint": "Der Boxenstopp muss vor Ablauf der Rennzeitfrist abgeschlossen sein. Bei echter CU bestätigt die Rennleitung die Reparatur.",
+  "damageStatus": {
+    "active": "Schaden – Boxenreparatur erforderlich",
+    "repaired": "Repariert",
+    "dnf": "DNF – nicht rechtzeitig repariert",
+    "none": "Kein Schaden"
+  }
 }

@@ -40,7 +40,14 @@
     "update": "Update",
     "loadError": "Error loading data",
     "trackRequired": "Track is required",
-    "driverRequired": "At least one complete driver is required (driver, car, controller)"
+    "driverRequired": "At least one complete driver is required (driver, car, controller)",
+    "damageTitle": "Virtual vehicle damage",
+    "damageEnabled": "Enable damage from abnormally slow laps",
+    "damageThreshold": "Lap threshold (s)",
+    "damageDeadline": "Repair deadline (race s)",
+    "damagePitMinimum": "Minimum pit interval (s)",
+    "damageHint": "Races only. One valid lap above the threshold triggers a single damage episode. Pauses freeze the deadline. Simulator pit intervals can auto-repair; real CU stops require director confirmation. No CU commands.",
+    "damageInvalid": "Invalid values: threshold 1–600 s, deadline 5–3600 s, pit interval 1–300 s and not longer than the deadline."
   },
   "profile": {
     "notFound": "Session not found",
@@ -52,6 +59,15 @@
     "pitHistory": "Pit stops ({{count}})",
     "pitDriver": "Driver",
     "pitEntered": "Entry (observed)",
-    "pitDuration": "Duration (approx.)"
+    "pitDuration": "Duration (approx.)",
+    "damageHistory": "Damage and repairs",
+    "damageLap": "Triggered on lap {{lap}}",
+    "damageSimulator": "Automatic simulator repair",
+    "damageDirector": "Confirmed by race director",
+    "damageStatus": {
+      "active": "Repair pending",
+      "repaired": "Repaired",
+      "dnf": "DNF – not repaired"
+    }
   }
 }

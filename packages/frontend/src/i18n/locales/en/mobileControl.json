@@ -47,5 +47,12 @@
     "restoring": "Restoring speeds",
     "restore_failed": "Restoration failed",
     "disconnected": "CU disconnected"
-  }
+  },
+  "damageRepairTitle": "Repair vehicle damage",
+  "damageRepairWarning": "CU pit flags have not been hardware verified. The displayed duration is an observed pit interval, not a proven stationary interval. Only confirm after personally verifying a sufficiently long real repair stop.",
+  "damageRemaining": "{{seconds}} s remaining",
+  "damageNoPit": "No eligible CU pit interval recorded; cannot confirm.",
+  "damageConfirm": "Confirm repair",
+  "damageVerifyConfirm": "Did you personally verify the actual repair stop?",
+  "damageConfirmError": "Could not confirm repair."
 }

@@ -40,7 +40,14 @@
     "update": "Aktualisieren",
     "loadError": "Daten konnten nicht geladen werden",
     "trackRequired": "Eine Strecke ist erforderlich",
-    "driverRequired": "Mindestens eine vollständige Zuordnung aus Fahrer, Auto und Regler ist erforderlich"
+    "driverRequired": "Mindestens eine vollständige Zuordnung aus Fahrer, Auto und Regler ist erforderlich",
+    "damageTitle": "Virtueller Fahrzeugschaden",
+    "damageEnabled": "Schäden bei überlangen Runden aktivieren",
+    "damageThreshold": "Schadensgrenze (Runde, s)",
+    "damageDeadline": "Reparaturfrist (Rennzeit, s)",
+    "damagePitMinimum": "Boxenintervall mindestens (s)",
+    "damageHint": "Nur Rennen. Eine gültige Runde über der Grenze löst einmalig einen Schaden aus. Die Frist stoppt bei Pause. Simulator-Boxenstopps können automatisch reparieren; bei echter CU muss die Rennleitung einen beobachteten Stopp bestätigen. Keine CU-Befehle.",
+    "damageInvalid": "Ungültige Schadenswerte. Grenze 1–600 s, Frist 5–3600 s, Boxenintervall 1–300 s und höchstens so lang wie die Frist."
   },
   "profile": {
     "notFound": "Sitzung nicht gefunden",
@@ -52,6 +59,15 @@
     "pitHistory": "Boxenstopps ({{count}})",
     "pitDriver": "Fahrer",
     "pitEntered": "Einfahrt (erkannt)",
-    "pitDuration": "Dauer (ca.)"
+    "pitDuration": "Dauer (ca.)",
+    "damageHistory": "Schäden und Reparaturen",
+    "damageLap": "Auslösung in Runde {{lap}}",
+    "damageSimulator": "Automatische Simulator-Reparatur",
+    "damageDirector": "Von der Rennleitung bestätigt",
+    "damageStatus": {
+      "active": "Reparatur offen",
+      "repaired": "Repariert",
+      "dnf": "DNF – nicht repariert"
+    }
   }
 }

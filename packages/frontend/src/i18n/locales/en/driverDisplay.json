@@ -28,5 +28,15 @@
   "chaosDescription": "Pauses the entire race. Only the director may resume. Not a safety-rated emergency stop.",
   "chaosRequested": "Race pause requested.",
   "alreadyPaused": "The race is already paused.",
-  "chaosError": "Could not pause the race."
+  "chaosError": "Could not pause the race.",
+  "damageTitle": "Vehicle damage",
+  "damageRemaining": "{{seconds}} s of race time left to repair",
+  "damageTimeUnavailable": "Repair deadline temporarily unavailable",
+  "damageRepairHint": "Complete the pit stop before the race-time deadline. Real CU repairs require director confirmation.",
+  "damageStatus": {
+    "active": "Damaged – pit repair required",
+    "repaired": "Repaired",
+    "dnf": "DNF – repair not completed",
+    "none": "No damage"
+  }
 }

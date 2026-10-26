@@ -73,7 +73,14 @@
       "finishing": "Ending session...",
       "finished": "Finished",
       "draft": "Draft"
-    }
+    },
+    "damageTitle": "Damage simulation",
+    "damageEnabled": "Damage on slow lap",
+    "damageThreshold": "Lap threshold (s)",
+    "damageDeadline": "Deadline (race s)",
+    "damagePitMinimum": "Pit interval (s)",
+    "damageHint": "One damage event per driver. The race clock freezes on pause; physical CU repairs need director confirmation.",
+    "damageInvalid": "Invalid threshold, deadline or minimum pit interval (or minimum exceeds deadline)."
   },
   "bracket": {
     "loading": "Loading...",

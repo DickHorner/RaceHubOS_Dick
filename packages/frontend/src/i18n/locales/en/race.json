@@ -36,7 +36,12 @@
     "best": "Best",
     "last": "Last",
     "gap": "Gap",
-    "total": "Total"
+    "total": "Total",
+    "damageStatus": {
+      "active": "Damaged",
+      "repaired": "Repaired",
+      "dnf": "DNF: damage"
+    }
   },
   "resultsModal": {
     "title": "Results",

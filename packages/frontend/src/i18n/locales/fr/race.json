@@ -36,7 +36,12 @@
     "best": "Meilleur",
     "last": "Dernier",
     "gap": "Écart",
-    "total": "Total"
+    "total": "Total",
+    "damageStatus": {
+      "active": "Endommagé",
+      "repaired": "Réparé",
+      "dnf": "Abandon : dommage"
+    }
   },
   "resultsModal": {
     "title": "Résultats",

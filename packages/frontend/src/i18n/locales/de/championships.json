@@ -73,7 +73,14 @@
       "finishing": "Sitzung wird beendet …",
       "finished": "Beendet",
       "draft": "Entwurf"
-    }
+    },
+    "damageTitle": "Schadenssimulation",
+    "damageEnabled": "Schaden bei überlanger Runde",
+    "damageThreshold": "Rundengrenze (s)",
+    "damageDeadline": "Frist (s Rennzeit)",
+    "damagePitMinimum": "Boxenintervall (s)",
+    "damageHint": "Einmaliger Schaden pro Fahrer. Uhr pausiert mit dem Rennen; echte CU benötigt manuelle Reparaturbestätigung.",
+    "damageInvalid": "Ungültige Werte: 1–600 s Rundengrenze, 5–3600 s Frist, 1–300 s Boxenintervall (höchstens die Frist)."
   },
   "bracket": {
     "loading": "Wird geladen …",
