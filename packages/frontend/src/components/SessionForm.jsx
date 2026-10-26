@@ -1,7 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { X, Plus, Trash2 } from 'lucide-react'
-import { FuelMode, STANDARD_SESSION_TYPES, SessionStatus, SessionType, WeatherCondition, validWeatherConfig, sessionTypeFullKey } from '@racehubos/shared'
+import {
+  FuelMode,
+  STANDARD_SESSION_TYPES,
+  SessionStatus,
+  SessionType,
+  WeatherCondition,
+  validWeatherConfig,
+  sessionTypeFullKey,
+} from '@racehubos/shared'
 
 const API_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -241,11 +249,13 @@ export default function SessionForm({ session, onClose, onSaved }) {
                 </label>
                 <select
                   value={formData.type}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    type: e.target.value,
-                    weatherSeed: e.target.value === SessionType.RACE ? formData.weatherSeed : null,
-                  })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      type: e.target.value,
+                      weatherSeed: e.target.value === SessionType.RACE ? formData.weatherSeed : null,
+                    })
+                  }
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500"
                 >
                   {STANDARD_SESSION_TYPES.map((type) => (
