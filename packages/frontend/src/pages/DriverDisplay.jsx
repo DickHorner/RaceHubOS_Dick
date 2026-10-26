@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { SessionStatus, SessionType, sessionTypeFullKey } from '@racehubos/shared'
+import { SessionStatus, SessionType, TyreType, sessionTypeFullKey } from '@racehubos/shared'
 import { useDevice } from '../context/DeviceContext'
 import { useSession } from '../context/SessionContext'
 import { DriverBadge } from '../components/DriverDisplays'
@@ -24,7 +24,10 @@ export default function DriverDisplay() {
   const [chaosPending, setChaosPending] = useState(false)
   const [chaosMessage, setChaosMessage] = useState('')
   const [chaosError, setChaosError] = useState('')
-  const chaosToken = new URLSearchParams(window.location.hash.slice(1)).get('chaos')
+  const [tyrePending, setTyrePending] = useState(false)
+  const [tyreError, setTyreError] = useState('')
+  const [tyreMessage, setTyreMessage] = useState('')
+  const accessToken = new URLSearchParams(window.location.hash.slice(1)).get('chaos')
 
   const refresh = useCallback(async () => {
     if (fetching.current) return
@@ -61,11 +64,13 @@ export default function DriverDisplay() {
     }
     window.addEventListener('session:status_changed', refresh)
     window.addEventListener('session:finished', refresh)
+    window.addEventListener('session:tyre_changed', refresh)
     document.addEventListener('visibilitychange', onVisible)
     return () => {
       clearInterval(interval)
       window.removeEventListener('session:status_changed', refresh)
       window.removeEventListener('session:finished', refresh)
+      window.removeEventListener('session:tyre_changed', refresh)
       document.removeEventListener('visibilitychange', onVisible)
     }
   }, [refresh])
@@ -107,15 +112,37 @@ export default function DriverDisplay() {
     : null
   const fuelLevel = Number.isInteger(fuel) && fuel >= 0 && fuel <= 15 ? fuel : null
 
+  async function requestTyres(tyreType) {
+    if (!accessToken || tyrePending || !session?.id || !assignment) return
+    setTyrePending(true)
+    setTyreError('')
+    setTyreMessage('')
+    try {
+      const response = await fetch(`${API_URL}/api/race-control/driver/tyres`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ tyreType }),
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error(result.error || t('tyreError'))
+      setTyreMessage(t(result.data.pendingTyreType ? 'tyreRequested' : 'tyreRequestCleared'))
+      await fetchSession(session.id)
+    } catch (error) {
+      setTyreError(error.message)
+    } finally {
+      setTyrePending(false)
+    }
+  }
+
   async function requestChaos() {
-    if (!chaosToken || chaosPending || !session || !assignment) return
+    if (!accessToken || chaosPending || !session || !assignment) return
     setChaosPending(true)
     setChaosError('')
     setChaosMessage('')
     try {
       const response = await fetch(`${API_URL}/api/race-control/chaos`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${chaosToken}` },
+        headers: { Authorization: `Bearer ${accessToken}` },
       })
       const result = await response.json()
       if (!response.ok || !result.success) throw new Error(result.error || t('chaosError'))
@@ -190,7 +217,36 @@ export default function DriverDisplay() {
                     <p className="text-2xl font-bold tabular-nums">{fuelLevel === null ? t('unavailable') : `${fuelLevel} / 15`}</p>
                   </div>
                 </section>
-                {chaosToken && ['active', 'paused'].includes(session.status) && (
+                {session.type === SessionType.RACE && session.weatherSeed != null && (
+                  <section className="rounded-xl border border-border bg-card p-5 space-y-3">
+                    <h2 className="font-semibold">{t('tyreTitle')}</h2>
+                    <p className="text-sm">{t('tyreCurrent')}: {t((live?.tyreType || assignment.tyreType) === TyreType.WET ? 'tyreWet' : 'tyreDry')}</p>
+                    {(live?.pendingTyreType || assignment.pendingTyreType) && (
+                      <p role="status" className="text-sm text-amber-600">
+                        {t('tyrePending')}: {t((live?.pendingTyreType || assignment.pendingTyreType) === TyreType.WET ? 'tyreWet' : 'tyreDry')}
+                      </p>
+                    )}
+                    {Number.isInteger(live?.simulatedBestLapTime ?? assignment.simulatedBestLapTime) && (
+                      <div className="text-sm">
+                        <span className="text-muted-foreground">{t('tyreVirtualBest')}</span>
+                        <LapTime time={live?.simulatedBestLapTime ?? assignment.simulatedBestLapTime} size="md" />
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground">{t('tyreHint')}</p>
+                    {accessToken && [SessionStatus.ACTIVE, SessionStatus.PAUSED].includes(session.status) && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button type="button" variant="outline" disabled={tyrePending}
+                          onClick={() => requestTyres(TyreType.DRY)}>{t('tyreDry')}</Button>
+                        <Button type="button" variant="outline" disabled={tyrePending}
+                          onClick={() => requestTyres(TyreType.WET)}>{t('tyreWet')}</Button>
+                      </div>
+                    )}
+                    {!accessToken && <p className="text-xs text-amber-500">{t('tyreTokenRequired')}</p>}
+                    {tyreMessage && <p role="status" className="text-sm text-green-500">{tyreMessage}</p>}
+                    {tyreError && <p role="alert" className="text-sm text-red-500">{tyreError}</p>}
+                  </section>
+                )}
+                {accessToken && ['active', 'paused'].includes(session.status) && (
                   <section className="rounded-xl border border-red-500/40 bg-card p-5 space-y-3">
                     <Button
                       type="button"
