@@ -211,7 +211,6 @@ describe('déroulé de course', () => {
   });
 });
 
-
 describe('VSC speed cap and restoration', () => {
   let service;
   let device;
@@ -258,10 +257,18 @@ describe('VSC speed cap and restoration', () => {
 
   it('caps assigned cars and restores each saved speed', async () => {
     expect(await service.startVsc(3)).toMatchObject({ status: 'active', active: true, cap: 3 });
-    expect(writes).toEqual([[0, 3], [2, 3]]);
+    expect(writes).toEqual([
+      [0, 3],
+      [2, 3],
+    ]);
 
     expect(await service.endVsc()).toMatchObject({ status: 'inactive', active: false });
-    expect(writes).toEqual([[0, 3], [2, 3], [0, 7], [2, 10]]);
+    expect(writes).toEqual([
+      [0, 3],
+      [2, 3],
+      [0, 7],
+      [2, 10],
+    ]);
     expect(service.io.emit).toHaveBeenCalledWith('session:vsc', expect.objectContaining({ active: true }));
   });
 
@@ -270,7 +277,13 @@ describe('VSC speed cap and restoration', () => {
     await service.writeRaceSpeed(0, 9);
     await service.endVsc();
 
-    expect(writes).toEqual([[0, 4], [2, 4], [0, 4], [0, 7], [2, 10]]);
+    expect(writes).toEqual([
+      [0, 4],
+      [2, 4],
+      [0, 4],
+      [0, 7],
+      [2, 10],
+    ]);
   });
 
   it('restores automatically when the requested duration expires', async () => {
@@ -281,7 +294,12 @@ describe('VSC speed cap and restoration', () => {
     await jest.advanceTimersByTimeAsync(5000);
 
     expect(service.getVscState().status).toBe('inactive');
-    expect(writes).toEqual([[0, 3], [2, 3], [0, 7], [2, 10]]);
+    expect(writes).toEqual([
+      [0, 3],
+      [2, 3],
+      [0, 7],
+      [2, 10],
+    ]);
   });
 
   it('does not repeat CU commands on repeated activation', async () => {
@@ -289,7 +307,10 @@ describe('VSC speed cap and restoration', () => {
     const repeated = await service.startVsc(4);
 
     expect(repeated.cap).toBe(3);
-    expect(writes).toEqual([[0, 3], [2, 3]]);
+    expect(writes).toEqual([
+      [0, 3],
+      [2, 3],
+    ]);
     await service.endVsc();
   });
 
@@ -297,7 +318,12 @@ describe('VSC speed cap and restoration', () => {
     await Promise.all([service.startVsc(3), service.endVsc()]);
 
     expect(service.getVscState().status).toBe('inactive');
-    expect(writes).toEqual([[0, 3], [2, 3], [0, 7], [2, 10]]);
+    expect(writes).toEqual([
+      [0, 3],
+      [2, 3],
+      [0, 7],
+      [2, 10],
+    ]);
   });
 
   it.each([
@@ -332,7 +358,11 @@ describe('VSC speed cap and restoration', () => {
     await expect(service.startVsc(3)).rejects.toThrow('BLE timeout');
 
     expect(service.getVscState().status).toBe('inactive');
-    expect(writes).toEqual([[0, 3], [0, 7], [2, 10]]);
+    expect(writes).toEqual([
+      [0, 3],
+      [0, 7],
+      [2, 10],
+    ]);
   });
 
   it('retains an actionable error when partial rollback also fails', async () => {
@@ -372,7 +402,11 @@ describe('VSC speed cap and restoration', () => {
 
     await expect(service.endVsc()).rejects.toThrow('vehicle assignment changed');
 
-    expect(writes).toEqual([[0, 3], [2, 3], [2, 10]]);
+    expect(writes).toEqual([
+      [0, 3],
+      [2, 3],
+      [2, 10],
+    ]);
     expect(service.getVscState().status).toBe('restore_failed');
   });
 
@@ -381,7 +415,12 @@ describe('VSC speed cap and restoration', () => {
     service.sessionDrivers[0]._throttled = true;
     await service.endVsc();
 
-    expect(writes).toEqual([[0, 3], [2, 3], [0, 1], [2, 10]]);
+    expect(writes).toEqual([
+      [0, 3],
+      [2, 3],
+      [0, 1],
+      [2, 10],
+    ]);
   });
 
   it('stops the CU before restoring speeds on pause', async () => {
@@ -390,7 +429,9 @@ describe('VSC speed cap and restoration', () => {
       order.push('speed');
       writes.push([controller, level]);
     });
-    service.syncService.stopRace.mockImplementation(async () => { order.push('stop'); });
+    service.syncService.stopRace.mockImplementation(async () => {
+      order.push('stop');
+    });
     const prisma = service.prisma;
     service.prisma = {
       session: { update: jest.fn().mockResolvedValue({}) },
