@@ -72,6 +72,13 @@ describe('CU vehicle configuration', () => {
     ]);
   });
 
+  test('rejects speed commands for native Ghost and Pace Car slots', async () => {
+    for (const controller of [6, 7]) {
+      await expect(service.writeRaceSpeed(controller, 5)).rejects.toThrow('not a human CU slot');
+    }
+    expect(writes).toEqual([]);
+  });
+
   test('reapplies the car rather than a previous controller profile after reassignment', async () => {
     const a = driver(0, 'a', 30, 90, 70);
     const b = driver(1, 'b', 100, 20, 40);
