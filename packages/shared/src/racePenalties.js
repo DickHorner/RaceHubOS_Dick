@@ -2,14 +2,17 @@
  * Derived race classification. Penalties never alter recorded laps or times.
  * A revoked penalty has no effect; the saved audit record remains visible.
  */
+export const PenaltyKind = Object.freeze({ TIME: 'time', LAP: 'lap' });
+export const PenaltyStatus = Object.freeze({ ACTIVE: 'active', REVOKED: 'revoked' });
+
 export function withRacePenalties(driver, penalties = []) {
   let penaltyLaps = 0;
   let penaltyTimeMs = 0;
 
   for (const penalty of penalties) {
-    if (penalty.status !== 'active' || penalty.sessionDriverId !== driver.id) continue;
-    if (penalty.kind === 'lap') penaltyLaps += penalty.amount;
-    if (penalty.kind === 'time') penaltyTimeMs += penalty.amount;
+    if (penalty.status !== PenaltyStatus.ACTIVE || penalty.sessionDriverId !== driver.id) continue;
+    if (penalty.kind === PenaltyKind.LAP) penaltyLaps += penalty.amount;
+    if (penalty.kind === PenaltyKind.TIME) penaltyTimeMs += penalty.amount;
   }
 
   return {
