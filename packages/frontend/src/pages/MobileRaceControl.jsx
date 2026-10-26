@@ -317,7 +317,7 @@ export default function MobileRaceControl() {
               <section className="rounded-xl border border-border bg-card p-5 space-y-3">
                 <h2 className="font-bold">{t('vscTitle')}</h2>
                 <p role="status" className="text-sm">{t('vscState')}: {t(`vscStatus.${vsc.status}`)}</p>
-                {vsc.expiresAt && now > 0 && vsc.status === 'active' && (
+                {vsc.expiresAt && now > 0 && vsc.active && (
                   <p className="font-mono text-lg tabular-nums">
                     {t('vscRemaining', { seconds: Math.max(0, Math.ceil((Date.parse(vsc.expiresAt) - now) / 1000)) })}
                   </p>
