@@ -585,18 +585,103 @@ export class SessionService extends EventEmitter {
     const durationMs = exitedAt.getTime() - enteredAt.getTime();
     if (!Number.isFinite(durationMs) || durationMs <= 0) return;
 
-    const pitStop = await this.prisma.pitStop.create({
-      data: {
-        sessionId: this.activeSessionId,
-        sessionDriverId: driver.id,
-        controller,
-        enteredAt,
-        exitedAt,
-        durationMs,
-        source,
-      },
+    const sessionId = this.activeSessionId;
+    const data = { sessionId, sessionDriverId: driver.id, controller, enteredAt, exitedAt, durationMs, source };
+    return this.queueTyre(async () => {
+      if (this.activeSessionId !== sessionId || this.sessionStatus !== SessionStatus.ACTIVE) return;
+
+      let pitStop;
+      if (source === 'simulator' && validTyreType(driver.pendingTyreType) &&
+          driver.pendingTyreType !== driver.tyreType) {
+        const result = await this.prisma.$transaction(async (tx) => {
+          const pit = await tx.pitStop.create({ data });
+          const change = await tx.tyreChange.create({
+            data: {
+              sessionId, sessionDriverId: driver.id, controller,
+              fromType: driver.tyreType, toType: driver.pendingTyreType,
+              source: 'simulator', pitStopId: pit.id,
+            },
+          });
+          await tx.sessionDriver.update({
+            where: { id: driver.id },
+            data: { tyreType: change.toType, pendingTyreType: null },
+          });
+          return { pit, change };
+        });
+        pitStop = result.pit;
+        driver.tyreType = result.change.toType;
+        driver.pendingTyreType = null;
+        this.emit('session:tyre_changed', { sessionId, sessionDriverId: driver.id, change: result.change });
+        this.emitLeaderboard();
+      } else {
+        // Physical CU pit telemetry is not validated: leave tyre requests for the director.
+        pitStop = await this.prisma.pitStop.create({ data });
+      }
+      this.emit('session:pit_stop', pitStop);
+      return pitStop;
     });
-    this.emit('session:pit_stop', pitStop);
+  }
+
+  // Matches the existing queueVsc pattern; requests and pit exits execute in order.
+  queueTyre(action) {
+    const result = this.tyreWrites.then(action);
+    this.tyreWrites = result.catch(() => {});
+    return result;
+  }
+
+  requestTyreChange(sessionId, sessionDriverId, tyreType) {
+    return this.queueTyre(async () => {
+      if (!validTyreType(tyreType)) throw Object.assign(new Error('Invalid tyre choice'), { status: 400 });
+      if (sessionId !== this.activeSessionId || this.currentPhase !== SessionType.RACE ||
+          ![SessionStatus.ACTIVE, SessionStatus.PAUSED].includes(this.sessionStatus)) {
+        throw Object.assign(new Error('No active race for this tyre request'), { status: 409 });
+      }
+      const driver = this.sessionDrivers.find((row) => row.id === sessionDriverId);
+      if (!driver?.driverId || !driver.carId) {
+        throw Object.assign(new Error('Driver assignment is no longer available'), { status: 409 });
+      }
+      const pendingTyreType = tyreType === driver.tyreType ? null : tyreType;
+      await this.prisma.sessionDriver.update({
+        where: { id: driver.id }, data: { pendingTyreType },
+      });
+      driver.pendingTyreType = pendingTyreType;
+      this.emit('session:tyre_changed', { sessionId, sessionDriverId, tyreType: driver.tyreType, pendingTyreType });
+      this.emitLeaderboard();
+      return { tyreType: driver.tyreType, pendingTyreType };
+    });
+  }
+
+  confirmTyreChange(sessionId, sessionDriverId) {
+    return this.queueTyre(async () => {
+      if (sessionId !== this.activeSessionId || this.currentPhase !== SessionType.RACE ||
+          ![SessionStatus.ACTIVE, SessionStatus.PAUSED].includes(this.sessionStatus)) {
+        throw Object.assign(new Error('No active race for tyre confirmation'), { status: 409 });
+      }
+      const driver = this.sessionDrivers.find((row) => row.id === sessionDriverId);
+      if (!driver?.driverId || !validTyreType(driver.pendingTyreType) ||
+          driver.pendingTyreType === driver.tyreType) {
+        throw Object.assign(new Error('No pending tyre change for this driver'), { status: 409 });
+      }
+      const change = await this.prisma.$transaction(async (tx) => {
+        const record = await tx.tyreChange.create({
+          data: {
+            sessionId, sessionDriverId: driver.id, controller: driver.controller,
+            fromType: driver.tyreType, toType: driver.pendingTyreType,
+            source: 'director',
+          },
+        });
+        await tx.sessionDriver.update({
+          where: { id: driver.id },
+          data: { tyreType: record.toType, pendingTyreType: null },
+        });
+        return record;
+      });
+      driver.tyreType = change.toType;
+      driver.pendingTyreType = null;
+      this.emit('session:tyre_changed', { sessionId, sessionDriverId, change });
+      this.emitLeaderboard();
+      return change;
+    });
   }
 
   getDriverByController(controller) {
