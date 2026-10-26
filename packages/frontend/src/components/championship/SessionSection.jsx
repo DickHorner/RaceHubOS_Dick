@@ -576,7 +576,7 @@ export default function SessionSection({
                 <p className="text-xs font-semibold text-muted-foreground">{t('sessionSection.weather.title')}</p>
                 <Select
                   value={session.weatherSeed == null ? 'off' : 'on'}
-                  onValueChange={(value) => saveWeather({ weatherSeed: value === 'on' ? 1 : null })}
+                  onValueChange={(value) => saveWeather({ weatherSeed: value === 'on' ? 1 : null, ...(value === 'off' ? { tyreMismatchPercent: 0 } : {}) })}
                 >
                   <SelectTrigger className="w-40 h-8 text-xs">
                     <SelectValue />
@@ -640,6 +640,25 @@ export default function SessionSection({
                   {t('sessionSection.weather.advanceDuringPause')}
                 </label>
               )}
+              {session.weatherSeed != null && (
+                <label className="block text-xs text-muted-foreground">
+                  {t('sessionSection.weather.tyreMismatchPercent')}
+                  <Input type="number" min="0" max="30" step="1"
+                    key={`${session.id}-tyres-${session.tyreMismatchPercent}`}
+                    defaultValue={session.tyreMismatchPercent ?? 0}
+                    onBlur={(event) => {
+                      const value = Number(event.target.value)
+                      if (!Number.isInteger(value) || value < 0 || value > 30) {
+                        setWeatherError(t('sessionSection.weather.invalid'))
+                        return
+                      }
+                      if (value !== session.tyreMismatchPercent) saveWeather({ tyreMismatchPercent: value })
+                    }}
+                    className="mt-1 h-8 text-xs"
+                  />
+                </label>
+              )}
+              <p className="text-xs text-muted-foreground">{t('sessionSection.weather.tyreHint')}</p>
               <p className="text-xs text-muted-foreground">{t('sessionSection.weather.displayOnly')}</p>
               {weatherError && <p role="alert" className="text-xs text-destructive">{weatherError}</p>}
             </div>
