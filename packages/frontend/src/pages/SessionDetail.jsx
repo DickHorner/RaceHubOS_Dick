@@ -61,7 +61,7 @@ export default function SessionDetail() {
     const sorted = [...drivers].sort((a, b) => {
       if (isRace) {
         if ((b.totalLaps || 0) !== (a.totalLaps || 0)) return (b.totalLaps || 0) - (a.totalLaps || 0)
-        return (a.totalTime || Infinity) - (b.totalTime || Infinity)
+        return (a.simulatedTotalTime ?? a.totalTime ?? Infinity) - (b.simulatedTotalTime ?? b.totalTime ?? Infinity)
       }
       if (!a.bestLapTime && !b.bestLapTime) return 0
       if (!a.bestLapTime) return 1
@@ -77,7 +77,7 @@ export default function SessionDetail() {
         if (isRace) {
           const lapDiff = (leader.totalLaps || 0) - (sd.totalLaps || 0)
           if (lapDiff > 0) gap = { type: 'laps', value: lapDiff }
-          else gap = { type: 'time', value: (sd.totalTime || 0) - (leader.totalTime || 0) }
+          else gap = { type: 'time', value: (sd.simulatedTotalTime ?? sd.totalTime ?? 0) - (leader.simulatedTotalTime ?? leader.totalTime ?? 0) }
         } else {
           if (leader.bestLapTime && sd.bestLapTime) gap = { type: 'time', value: sd.bestLapTime - leader.bestLapTime }
         }
@@ -89,11 +89,15 @@ export default function SessionDetail() {
         driver: sd.driver,
         car: sd.car,
         gridPos: sd.gridPos ?? null,
+        tyreType: sd.tyreType,
+        pendingTyreType: sd.pendingTyreType,
         stats: {
           laps: sd.totalLaps || 0,
           bestLap: sd.bestLapTime || null,
           lastLap: sd.lastLapTime || null,
           totalTime: sd.totalTime || 0,
+          simulatedTotalTime: sd.simulatedTotalTime,
+          simulatedBestLapTime: sd.simulatedBestLapTime,
           gap,
         },
         position: i + 1,
@@ -233,7 +237,12 @@ export default function SessionDetail() {
           <Card>
             <CardContent className="p-0 overflow-hidden">
               <Podium
-                drivers={session.drivers}
+                drivers={session.type === SessionType.RACE && session.tyreMismatchPercent > 0
+                  ? session.drivers.map((driver) => ({
+                      ...driver,
+                      totalTime: driver.simulatedTotalTime ?? driver.totalTime,
+                    }))
+                  : session.drivers}
                 sessionType={session.type}
                 stats={{
                   duration: sessionDuration ? Math.floor(sessionDuration / 1000) : null,
@@ -311,6 +320,36 @@ export default function SessionDetail() {
           </Card>
         )}
 
+        {session.tyreChanges?.length > 0 && (
+          <Card>
+            <CardContent className="p-0">
+              <div className="px-4 py-3 border-b border-border">
+                <h3 className="text-sm font-semibold">{t('profile.tyreHistory')}</h3>
+              </div>
+              <ul className="divide-y divide-border">
+                {session.tyreChanges.map((change) => {
+                  const participant = session.drivers?.find((row) => row.id === change.sessionDriverId)
+                  return (
+                    <li key={change.id} className="flex justify-between gap-3 px-4 py-2 text-sm">
+                      <div>
+                        <span className="font-semibold">{participant?.driver?.name || `Ctrl ${change.controller + 1}`}</span>
+                        <span className="ml-2">
+                          {t(change.fromType === 'wet' ? 'profile.tyreWet' : 'profile.tyreDry')} →
+                          {' '}{t(change.toType === 'wet' ? 'profile.tyreWet' : 'profile.tyreDry')}
+                        </span>
+                        <p className="text-xs text-muted-foreground">
+                          {t(change.source === 'simulator' ? 'profile.tyreSimulator' : 'profile.tyreDirector')}
+                        </p>
+                      </div>
+                      <span className="text-xs text-muted-foreground">{new Date(change.changedAt).toLocaleTimeString(i18n.language)}</span>
+                    </li>
+                  )
+                })}
+              </ul>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Lap history table */}
         {session.laps?.length > 0 && !isBalancing && (
           <Card>
@@ -326,6 +365,9 @@ export default function SessionDetail() {
                       <th className="px-4 py-2 font-medium">{t('glossary:driver', { count: 1 })}</th>
                       <th className="px-4 py-2 font-medium">{t('glossary:car', { count: 1 })}</th>
                       <th className="px-4 py-2 font-medium text-right">{t('profile.time')}</th>
+                      {session.tyreMismatchPercent > 0 && (
+                        <th className="px-4 py-2 font-medium text-right">{t('profile.simulatedTime')}</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -351,6 +393,17 @@ export default function SessionDetail() {
                           <td className="px-4 py-1.5 text-right">
                             <LapTime time={Math.round(lap.lapTime)} size="sm" highlight={lap.lapTime === fastestLap} />
                           </td>
+                          {session.tyreMismatchPercent > 0 && (
+                            <td className="px-4 py-1.5 text-right">
+                              <LapTime time={lap.simulatedLapTime} size="sm" />
+                              {lap.tyreAtLap && (
+                                <p className="text-xs text-muted-foreground">
+                                  {t(lap.tyreAtLap === 'wet' ? 'profile.tyreWet' : 'profile.tyreDry')} ·
+                                  {' '}{t(lap.weatherAtLap === 'rain' ? 'profile.weatherRain' : 'profile.weatherDry')}
+                                </p>
+                              )}
+                            </td>
+                          )}
                         </tr>
                       )
                     })}
