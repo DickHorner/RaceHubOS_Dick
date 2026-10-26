@@ -223,6 +223,12 @@ export default function SessionLeaderboard({
                     {car.brand} {car.model || car.name || ''}
                   </span>
                 </div>
+                {entry.tyreType && (
+                  <div className="text-xs text-sky-600 dark:text-sky-400">
+                    {t(entry.tyreType === 'wet' ? 'leaderboard.tyreWet' : 'leaderboard.tyreDry')}
+                    {entry.pendingTyreType && ` · ${t('leaderboard.tyrePending')}`}
+                  </div>
+                )}
               </div>
 
               {/* Stats */}
@@ -243,6 +249,11 @@ export default function SessionLeaderboard({
                     {t('leaderboard.best')}
                   </div>
                   <LapTime time={stats.bestLap} size={expanded ? 'xl' : 'md'} highlight={entry.hasFastestLap} />
+                  {Number.isInteger(stats.simulatedBestLapTime) && (
+                    <div className="text-xs text-sky-600 dark:text-sky-400">
+                      {t('leaderboard.simulatedBest')} <LapTime time={stats.simulatedBestLapTime} size="sm" />
+                    </div>
+                  )}
                 </div>
 
                 {/* Last Lap */}
@@ -262,7 +273,12 @@ export default function SessionLeaderboard({
                   </div>
                   {sortBy === 'race' && position === 1 ? (
                     sessionStatus === SessionStatus.FINISHED ? (
-                      <LapTime time={stats.totalTime} size={expanded ? 'xl' : 'md'} format="total" />
+                      <div>
+                         <LapTime time={stats.simulatedTotalTime ?? stats.totalTime} size={expanded ? 'xl' : 'md'} format="total" />
+                         {Number.isInteger(stats.simulatedTotalTime) && (
+                           <p className="text-xs text-sky-600 dark:text-sky-400">{t('leaderboard.simulatedTotal')}</p>
+                         )}
+                       </div>
                     ) : (
                       <span className={`${expanded ? 'text-lg' : 'text-sm'} font-bold ${GAP_COLORS.leader}`}>
                         {t('gapDisplay.leader')}
