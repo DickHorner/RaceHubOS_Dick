@@ -11,14 +11,13 @@ const API_URL = import.meta.env.VITE_API_URL || ''
 export default function SessionResults() {
   const { sessionId } = useParams()
   const { t, i18n } = useTranslation('sessions')
-  const [session, setSession] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [copied, setCopied] = useState(false)
+  const [loaded, setLoaded] = useState(null)
+  const [copiedSessionId, setCopiedSessionId] = useState(null)
+  const loading = loaded?.id !== sessionId
+  const session = loading ? null : loaded.data
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    setSession(null)
     fetch(`${API_URL}/api/sessions/${sessionId}`)
       .then(async (response) => {
         if (!response.ok) throw new Error('Session not found')
@@ -27,11 +26,11 @@ export default function SessionResults() {
         return result.data
       })
       .then((data) => {
-        if (!cancelled) setSession(data)
+        if (!cancelled) setLoaded({ id: sessionId, data })
       })
-      .catch((error) => console.error('Error loading printable results:', error))
-      .finally(() => {
-        if (!cancelled) setLoading(false)
+      .catch((error) => {
+        console.error('Error loading printable results:', error)
+        if (!cancelled) setLoaded({ id: sessionId, data: null })
       })
     return () => {
       cancelled = true
@@ -46,7 +45,7 @@ export default function SessionResults() {
     }
     try {
       await navigator.clipboard.writeText(link)
-      setCopied(true)
+      setCopiedSessionId(sessionId)
     } catch {
       window.prompt(t('printResults.manualCopy'), link)
     }
@@ -186,7 +185,7 @@ export default function SessionResults() {
             <p className="text-xs text-muted-foreground print:hidden" role="note">
               {t('printResults.lanHint')}
             </p>
-            {copied && (
+            {copiedSessionId === sessionId && (
               <p role="status" className="text-sm text-green-600 print:hidden">
                 {t('printResults.linkCopied')}
               </p>
