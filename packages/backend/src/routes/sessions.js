@@ -13,6 +13,7 @@ import {
   VIRTUAL_FUEL_FULL,
 } from '@racehubos/shared';
 import { idsFromQuery, sendWorkbook, sessionWorkbook, sessionsWorkbook } from '../lib/exportQueries.js';
+import { sendCsv, worksheetTableRows } from '../lib/csvExport.js';
 
 const router = express.Router();
 let sessionService;
@@ -197,7 +198,22 @@ router.get('/:id/export', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Session not found' });
     }
 
-    await sendWorkbook(res, result);
+    if (req.query.format === 'csv') {
+      const table = req.query.table ?? 'results';
+      if (table !== 'results' && table !== 'laps') {
+        return res.status(400).json({ success: false, error: 'Invalid CSV table (results or laps)' });
+      }
+      const heading = table === 'results' ? 'Engagements' : 'Tours';
+      sendCsv(
+        res,
+        result.fileName.replace(/\.xlsx$/, `_${table}.csv`),
+        worksheetTableRows(result.workbook.worksheets[1], heading)
+      );
+    } else if (req.query.format === undefined || req.query.format === 'xlsx') {
+      await sendWorkbook(res, result);
+    } else {
+      res.status(400).json({ success: false, error: 'Invalid export format (xlsx or csv)' });
+    }
   } catch (error) {
     console.error('Error exporting session:', error);
     res.status(500).json({ success: false, error: error.message });

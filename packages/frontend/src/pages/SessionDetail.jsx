@@ -254,8 +254,18 @@ export default function SessionDetail() {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <ExportButton url={`/api/sessions/${session.id}/export`} />
+          <ExportButton
+            url={`/api/sessions/${session.id}/export?format=csv&table=results`}
+            format="csv"
+            label={t('common:csvResults')}
+          />
+          <ExportButton
+            url={`/api/sessions/${session.id}/export?format=csv&table=laps`}
+            format="csv"
+            label={t('common:csvLaps')}
+          />
           <DeleteButton variant="outline" onDelete={handleDelete} />
         </div>
       </div>

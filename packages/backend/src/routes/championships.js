@@ -3,6 +3,7 @@ import { createPrismaClient } from '../lib/prisma.js';
 import { withImageUrl } from '../utils/imageUrl.js';
 import { ChampionshipMode, ChampionshipStatus, SessionStatus, SessionType } from '@racehubos/shared';
 import { championshipWorkbook, championshipsWorkbook, idsFromQuery, sendWorkbook } from '../lib/exportQueries.js';
+import { sendCsv, worksheetTableRows } from '../lib/csvExport.js';
 import { sessionName } from '../lib/sessionNames.js';
 
 const router = express.Router();
@@ -119,6 +120,20 @@ router.get('/export', async (req, res) => {
  */
 router.get('/:id/export', async (req, res) => {
   try {
+    if (req.query.format === 'csv') {
+      const result = await championshipWorkbook(prisma, req.params.id);
+      if (!result) {
+        return res.status(404).json({ success: false, error: 'Championship not found' });
+      }
+      const rows = worksheetTableRows(result.workbook.worksheets[1], 'Classement pilotes');
+      if (!rows) return res.status(404).json({ success: false, error: 'No driver standings to export' });
+      sendCsv(res, result.fileName.replace(/\.xlsx$/, '_standings.csv'), rows);
+      return;
+    }
+    if (req.query.format !== undefined && req.query.format !== 'xlsx') {
+      return res.status(400).json({ success: false, error: 'Invalid export format (xlsx or csv)' });
+    }
+
     const result = await championshipWorkbook(prisma, req.params.id);
     if (!result) {
       return res.status(404).json({ success: false, error: 'Championship not found' });
