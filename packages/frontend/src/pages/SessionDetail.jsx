@@ -190,6 +190,13 @@ export default function SessionDetail() {
               <Badge variant={session.status === SessionStatus.FINISHED ? 'default' : 'secondary'}>
                 {t(`glossary:sessionStatus.${session.status}`, { defaultValue: session.status })}
               </Badge>
+              {session.type === SessionType.RACE && session.weatherSeed != null && (
+                <Badge variant="outline">
+                  {t('profile.weatherFinal', {
+                    condition: t(`championships:sessionSection.weather.${session.weatherCondition || session.weatherInitial}`),
+                  })}
+                </Badge>
+              )}
             </div>
             <div className="text-xs text-muted-foreground flex items-center gap-2">
               {session.track && (
