@@ -121,7 +121,15 @@ export function migrateSchema() {
 
   // migrate deploy checks the history, not whether the live tables still match.
   // Refuse to boot with a drifted schema even when every migration says "applied".
-  const diff = run(['prisma', 'migrate', 'diff', '--from-config-datasource', '--to-schema', 'prisma/schema.prisma', '--script']);
+  const diff = run([
+    'prisma',
+    'migrate',
+    'diff',
+    '--from-config-datasource',
+    '--to-schema',
+    'prisma/schema.prisma',
+    '--script',
+  ]);
   if (!/empty migration/i.test(diff)) {
     throw new Error('Database schema does not match schema.prisma after migration');
   }
