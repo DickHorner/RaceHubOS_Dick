@@ -467,15 +467,24 @@ export default function ChampionshipConfigModal({
                       type="checkbox"
                       checked={rotationCars.includes(car.id)}
                       onChange={(e) => {
-                        setRotationCars((ids) => e.target.checked ? [...ids, car.id] : ids.filter((id) => id !== car.id))
+                        setRotationCars((ids) =>
+                          e.target.checked ? [...ids, car.id] : ids.filter((id) => id !== car.id)
+                        )
                         setRotationPlan(null)
                       }}
                     />
-                    <span>{car.brand} {car.model}</span>
+                    <span>
+                      {car.brand} {car.model}
+                    </span>
                   </label>
                 ))}
               </div>
-              <Button variant="outline" size="sm" onClick={previewRotation} disabled={rotationCars.length < 2 || rotationCars.length > 6}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={previewRotation}
+                disabled={rotationCars.length < 2 || rotationCars.length > 6}
+              >
                 {t('configModal.rotationPreview')}
               </Button>
               {rotationPlan && (
