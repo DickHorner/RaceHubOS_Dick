@@ -68,13 +68,15 @@ describe('controller configuration reserves Ghost and Pace slots', () => {
   });
 
   test('bulk update rejects an invalid slot before persisting a preceding valid one', async () => {
-    const result = await request(app).put('/api/config/bulk').send({
-      trackId: track.id,
-      controllers: [
-        { controller: 0, driverId: driver.id, carId: car.id },
-        { controller: 6, driverId: driver.id, carId: car.id },
-      ],
-    });
+    const result = await request(app)
+      .put('/api/config/bulk')
+      .send({
+        trackId: track.id,
+        controllers: [
+          { controller: 0, driverId: driver.id, carId: car.id },
+          { controller: 6, driverId: driver.id, carId: car.id },
+        ],
+      });
 
     expect(result.status).toBe(400);
     expect(result.body.error).toBe('Invalid controller (0-5)');
