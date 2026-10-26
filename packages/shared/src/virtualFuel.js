@@ -18,7 +18,7 @@ export function virtualFuelAfter(units, event) {
   return units;
 }
 
-export function replayVirtualFuel(events) {
+export function replayVirtualFuel(events = []) {
   const levels = new Map();
   for (const event of events) {
     const previous = levels.get(event.sessionDriverId) ?? VIRTUAL_FUEL_FULL;
