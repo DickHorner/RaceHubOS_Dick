@@ -274,11 +274,15 @@ export default function SessionLeaderboard({
                   {sortBy === 'race' && position === 1 ? (
                     sessionStatus === SessionStatus.FINISHED ? (
                       <div>
-                         <LapTime time={stats.simulatedTotalTime ?? stats.totalTime} size={expanded ? 'xl' : 'md'} format="total" />
-                         {Number.isInteger(stats.simulatedTotalTime) && (
-                           <p className="text-xs text-sky-600 dark:text-sky-400">{t('leaderboard.simulatedTotal')}</p>
-                         )}
-                       </div>
+                        <LapTime
+                          time={stats.simulatedTotalTime ?? stats.totalTime}
+                          size={expanded ? 'xl' : 'md'}
+                          format="total"
+                        />
+                        {Number.isInteger(stats.simulatedTotalTime) && (
+                          <p className="text-xs text-sky-600 dark:text-sky-400">{t('leaderboard.simulatedTotal')}</p>
+                        )}
+                      </div>
                     ) : (
                       <span className={`${expanded ? 'text-lg' : 'text-sm'} font-bold ${GAP_COLORS.leader}`}>
                         {t('gapDisplay.leader')}

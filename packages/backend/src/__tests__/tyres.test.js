@@ -107,7 +107,9 @@ describe('session tyre requests and pit changes', () => {
     try {
       await replay.loadSession(session.id);
       expect(replay.getLeaderboard()[0]).toMatchObject({
-        tyreType: TyreType.DRY, simulatedTotalTime: 11000, totalTime: 10000,
+        tyreType: TyreType.DRY,
+        simulatedTotalTime: 11000,
+        totalTime: 10000,
       });
     } finally {
       replay.stopHeartbeat();
@@ -127,7 +129,9 @@ describe('session tyre requests and pit changes', () => {
     const savedChanges = await prisma.tyreChange.findMany();
     expect(savedChanges).toHaveLength(1);
     expect(savedChanges[0]).toMatchObject({
-      fromType: TyreType.DRY, toType: TyreType.WET, source: 'simulator',
+      fromType: TyreType.DRY,
+      toType: TyreType.WET,
+      source: 'simulator',
       sessionDriverId: assigned.id,
     });
     expect(savedChanges[0].pitStopId).toBeTruthy();
@@ -136,8 +140,10 @@ describe('session tyre requests and pit changes', () => {
     expect(await prisma.tyreChange.count()).toBe(1);
     await lap();
     const laps = await prisma.lap.findMany({ where: { sessionId: session.id }, orderBy: { timestamp: 'asc' } });
-    expect(laps.map((row) => [row.lapTime, row.simulatedLapTime, row.tyreAtLap]))
-      .toEqual([[10000, 11000, TyreType.DRY], [10000, 10000, TyreType.WET]]);
+    expect(laps.map((row) => [row.lapTime, row.simulatedLapTime, row.tyreAtLap])).toEqual([
+      [10000, 11000, TyreType.DRY],
+      [10000, 10000, TyreType.WET],
+    ]);
     expect((await prisma.sessionDriver.findUnique({ where: { id: assigned.id } })).simulatedTotalTime).toBe(21000);
   });
 
@@ -175,13 +181,16 @@ describe('session tyre requests and pit changes', () => {
   test('invalid, stale or inactive requests cannot change the selected tyres', async () => {
     const { session, assigned } = await fixture();
     await expect(service.requestTyreChange(session.id, assigned.id, 'slick')).rejects.toMatchObject({ status: 400 });
-    await expect(service.requestTyreChange('other-session', assigned.id, TyreType.WET))
-      .rejects.toMatchObject({ status: 409 });
-    await expect(service.requestTyreChange(session.id, 'other-driver', TyreType.WET))
-      .rejects.toMatchObject({ status: 409 });
+    await expect(service.requestTyreChange('other-session', assigned.id, TyreType.WET)).rejects.toMatchObject({
+      status: 409,
+    });
+    await expect(service.requestTyreChange(session.id, 'other-driver', TyreType.WET)).rejects.toMatchObject({
+      status: 409,
+    });
     service.sessionStatus = SessionStatus.FINISHED;
-    await expect(service.requestTyreChange(session.id, assigned.id, TyreType.WET))
-      .rejects.toMatchObject({ status: 409 });
+    await expect(service.requestTyreChange(session.id, assigned.id, TyreType.WET)).rejects.toMatchObject({
+      status: 409,
+    });
     expect(await prisma.tyreChange.count()).toBe(0);
     expect((await prisma.sessionDriver.findUnique({ where: { id: assigned.id } })).tyreType).toBe(TyreType.DRY);
   });
@@ -203,8 +212,10 @@ describe('session tyre requests and pit changes', () => {
     expect(await prisma.tyreChange.count()).toBe(0);
     const row = await prisma.sessionDriver.findUnique({ where: { id: assigned.id } });
     expect(row).toMatchObject({
-      tyreType: TyreType.DRY, pendingTyreType: null,
-      simulatedTotalTime: null, simulatedBestLapTime: null,
+      tyreType: TyreType.DRY,
+      pendingTyreType: null,
+      simulatedTotalTime: null,
+      simulatedBestLapTime: null,
     });
     const active = await prisma.lap.count({ where: { sessionId: session.id, deletedAt: null } });
     expect(active).toBe(0);

@@ -1,7 +1,13 @@
 import express from 'express';
 import SessionService from '../services/SessionService.js';
 import { getReferenceDriver } from '../lib/referenceDriver.js';
-import { SessionStatus, SessionType, validWeatherConfig, validTyreMismatchPercent, weatherForSession } from '@racehubos/shared';
+import {
+  SessionStatus,
+  SessionType,
+  validWeatherConfig,
+  validTyreMismatchPercent,
+  weatherForSession,
+} from '@racehubos/shared';
 import { idsFromQuery, sendWorkbook, sessionWorkbook, sessionsWorkbook } from '../lib/exportQueries.js';
 
 const router = express.Router();
@@ -252,9 +258,11 @@ router.put('/:id', async (req, res) => {
       ) {
         return res.status(400).json({ success: false, error: 'Invalid race weather configuration' });
       }
-      if (current.status !== SessionStatus.DRAFT &&
-          (weatherKeys.some((key) => current[key] !== nextWeather[key]) ||
-           (tyreMismatchPercent !== undefined && current.tyreMismatchPercent !== nextTyrePercent))) {
+      if (
+        current.status !== SessionStatus.DRAFT &&
+        (weatherKeys.some((key) => current[key] !== nextWeather[key]) ||
+          (tyreMismatchPercent !== undefined && current.tyreMismatchPercent !== nextTyrePercent))
+      ) {
         return res.status(409).json({ success: false, error: 'Weather cannot be changed after race start' });
       }
       for (const key of weatherKeys) updateData[key] = nextWeather[key];

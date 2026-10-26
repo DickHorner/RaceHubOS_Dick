@@ -127,8 +127,10 @@ export default function SessionForm({ session, onClose, onSaved }) {
         return
       }
 
-      if (!validTyreMismatchPercent(formData.tyreMismatchPercent) ||
-          (formData.tyreMismatchPercent > 0 && formData.weatherSeed === null)) {
+      if (
+        !validTyreMismatchPercent(formData.tyreMismatchPercent) ||
+        (formData.tyreMismatchPercent > 0 && formData.weatherSeed === null)
+      ) {
         setError(t('form.tyreInvalid'))
         return
       }
@@ -337,7 +339,13 @@ export default function SessionForm({ session, onClose, onSaved }) {
                     type="checkbox"
                     checked={formData.weatherSeed !== null}
                     disabled={session?.status && session.status !== SessionStatus.DRAFT}
-                    onChange={(e) => setFormData({ ...formData, weatherSeed: e.target.checked ? 1 : null, tyreMismatchPercent: e.target.checked ? formData.tyreMismatchPercent : 0 })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        weatherSeed: e.target.checked ? 1 : null,
+                        tyreMismatchPercent: e.target.checked ? formData.tyreMismatchPercent : 0,
+                      })
+                    }
                   />
                   {t('form.weatherEnabled')}
                 </label>
@@ -389,11 +397,19 @@ export default function SessionForm({ session, onClose, onSaved }) {
                 {formData.weatherSeed !== null && (
                   <label className="block text-sm text-gray-700 dark:text-gray-300">
                     {t('form.tyreMismatchPercent')}
-                    <input type="number" min="0" max="30" step="1" required
+                    <input
+                      type="number"
+                      min="0"
+                      max="30"
+                      step="1"
+                      required
                       disabled={session?.status && session.status !== SessionStatus.DRAFT}
                       value={formData.tyreMismatchPercent}
-                      onChange={(event) => setFormData({ ...formData, tyreMismatchPercent: Number(event.target.value) })}
-                      className="w-full mt-1 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg" />
+                      onChange={(event) =>
+                        setFormData({ ...formData, tyreMismatchPercent: Number(event.target.value) })
+                      }
+                      className="w-full mt-1 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg"
+                    />
                   </label>
                 )}
                 <p className="text-xs text-gray-500 dark:text-gray-400">{t('form.tyreHint')}</p>

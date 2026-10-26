@@ -77,7 +77,12 @@ export default function SessionDetail() {
         if (isRace) {
           const lapDiff = (leader.totalLaps || 0) - (sd.totalLaps || 0)
           if (lapDiff > 0) gap = { type: 'laps', value: lapDiff }
-          else gap = { type: 'time', value: (sd.simulatedTotalTime ?? sd.totalTime ?? 0) - (leader.simulatedTotalTime ?? leader.totalTime ?? 0) }
+          else
+            gap = {
+              type: 'time',
+              value:
+                (sd.simulatedTotalTime ?? sd.totalTime ?? 0) - (leader.simulatedTotalTime ?? leader.totalTime ?? 0),
+            }
         } else {
           if (leader.bestLapTime && sd.bestLapTime) gap = { type: 'time', value: sd.bestLapTime - leader.bestLapTime }
         }
@@ -237,12 +242,14 @@ export default function SessionDetail() {
           <Card>
             <CardContent className="p-0 overflow-hidden">
               <Podium
-                drivers={session.type === SessionType.RACE && session.tyreMismatchPercent > 0
-                  ? session.drivers.map((driver) => ({
-                      ...driver,
-                      totalTime: driver.simulatedTotalTime ?? driver.totalTime,
-                    }))
-                  : session.drivers}
+                drivers={
+                  session.type === SessionType.RACE && session.tyreMismatchPercent > 0
+                    ? session.drivers.map((driver) => ({
+                        ...driver,
+                        totalTime: driver.simulatedTotalTime ?? driver.totalTime,
+                      }))
+                    : session.drivers
+                }
                 sessionType={session.type}
                 stats={{
                   duration: sessionDuration ? Math.floor(sessionDuration / 1000) : null,
@@ -332,16 +339,20 @@ export default function SessionDetail() {
                   return (
                     <li key={change.id} className="flex justify-between gap-3 px-4 py-2 text-sm">
                       <div>
-                        <span className="font-semibold">{participant?.driver?.name || `Ctrl ${change.controller + 1}`}</span>
+                        <span className="font-semibold">
+                          {participant?.driver?.name || `Ctrl ${change.controller + 1}`}
+                        </span>
                         <span className="ml-2">
-                          {t(change.fromType === 'wet' ? 'profile.tyreWet' : 'profile.tyreDry')} →
-                          {' '}{t(change.toType === 'wet' ? 'profile.tyreWet' : 'profile.tyreDry')}
+                          {t(change.fromType === 'wet' ? 'profile.tyreWet' : 'profile.tyreDry')} →{' '}
+                          {t(change.toType === 'wet' ? 'profile.tyreWet' : 'profile.tyreDry')}
                         </span>
                         <p className="text-xs text-muted-foreground">
                           {t(change.source === 'simulator' ? 'profile.tyreSimulator' : 'profile.tyreDirector')}
                         </p>
                       </div>
-                      <span className="text-xs text-muted-foreground">{new Date(change.changedAt).toLocaleTimeString(i18n.language)}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(change.changedAt).toLocaleTimeString(i18n.language)}
+                      </span>
                     </li>
                   )
                 })}
@@ -398,8 +409,8 @@ export default function SessionDetail() {
                               <LapTime time={lap.simulatedLapTime} size="sm" />
                               {lap.tyreAtLap && (
                                 <p className="text-xs text-muted-foreground">
-                                  {t(lap.tyreAtLap === 'wet' ? 'profile.tyreWet' : 'profile.tyreDry')} ·
-                                  {' '}{t(lap.weatherAtLap === 'rain' ? 'profile.weatherRain' : 'profile.weatherDry')}
+                                  {t(lap.tyreAtLap === 'wet' ? 'profile.tyreWet' : 'profile.tyreDry')} ·{' '}
+                                  {t(lap.weatherAtLap === 'rain' ? 'profile.weatherRain' : 'profile.weatherDry')}
                                 </p>
                               )}
                             </td>
