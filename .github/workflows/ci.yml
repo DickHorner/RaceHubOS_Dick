@@ -22,6 +22,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: ./node_modules/.bin/prettier packages/backend/src/__tests__/raceFlow.test.js | diff -u packages/backend/src/__tests__/raceFlow.test.js - || true
       - run: npm run check -- --ci
       - run: npm run build
       - run: npm run prisma:generate -w @racehubos/backend
