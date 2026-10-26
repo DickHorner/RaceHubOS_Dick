@@ -190,7 +190,12 @@
       "lapsUnit": "laps"
     },
     "deletedTrack": "{{name}} (deleted)",
-    "finishedLocked": "Championship finished: the configuration is locked. Reopen it to make changes."
+    "finishedLocked": "Championship finished: the configuration is locked. Reopen it to make changes.",
+    "rotationTitle": "Car rotation",
+    "rotationHint": "Select 2–6 cars. Preview before applying; started races are protected.",
+    "rotationPreview": "Preview rotation",
+    "rotationCount": "{{count}} races planned",
+    "rotationApply": "Apply rotation"
   },
   "sessionConfigModal": {
     "title": "Session Configuration",
