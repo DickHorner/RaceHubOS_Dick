@@ -205,7 +205,7 @@ router.put('/:id', async (req, res) => {
   try {
     const {
       name, type, trackId, championshipId, fuelMode, maxDuration, maxLaps, gracePeriod, order,
-      weatherSeed, weatherInitial, weatherRainChance, weatherIntervalSeconds,
+      weatherSeed, weatherInitial, weatherRainChance, weatherIntervalSeconds, weatherAdvanceDuringPause,
     } = req.body;
 
     const updateData = {};
@@ -215,7 +215,7 @@ router.put('/:id', async (req, res) => {
     if (championshipId !== undefined) updateData.championshipId = championshipId === '' ? null : championshipId;
     if (fuelMode !== undefined) updateData.fuelMode = fuelMode;
 
-    const weatherUpdate = { weatherSeed, weatherInitial, weatherRainChance, weatherIntervalSeconds };
+    const weatherUpdate = { weatherSeed, weatherInitial, weatherRainChance, weatherIntervalSeconds, weatherAdvanceDuringPause };
     const weatherKeys = Object.keys(weatherUpdate).filter((key) => weatherUpdate[key] !== undefined);
     if (weatherKeys.length || type !== undefined) {
       const current = await prisma().session.findUnique({ where: { id: req.params.id } });

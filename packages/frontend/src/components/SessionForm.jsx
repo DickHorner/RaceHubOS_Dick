@@ -19,6 +19,7 @@ export default function SessionForm({ session, onClose, onSaved }) {
     weatherInitial: WeatherCondition.DRY,
     weatherRainChance: 35,
     weatherIntervalSeconds: 60,
+    weatherAdvanceDuringPause: false,
     drivers: [],
   })
 
@@ -48,6 +49,7 @@ export default function SessionForm({ session, onClose, onSaved }) {
         weatherInitial: session.weatherInitial ?? WeatherCondition.DRY,
         weatherRainChance: session.weatherRainChance ?? 35,
         weatherIntervalSeconds: session.weatherIntervalSeconds ?? 60,
+        weatherAdvanceDuringPause: session.weatherAdvanceDuringPause ?? false,
         drivers:
           session.drivers?.map((sd) => ({
             driverId: sd.driverId,
@@ -355,6 +357,15 @@ export default function SessionForm({ session, onClose, onSaved }) {
                     ))}
                   </div>
                 )}
+                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={formData.weatherAdvanceDuringPause}
+                    disabled={session?.status && session.status !== SessionStatus.DRAFT}
+                    onChange={(event) => setFormData({ ...formData, weatherAdvanceDuringPause: event.target.checked })}
+                  />
+                  {t('form.weatherAdvanceDuringPause')}
+                </label>
                 <p className="text-xs text-gray-500 dark:text-gray-400">{t('form.weatherHint')}</p>
               </div>
             )}

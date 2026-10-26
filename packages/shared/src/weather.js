@@ -1,12 +1,13 @@
 /** Software-only weather. The persisted seed and race clock are the source of truth. */
 export const WeatherCondition = Object.freeze({ DRY: 'dry', RAIN: 'rain' });
 
-export function validWeatherConfig({ weatherSeed, weatherInitial, weatherRainChance, weatherIntervalSeconds }) {
+export function validWeatherConfig({ weatherSeed, weatherInitial, weatherRainChance, weatherIntervalSeconds, weatherAdvanceDuringPause }) {
   return (
     (weatherSeed === null || (Number.isInteger(weatherSeed) && weatherSeed >= 0 && weatherSeed <= 2147483647)) &&
     Object.values(WeatherCondition).includes(weatherInitial) &&
     Number.isInteger(weatherRainChance) && weatherRainChance >= 0 && weatherRainChance <= 100 &&
-    Number.isInteger(weatherIntervalSeconds) && weatherIntervalSeconds >= 10 && weatherIntervalSeconds <= 3600
+    Number.isInteger(weatherIntervalSeconds) && weatherIntervalSeconds >= 10 && weatherIntervalSeconds <= 3600 &&
+    typeof weatherAdvanceDuringPause === 'boolean'
   );
 }
 
@@ -28,19 +29,21 @@ export function weatherAtElapsed(config, elapsedMs) {
     : WeatherCondition.DRY;
 }
 
-/** Replay from persisted GO time and pauses. An open pause freezes time until the next GO. */
+/** Replay from persisted GO time; only subtract pauses when the race config requests it. */
 export function weatherForSession(session, nowMs) {
   if (session.weatherSeed == null) return null;
   if (!session.startedAt) return session.weatherInitial;
 
   const end = session.finishedAt ? new Date(session.finishedAt).getTime() : nowMs;
   const startedAt = new Date(session.startedAt).getTime();
-  const pauses = typeof session.pauses === 'string' ? JSON.parse(session.pauses) : session.pauses || [];
   let pausedMs = 0;
-  for (const pause of pauses) {
-    const from = Math.max(startedAt, pause.start);
-    const to = Math.min(end, pause.end ?? end);
-    if (to > from) pausedMs += to - from;
+  if (!session.weatherAdvanceDuringPause) {
+    const pauses = typeof session.pauses === 'string' ? JSON.parse(session.pauses) : session.pauses || [];
+    for (const pause of pauses) {
+      const from = Math.max(startedAt, pause.start);
+      const to = Math.min(end, pause.end ?? end);
+      if (to > from) pausedMs += to - from;
+    }
   }
   return weatherAtElapsed(session, Math.max(0, end - startedAt - pausedMs));
 }

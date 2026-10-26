@@ -272,6 +272,7 @@ export class SessionService extends EventEmitter {
       weatherInitial: session.weatherInitial,
       weatherRainChance: session.weatherRainChance,
       weatherIntervalSeconds: session.weatherIntervalSeconds,
+      weatherAdvanceDuringPause: session.weatherAdvanceDuringPause,
       pauses: session.pauses ? JSON.parse(session.pauses) : [],
     };
     this.sessionStatus = session.status;
@@ -764,9 +765,12 @@ export class SessionService extends EventEmitter {
         await this.checkSessionComplete();
       }
 
-      // Weather follows the same pause-adjusted clock as the race. Only transitions emit a separate event.
+      // Weather uses the race clock or wall clock, depending on the session setting.
+      const weatherElapsed = this.sessionConfig?.weatherAdvanceDuringPause && this.sessionConfig.startedAt
+        ? now - new Date(this.sessionConfig.startedAt).getTime()
+        : elapsedTime;
       const weatherCondition = this.sessionConfig
-        ? weatherAtElapsed(this.sessionConfig, elapsedTime)
+        ? weatherAtElapsed(this.sessionConfig, weatherElapsed)
         : null;
       if (this.activeSessionId && weatherCondition !== this.lastWeatherCondition) {
         this.lastWeatherCondition = weatherCondition;
@@ -1257,9 +1261,10 @@ export class SessionService extends EventEmitter {
       weatherInitial = WeatherCondition.DRY,
       weatherRainChance = 35,
       weatherIntervalSeconds = 60,
+      weatherAdvanceDuringPause = false,
     } = params;
 
-    if (!validWeatherConfig({ weatherSeed, weatherInitial, weatherRainChance, weatherIntervalSeconds })) {
+    if (!validWeatherConfig({ weatherSeed, weatherInitial, weatherRainChance, weatherIntervalSeconds, weatherAdvanceDuringPause })) {
       throw new Error('Invalid weather configuration');
     }
     if (weatherSeed !== null && type !== SessionType.RACE) {
@@ -1298,6 +1303,7 @@ export class SessionService extends EventEmitter {
         weatherInitial,
         weatherRainChance,
         weatherIntervalSeconds,
+        weatherAdvanceDuringPause,
         order: order ?? 0,
       },
     });

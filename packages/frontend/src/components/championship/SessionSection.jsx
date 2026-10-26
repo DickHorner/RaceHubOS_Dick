@@ -630,6 +630,16 @@ export default function SessionSection({
                   ))}
                 </div>
               )}
+              {session.weatherSeed != null && (
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={session.weatherAdvanceDuringPause}
+                    onChange={(event) => saveWeather({ weatherAdvanceDuringPause: event.target.checked })}
+                  />
+                  {t('sessionSection.weather.advanceDuringPause')}
+                </label>
+              )}
               <p className="text-xs text-muted-foreground">{t('sessionSection.weather.displayOnly')}</p>
               {weatherError && <p role="alert" className="text-xs text-destructive">{weatherError}</p>}
             </div>
