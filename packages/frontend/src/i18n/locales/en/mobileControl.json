@@ -47,5 +47,20 @@
     "restoring": "Restoring speeds",
     "restore_failed": "Restoration failed",
     "disconnected": "CU disconnected"
-  }
+  },
+  "penaltiesTitle": "Manual race penalties",
+  "penaltyDriver": "Driver",
+  "penaltyKind": "Penalty type",
+  "penaltyTime": "Time penalty",
+  "penaltyLap": "Lap deduction",
+  "penaltySeconds": "Seconds",
+  "penaltyLaps": "Laps",
+  "penaltyReason": "Reason",
+  "penaltyIssue": "Issue penalty",
+  "penaltyRevoke": "Revoke",
+  "penaltyHelp": "Penalties affect classification, not recorded laps.",
+  "penaltyError": "Penalty change failed",
+  "penaltyHistory": "Issued penalties",
+  "penaltyActive": "Active",
+  "penaltyRevoked": "Revoked"
 }

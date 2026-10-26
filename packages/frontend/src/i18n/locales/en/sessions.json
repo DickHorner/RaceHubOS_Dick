@@ -51,6 +51,10 @@
     "weatherAdvanceDuringPause": "Weather continues during race pauses",
     "weatherHint": "The same seed and weather time produce the same weather. CU settings and vehicle speed are unaffected.",
     "weatherInvalid": "Invalid weather: chance 0–100%, interval 10–3600 s, seed 0–2147483647."
+    "virtualFuel": "Virtual fuel (independent of the CU)",
+    "virtualFuelRate": "Consumption (% per racing minute)",
+    "virtualFuelInvalid": "Virtual consumption must be between 1 and 100% per minute.",
+    "virtualFuelHint": "Software calculation: measured lap duration × rate / 60 seconds. Each car starts at 100%. Only confirmed simulator pit stops refuel automatically. CU fuel readings remain unchanged."
   },
   "profile": {
     "notFound": "Session not found",
@@ -64,5 +68,13 @@
     "pitEntered": "Entry (observed)",
     "pitDuration": "Duration (approx.)",
     "weatherFinal": "Race weather: {{condition}}"
+    "penalties": "Penalties ({{count}})",
+    "penaltyAmount": "Deduction",
+    "penaltyReason": "Reason",
+    "penaltyStatus": "Status",
+    "penaltyLaps": "−{{count}} laps",
+    "penaltyTime": "+{{seconds}} s",
+    "penaltyActive": "Active",
+    "penaltyRevoked": "Revoked"
   }
 }

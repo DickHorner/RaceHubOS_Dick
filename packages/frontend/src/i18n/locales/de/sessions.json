@@ -51,6 +51,10 @@
     "weatherAdvanceDuringPause": "Wetter läuft während Rennpausen weiter",
     "weatherHint": "Der gleiche Seed und dieselbe Wetterzeit ergeben denselben Verlauf. Keine Auswirkungen auf die CU oder das Fahrzeugtempo.",
     "weatherInvalid": "Ungültiges Wetter: Wahrscheinlichkeit 0–100 %, Intervall 10–3600 s, Seed 0–2147483647."
+    "virtualFuel": "Virtueller Tank (unabhängig von der CU)",
+    "virtualFuelRate": "Verbrauch (% pro Rennminute)",
+    "virtualFuelInvalid": "Virtueller Verbrauch muss zwischen 1 und 100 % pro Minute liegen.",
+    "virtualFuelHint": "Softwareberechnung: gemessene Rundenzeit × Rate / 60 Sekunden. Jeder Wagen startet mit 100 %. Nur bestätigte Simulator-Boxenstopps tanken automatisch nach. Die echte CU-Tankanzeige bleibt unverändert."
   },
   "profile": {
     "notFound": "Sitzung nicht gefunden",
@@ -64,5 +68,13 @@
     "pitEntered": "Einfahrt (erkannt)",
     "pitDuration": "Dauer (ca.)",
     "weatherFinal": "Rennwetter: {{condition}}"
+    "penalties": "Strafen ({{count}})",
+    "penaltyAmount": "Abzug",
+    "penaltyReason": "Begründung",
+    "penaltyStatus": "Status",
+    "penaltyLaps": "−{{count}} Runden",
+    "penaltyTime": "+{{seconds}} s",
+    "penaltyActive": "Aktiv",
+    "penaltyRevoked": "Widerrufen"
   }
 }

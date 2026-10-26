@@ -1,9 +1,15 @@
 import { createPrismaClient } from '../lib/prisma.js';
 import EventEmitter from 'events';
 import { SESSION_TYPES, SessionStatus, SessionType, WeatherCondition, isSessionType, toLevel, validWeatherConfig, weatherAtElapsed, weatherForSession } from '@racehubos/shared';
+import { SESSION_TYPES, SessionStatus, SessionType, isSessionType, toLevel, validVirtualFuelRate, virtualFuelBurn, virtualFuelAfter, replayVirtualFuel, VIRTUAL_FUEL_FULL } from '@racehubos/shared';
+import { SESSION_TYPES, SessionStatus, SessionType, PenaltyKind, PenaltyStatus, isSessionType, toLevel, withRacePenalties, compareRaceClassification, rankRaceDrivers } from '@racehubos/shared';
 import { sessionName } from '../lib/sessionNames.js';
 
 const DEFAULT_GRACE_PERIOD_MS = 30000;
+
+function penaltyError(message, status) {
+  return Object.assign(new Error(message), { status });
+}
 
 /**
  * SessionService - Gestion de la logique session et emission vers clients
@@ -33,6 +39,8 @@ export class SessionService extends EventEmitter {
 
     // Driver states
     this.sessionDrivers = [];
+    this.virtualFuelWrites = Promise.resolve();
+    this.sessionPenalties = [];
     this.firstCrossingProgrammed = new Set();
     this.speedWrites = Promise.resolve();
     this.vscOperation = Promise.resolve();
@@ -66,7 +74,7 @@ export class SessionService extends EventEmitter {
     const { controller, timestamp, lapTime, sector } = data;
 
     // Ignore stale hardware events when there is no running session.
-    if (!this.activeSessionId || !this.isActive()) {
+    if (!this.activeSessionId || !this.isActive() || this.sessionStatus === SessionStatus.PAUSED) {
       return;
     }
 
@@ -105,7 +113,7 @@ export class SessionService extends EventEmitter {
     }
 
     // Only record laps with a valid measured time.
-    if (lapTime <= 0) return;
+    if (!Number.isFinite(lapTime) || lapTime <= 0) return;
 
     // Track crossings - first crossing is start, doesn't count as lap
     // const isFirstCrossing = driver.crossings === 0; // DISABLED: count first lap
@@ -224,6 +232,7 @@ export class SessionService extends EventEmitter {
    * Load session from DB
    */
   async loadSession(sessionId) {
+    await this.virtualFuelWrites;
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
       include: {
@@ -233,6 +242,8 @@ export class SessionService extends EventEmitter {
         },
         track: true,
         championship: true,
+        virtualFuelEvents: { orderBy: { id: 'asc' } },
+        penalties: true,
       },
     });
 
@@ -277,8 +288,14 @@ export class SessionService extends EventEmitter {
     };
     this.sessionStatus = session.status;
     this.lastWeatherCondition = weatherForSession(this.sessionConfig, Date.now());
+      virtualFuelRate: session.virtualFuelRate,
+      pauses: session.pauses ? JSON.parse(session.pauses) : [],
+    };
+    this.sessionStatus = session.status;
+    this.sessionPenalties = (session.penalties || []).filter((penalty) => penalty.status === PenaltyStatus.ACTIVE);
 
-    // Initialize driver states
+    // Replay saved fuel events in database order; the cache is not the source of truth.
+    const fuelLevels = replayVirtualFuel(session.virtualFuelEvents);
     this.sessionDrivers = session.drivers.map((sd) => ({
       id: sd.id,
       controller: sd.controller,
@@ -292,6 +309,8 @@ export class SessionService extends EventEmitter {
       totalTime: sd.totalTime || 0,
       bestLapTime: sd.bestLapTime || null,
       lastLapTime: sd.lastLapTime || null,
+      virtualFuelUnits: session.virtualFuelRate == null ? null : (fuelLevels.get(sd.id) ?? VIRTUAL_FUEL_FULL),
+      isDNF: sd.isDNF || false,
       lapsAtFinishing: sd.lapsAtFinishing ?? null, // For checkered flag logic
       gap: null,
       crossings: sd.totalLaps || 0, // Track line crossings (first doesn't count as lap)
@@ -456,6 +475,7 @@ export class SessionService extends EventEmitter {
    */
   async resetForNewSession() {
     this.stopHeartbeat();
+    await this.virtualFuelWrites;
     if (this.vsc) {
       try {
         await this.syncService?.stopRace();
@@ -481,6 +501,7 @@ export class SessionService extends EventEmitter {
     this.sessionConfig = null;
     this.sessionStatus = null;
     this.lastWeatherCondition = null;
+    this.sessionPenalties = [];
     this.lapHistory = new Map();
 
     if (this.gracePeriodTimer) {
@@ -564,18 +585,134 @@ export class SessionService extends EventEmitter {
     const durationMs = exitedAt.getTime() - enteredAt.getTime();
     if (!Number.isFinite(durationMs) || durationMs <= 0) return;
 
-    const pitStop = await this.prisma.pitStop.create({
-      data: {
-        sessionId: this.activeSessionId,
-        sessionDriverId: driver.id,
-        controller,
-        enteredAt,
-        exitedAt,
-        durationMs,
-        source,
-      },
-    });
+    const sessionId = this.activeSessionId;
+    const data = { sessionId, sessionDriverId: driver.id, controller, enteredAt, exitedAt, durationMs, source };
+    let pitStop;
+
+    if (this.sessionConfig?.virtualFuelRate != null && source === 'simulator') {
+      const write = this.virtualFuelWrites.then(async () => {
+        const { pit, event } = await this.prisma.$transaction(async (tx) => {
+          const pit = await tx.pitStop.create({ data });
+          const event = await tx.virtualFuelEvent.create({
+            data: {
+              sessionId, sessionDriverId: driver.id, controller,
+              kind: 'refuel', units: 0, source: 'simulator', reference: `pit:${pit.id}`,
+            },
+          });
+          return { pit, event };
+        });
+        if (this.activeSessionId === sessionId) {
+          driver.virtualFuelUnits = virtualFuelAfter(driver.virtualFuelUnits ?? VIRTUAL_FUEL_FULL, event);
+        }
+        return pit;
+      });
+      this.virtualFuelWrites = write.catch(() => {});
+      pitStop = await write;
+      if (this.activeSessionId === sessionId) this.emitLeaderboard();
+    } else {
+      // CU pit flags are not hardware-validated: record the stop, never infer a refuel.
+      pitStop = await this.prisma.pitStop.create({ data });
+    }
     this.emit('session:pit_stop', pitStop);
+  }
+
+
+  /** Recalculate persisted championship positions without modifying raw lap records. */
+  async updatePenaltyPositions(tx, sessionId) {
+    const drivers = await tx.sessionDriver.findMany({ where: { sessionId, deletedAt: null } });
+    const penalties = await tx.sessionPenalty.findMany({
+      where: { sessionId, status: PenaltyStatus.ACTIVE },
+    });
+    const ranked = rankRaceDrivers(drivers, penalties);
+    for (const [index, driver] of ranked.entries()) {
+      await tx.sessionDriver.update({ where: { id: driver.id }, data: { finalPos: index + 1 } });
+    }
+  }
+
+  penaltyChanged(sessionId, championshipId, penalty) {
+    if (this.activeSessionId === sessionId) {
+      this.sessionPenalties = this.sessionPenalties.filter((row) => row.id !== penalty.id);
+      if (penalty.status === PenaltyStatus.ACTIVE) this.sessionPenalties.push(penalty);
+      this.recalculatePositions();
+      this.emitLeaderboard();
+    }
+    this.emit('session:penalties_changed', { sessionId });
+    if (championshipId) super.emit('sessionResultsChanged', { sessionId, championshipId });
+  }
+
+  async issuePenalty({ sessionId, sessionDriverId, kind, amount, reason, requestId }) {
+    if (typeof sessionId !== 'string' || !sessionId ||
+        typeof sessionDriverId !== 'string' || !sessionDriverId ||
+        typeof requestId !== 'string' || !/^[a-zA-Z0-9_-]{12,100}$/.test(requestId) ||
+        typeof reason !== 'string' || reason.trim().length < 3 || reason.trim().length > 200 ||
+        ![PenaltyKind.TIME, PenaltyKind.LAP].includes(kind) ||
+        !Number.isInteger(amount) || amount < 1 ||
+        amount > (kind === PenaltyKind.TIME ? 3600000 : 100)) {
+      throw penaltyError('Invalid race penalty details', 400);
+    }
+
+    let result;
+    try {
+      result = await this.prisma.$transaction(async (tx) => {
+        const session = await tx.session.findUnique({ where: { id: sessionId } });
+        if (!session || session.deletedAt) throw penaltyError('Session not found', 404);
+        if (session.type !== SessionType.RACE ||
+            ![SessionStatus.ACTIVE, SessionStatus.PAUSED, SessionStatus.FINISHING, SessionStatus.FINISHED].includes(session.status)) {
+          throw penaltyError('Penalties require a started race', 409);
+        }
+
+        const assignment = await tx.sessionDriver.findUnique({ where: { id: sessionDriverId } });
+        if (!assignment || assignment.sessionId !== sessionId || !assignment.driverId || assignment.deletedAt) {
+          throw penaltyError('Driver assignment is missing or belongs to another race', 409);
+        }
+
+        const penalty = await tx.sessionPenalty.create({
+          data: {
+            sessionId,
+            sessionDriverId,
+            driverId: assignment.driverId,
+            controller: assignment.controller,
+            requestId,
+            kind,
+            amount,
+            reason: reason.trim(),
+          },
+        });
+        if (session.status === SessionStatus.FINISHED) await this.updatePenaltyPositions(tx, sessionId);
+        return { penalty, championshipId: session.championshipId };
+      });
+    } catch (error) {
+      if (error.code === 'P2002') throw penaltyError('Duplicate penalty request', 409);
+      throw error;
+    }
+
+    this.penaltyChanged(sessionId, result.championshipId, result.penalty);
+    return result.penalty;
+  }
+
+  async revokePenalty(sessionId, penaltyId) {
+    if (typeof sessionId !== 'string' || !sessionId ||
+        typeof penaltyId !== 'string' || !penaltyId) {
+      throw penaltyError('Session and penalty are required', 400);
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const session = await tx.session.findUnique({ where: { id: sessionId } });
+      if (!session || session.deletedAt) throw penaltyError('Session not found', 404);
+      const old = await tx.sessionPenalty.findUnique({ where: { id: penaltyId } });
+      if (!old || old.sessionId !== sessionId) throw penaltyError('Penalty not found for this race', 404);
+      if (old.status !== PenaltyStatus.ACTIVE) throw penaltyError('Penalty was already revoked', 409);
+
+      const penalty = await tx.sessionPenalty.update({
+        where: { id: penaltyId },
+        data: { status: PenaltyStatus.REVOKED, revokedAt: new Date() },
+      });
+      if (session.status === SessionStatus.FINISHED) await this.updatePenaltyPositions(tx, sessionId);
+      return { penalty, championshipId: session.championshipId };
+    });
+
+    this.penaltyChanged(sessionId, result.championshipId, result.penalty);
+    return result.penalty;
   }
 
   getDriverByController(controller) {
@@ -593,10 +730,12 @@ export class SessionService extends EventEmitter {
     const isRace = this.currentPhase === SessionType.RACE;
 
     if (isRace) {
-      this.sessionDrivers.sort((a, b) => {
-        if (b.totalLaps !== a.totalLaps) return b.totalLaps - a.totalLaps;
-        return a.totalTime - b.totalTime;
-      });
+      for (const driver of this.sessionDrivers) {
+        const { penaltyLaps, penaltyTimeMs, classifiedLaps, classifiedTime } =
+          withRacePenalties(driver, this.sessionPenalties);
+        Object.assign(driver, { penaltyLaps, penaltyTimeMs, classifiedLaps, classifiedTime });
+      }
+      this.sessionDrivers.sort(compareRaceClassification);
     } else {
       this.sessionDrivers.sort((a, b) => {
         if (a.bestLapTime === null && b.bestLapTime === null) return 0;
@@ -634,11 +773,11 @@ export class SessionService extends EventEmitter {
       if (i === 0) {
         driver.gap = null;
       } else if (isRace) {
-        const lapDiff = leader.totalLaps - driver.totalLaps;
+        const lapDiff = leader.classifiedLaps - driver.classifiedLaps;
         if (lapDiff > 0) {
           driver.gap = lapDiff;
         } else {
-          driver.gap = driver.totalTime - leader.totalTime;
+          driver.gap = driver.classifiedTime - leader.classifiedTime;
         }
       } else {
         if (leader.bestLapTime && driver.bestLapTime) {
@@ -668,20 +807,15 @@ export class SessionService extends EventEmitter {
    * Static method to calculate gaps on drivers array
    * Used by API routes when returning session data
    */
-  static calculateDriverGaps(drivers, sessionType) {
+  static calculateDriverGaps(drivers, sessionType, penalties = []) {
     if (!drivers || drivers.length === 0) return drivers;
 
     const isRace = sessionType === SessionType.RACE;
-    const sorted = [...drivers].sort((a, b) => {
-      if (isRace) {
-        if (b.totalLaps !== a.totalLaps) return b.totalLaps - a.totalLaps;
-        return a.totalTime - b.totalTime;
-      } else {
-        if (a.bestLapTime === null && b.bestLapTime === null) return 0;
-        if (a.bestLapTime === null) return 1;
-        if (b.bestLapTime === null) return -1;
-        return a.bestLapTime - b.bestLapTime;
-      }
+    const sorted = isRace ? rankRaceDrivers(drivers, penalties) : [...drivers].sort((a, b) => {
+      if (a.bestLapTime === null && b.bestLapTime === null) return 0;
+      if (a.bestLapTime === null) return 1;
+      if (b.bestLapTime === null) return -1;
+      return a.bestLapTime - b.bestLapTime;
     });
 
     const leader = sorted[0];
@@ -689,8 +823,8 @@ export class SessionService extends EventEmitter {
       let gap = null;
       if (i > 0 && leader) {
         if (isRace) {
-          const lapDiff = leader.totalLaps - driver.totalLaps;
-          gap = lapDiff > 0 ? lapDiff : driver.totalTime - leader.totalTime;
+          const lapDiff = leader.classifiedLaps - driver.classifiedLaps;
+          gap = lapDiff > 0 ? lapDiff : driver.classifiedTime - leader.classifiedTime;
         } else {
           if (leader.bestLapTime && driver.bestLapTime) {
             gap = driver.bestLapTime - leader.bestLapTime;
@@ -935,8 +1069,9 @@ export class SessionService extends EventEmitter {
     const previousStatus = this.sessionStatus;
     const championshipId = this.sessionConfig?.championshipId;
 
-    // Calculate DNF
+    // Calculate DNF, then sort the finished result using the persisted penalties.
     await this.calculateDNF();
+    this.recalculatePositions();
 
     // Save final positions
     await this.prisma.$transaction([
@@ -1213,18 +1348,41 @@ export class SessionService extends EventEmitter {
   // ==================== DB Operations ====================
 
   async saveLap(driver, lapTime) {
-    await this.prisma.lap.create({
-      data: {
-        sessionId: this.activeSessionId,
-        trackId: this.activeTrackId,
-        driverId: driver.driverId,
-        carId: driver.carId,
-        controller: driver.controller,
-        phase: this.currentPhase,
-        lapNumber: driver.totalLaps,
-        lapTime: lapTime,
-      },
+    const sessionId = this.activeSessionId;
+    const data = {
+      sessionId,
+      trackId: this.activeTrackId,
+      driverId: driver.driverId,
+      carId: driver.carId,
+      controller: driver.controller,
+      phase: this.currentPhase,
+      lapNumber: driver.totalLaps,
+      lapTime,
+    };
+
+    const rate = this.sessionConfig?.virtualFuelRate;
+    if (rate == null) {
+      await this.prisma.lap.create({ data });
+      return;
+    }
+
+    const write = this.virtualFuelWrites.then(async () => {
+      const event = await this.prisma.$transaction(async (tx) => {
+        const lap = await tx.lap.create({ data });
+        return tx.virtualFuelEvent.create({
+          data: {
+            sessionId, sessionDriverId: driver.id, controller: driver.controller,
+            kind: 'lap', units: virtualFuelBurn(lapTime, rate),
+            source: 'lap', reference: `lap:${lap.id}`,
+          },
+        });
+      });
+      if (this.activeSessionId === sessionId) {
+        driver.virtualFuelUnits = virtualFuelAfter(driver.virtualFuelUnits ?? VIRTUAL_FUEL_FULL, event);
+      }
     });
+    this.virtualFuelWrites = write.catch(() => {});
+    await write;
   }
 
   async updateSessionDriver(driver) {
@@ -1269,6 +1427,11 @@ export class SessionService extends EventEmitter {
     }
     if (weatherSeed !== null && type !== SessionType.RACE) {
       throw new Error('Weather is only supported for race sessions');
+      virtualFuelRate = null,
+    } = params;
+
+    if (!validVirtualFuelRate(virtualFuelRate)) {
+      throw new Error('Virtual fuel rate must be 1-100 percent per minute or disabled');
     }
 
     if (!isSessionType(type)) {
@@ -1304,6 +1467,7 @@ export class SessionService extends EventEmitter {
         weatherRainChance,
         weatherIntervalSeconds,
         weatherAdvanceDuringPause,
+        virtualFuelRate,
         order: order ?? 0,
       },
     });
@@ -1385,6 +1549,14 @@ export class SessionService extends EventEmitter {
     await this.prisma.lap.updateMany({
       where: { sessionId, deletedAt: null },
       data: { deletedAt: new Date() },
+    });
+
+    // A restarted session begins with a full virtual tank and a fresh event log.
+    await this.prisma.virtualFuelEvent.deleteMany({ where: { sessionId } });
+    // Keep the audit trail, but do not carry penalties into a restarted race.
+    await this.prisma.sessionPenalty.updateMany({
+      where: { sessionId, status: PenaltyStatus.ACTIVE },
+      data: { status: PenaltyStatus.REVOKED, revokedAt: new Date() },
     });
 
     // Reset session driver stats

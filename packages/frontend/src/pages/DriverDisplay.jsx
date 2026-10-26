@@ -106,6 +106,7 @@ export default function DriverDisplay() {
     ? cuStatus?.fuel?.[assignment.controller]
     : null
   const fuelLevel = Number.isInteger(fuel) && fuel >= 0 && fuel <= 15 ? fuel : null
+  const virtualFuelUnits = live?.virtualFuelUnits ?? assignment?.virtualFuelUnits ?? null
 
   async function requestChaos() {
     if (!chaosToken || chaosPending || !session || !assignment) return
@@ -186,8 +187,17 @@ export default function DriverDisplay() {
                     {live && position ? <GapDisplay gap={gap} position={position} /> : <span>–</span>}
                   </div>
                   <div className="rounded-xl bg-card border border-border p-5">
-                    <p className="text-sm text-muted-foreground">{t('fuel')}</p>
+                    <p className="text-sm text-muted-foreground">{t('hardwareFuel')}</p>
                     <p className="text-2xl font-bold tabular-nums">{fuelLevel === null ? t('unavailable') : `${fuelLevel} / 15`}</p>
+                    {session.virtualFuelRate != null && (
+                      <div className="mt-3 border-t border-border pt-3">
+                        <p className="text-sm text-muted-foreground">{t('virtualFuel')}</p>
+                        <p className="text-2xl font-bold tabular-nums">
+                          {Number.isInteger(virtualFuelUnits) ? `${Math.round(virtualFuelUnits / 100)} %` : t('unavailable')}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{t('virtualFuelNote')}</p>
+                      </div>
+                    )}
                   </div>
                 </section>
                 {chaosToken && ['active', 'paused'].includes(session.status) && (
