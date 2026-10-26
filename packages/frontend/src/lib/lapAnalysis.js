@@ -64,7 +64,8 @@ export function analyzeSessionLaps(session) {
         lap.lapNumber !== index + 1 ||
         !Number.isFinite(lap.crossingTime) ||
         (index > 0 && lap.crossingTime <= own[index - 1].crossingTime)
-      ) incomplete = true
+      )
+        incomplete = true
       if (!rows.has(lap.lapNumber)) rows.set(lap.lapNumber, { lap: lap.lapNumber })
       rows.get(lap.lapNumber)[key] = lap.lapTime / 1000
     })
