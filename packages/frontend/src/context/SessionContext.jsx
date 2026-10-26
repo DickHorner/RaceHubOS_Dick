@@ -102,6 +102,15 @@ export function SessionProvider({ children }) {
     socket.on('session:vsc_error', (data) => {
       window.dispatchEvent(new CustomEvent('session:vsc_error', { detail: data }))
     })
+    socket.on('session:damage_changed', (data) => {
+      window.dispatchEvent(new CustomEvent('session:damage_changed', { detail: data }))
+    })
+    socket.on('session:damage_error', (data) => {
+      window.dispatchEvent(new CustomEvent('session:damage_error', { detail: data }))
+    })
+    socket.on('session:pit_stop', (data) => {
+      window.dispatchEvent(new CustomEvent('session:pit_stop', { detail: data }))
+    })
 
     // Session finishing
     socket.on('session:finishing', (data) => {
@@ -542,6 +551,12 @@ export function SessionProvider({ children }) {
         driver: p.driver,
         car: p.car,
         gridPos: p.gridPos ?? null,
+        damageStatus: p.damageStatus,
+        damageLapNumber: p.damageLapNumber,
+        damageTriggeredAt: p.damageTriggeredAt,
+        damageDeadlineElapsedMs: p.damageDeadlineElapsedMs,
+        damageRepairedAt: p.damageRepairedAt,
+        damageRepairSource: p.damageRepairSource,
         stats: {
           laps: p.totalLaps || 0,
           bestLap: p.bestLapTime || null,
