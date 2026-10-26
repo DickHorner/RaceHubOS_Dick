@@ -31,10 +31,10 @@ describe('CSV export from workbook tables', () => {
       ['@WEBSERVICE("x")', 5],
       ['-7', 6],
     ]);
-    expect(csv).toContain('\'=HYPERLINK');
-    expect(csv).toContain('\' +SUM');
-    expect(csv).toContain('\'@WEBSERVICE');
-    expect(csv).toContain("\'-7");
+    expect(csv).toContain("'=HYPERLINK");
+    expect(csv).toContain("' +SUM");
+    expect(csv).toContain("'@WEBSERVICE");
+    expect(csv).toContain("'-7");
     expect(csv).toContain(',-3\r\n');
   });
 
@@ -48,27 +48,31 @@ describe('CSV export from workbook tables', () => {
       status: 'finished',
       fuelMode: 'OFF',
       track: { id: 'track-1', name: 'Monaco' },
-      drivers: [{
-        controller: 0,
-        driverId: driver.id,
-        carId: car.id,
-        driver,
-        car,
-        gridPos: 1,
-        finalPos: 1,
-        totalLaps: 1,
-        totalTime: 11_234,
-        bestLapTime: 11_234,
-        lastLapTime: 11_234,
-      }],
-      laps: [{
-        lapNumber: 1,
-        controller: 0,
-        driver,
-        car,
-        lapTime: 11_234,
-        timestamp: new Date('2026-10-26T13:14:15.123Z'),
-      }],
+      drivers: [
+        {
+          controller: 0,
+          driverId: driver.id,
+          carId: car.id,
+          driver,
+          car,
+          gridPos: 1,
+          finalPos: 1,
+          totalLaps: 1,
+          totalTime: 11_234,
+          bestLapTime: 11_234,
+          lastLapTime: 11_234,
+        },
+      ],
+      laps: [
+        {
+          lapNumber: 1,
+          controller: 0,
+          driver,
+          car,
+          lapTime: 11_234,
+          timestamp: new Date('2026-10-26T13:14:15.123Z'),
+        },
+      ],
     });
     const sheet = workbook.worksheets[1];
     const results = worksheetTableRows(sheet, 'Engagements');
