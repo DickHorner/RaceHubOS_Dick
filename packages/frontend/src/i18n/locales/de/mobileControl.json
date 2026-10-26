@@ -47,5 +47,20 @@
     "restoring": "Geschwindigkeit wird zurückgestellt",
     "restore_failed": "Rückstellung fehlgeschlagen",
     "disconnected": "CU-Verbindung unterbrochen"
-  }
+  },
+  "penaltiesTitle": "Manuelle Rennstrafen",
+  "penaltyDriver": "Fahrer",
+  "penaltyKind": "Strafart",
+  "penaltyTime": "Zeitstrafe",
+  "penaltyLap": "Rundenabzug",
+  "penaltySeconds": "Sekunden",
+  "penaltyLaps": "Runden",
+  "penaltyReason": "Begründung",
+  "penaltyIssue": "Strafe verhängen",
+  "penaltyRevoke": "Widerrufen",
+  "penaltyHelp": "Strafen ändern die Wertung, nicht die aufgezeichneten Runden.",
+  "penaltyError": "Strafänderung fehlgeschlagen",
+  "penaltyHistory": "Verhängte Strafen",
+  "penaltyActive": "Aktiv",
+  "penaltyRevoked": "Widerrufen"
 }
