@@ -373,10 +373,22 @@ rule('code-is-formatted', 'Le code est formaté (Prettier)', async () => {
   if (ci && !base) return ['impossible de trouver origin/main pour vérifier les fichiers modifiés'];
   const changed = ci ? (git(['diff', '--name-only', base]) ?? '').split('\n').filter((f) => f && exists(f)) : ['.'];
   if (ci && !changed.length) return [];
+  let formattable = changed;
+  if (ci) {
+    const { getFileInfo } = await import('prettier');
+    formattable = [];
+    for (const file of changed) {
+      const { ignored, inferredParser } = await getFileInfo(path.join(rootDir, file), {
+        ignorePath: path.join(rootDir, '.prettierignore'),
+      });
+      if (!ignored && inferredParser) formattable.push(file);
+    }
+    if (!formattable.length) return [];
+  }
   try {
     execFileSync(
       process.execPath,
-      [path.join(rootDir, 'node_modules', 'prettier', 'bin', 'prettier.cjs'), '--list-different', ...changed],
+      [path.join(rootDir, 'node_modules', 'prettier', 'bin', 'prettier.cjs'), '--list-different', ...formattable],
       { cwd: rootDir, encoding: 'utf-8', stdio: 'pipe' }
     );
     return [];

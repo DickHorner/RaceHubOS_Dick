@@ -1,5 +1,5 @@
 #!/bin/bash
-# INSTALLER_VERSION 2
+# INSTALLER_VERSION 3
 # À incrémenter à CHAQUE modification de ce fichier : c'est ce numéro, et non le
 # contenu, qui déclenche la mise à jour automatique ci-dessous.
 set -e
@@ -220,9 +220,9 @@ fi
 cd "$TARGET_DIR/packages/backend"
 npx prisma generate
 # Dated backup in prisma/db-old/ before touching the schema
-node scripts/backup-db.js install || true
+node scripts/backup-db.js install
 # Applique les migrations, en baselinant une base antérieure aux migrations
-node scripts/migrate.js || true
+node scripts/migrate.js
 echo "  OK"
 echo ""
 

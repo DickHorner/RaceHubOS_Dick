@@ -18,7 +18,7 @@ const steps = [
   ['Application de la mise à jour', 'git pull origin main --ff-only', rootDir, true],
   ['Installation des dépendances', 'npm install --legacy-peer-deps', rootDir, false],
   ['Build du frontend', 'npm run build', rootDir, false],
-  ['Sauvegarde de la base', 'node scripts/backup-db.js repair', backendDir, true],
+  ['Sauvegarde de la base', 'node scripts/backup-db.js repair', backendDir, false],
   ['Génération du client Prisma', 'npx prisma generate', backendDir, false],
   ['Migration de la base', 'node scripts/migrate.js', backendDir, false],
 ];

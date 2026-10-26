@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { execFileSync } from 'child_process';
 import { createRequire } from 'module';
 import fs from 'fs';
@@ -49,6 +50,12 @@ function migrationsApplied() {
   } catch {
     return [];
   }
+}
+
+/** True when a deployed database still needs at least one migration. */
+export function hasPendingMigrations() {
+  const applied = new Set(migrationsApplied());
+  return migrationsOnDisk().some((name) => !applied.has(name));
 }
 
 /** True when replaying `names` would produce exactly the live database. */
@@ -111,5 +118,21 @@ export function migrateSchema() {
   }
 
   run(['prisma', 'migrate', 'deploy']);
+
+  // migrate deploy checks the history, not whether the live tables still match.
+  // Refuse to boot with a drifted schema even when every migration says "applied".
+  const diff = run([
+    'prisma',
+    'migrate',
+    'diff',
+    '--from-config-datasource',
+    '--to-schema',
+    'prisma/schema.prisma',
+    '--script',
+  ]);
+  if (!/empty migration/i.test(diff)) {
+    throw new Error('Database schema does not match schema.prisma after migration');
+  }
+
   return { baselined, applied: true };
 }

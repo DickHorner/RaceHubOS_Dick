@@ -3,7 +3,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { migrateSchema } from '../lib/migrateSchema.js';
+import { hasPendingMigrations, migrateSchema } from '../lib/migrateSchema.js';
 
 const require = createRequire(import.meta.url);
 const Database = require('better-sqlite3');
@@ -112,6 +112,52 @@ describe('migrateSchema', () => {
     const kept = new Database(dbPath, { readonly: true });
     expect(kept.prepare('SELECT name FROM Driver WHERE id = ?').get('t2').name).toBe('Témoin');
     kept.close();
+  }, 120000);
+
+  it('upgrades a database missing the recent feature migrations without losing saved sessions', () => {
+    const migrationCount = migrationNames().length;
+    const db = fixture(dbPath, migrationCount - 5);
+    db.prepare('INSERT INTO Track (id, name, updatedAt) VALUES (?, ?, 0)').run('track-old', 'Existing circuit');
+    db.prepare('INSERT INTO Session (id, name, type, trackId, updatedAt) VALUES (?, ?, ?, ?, 0)').run(
+      'session-old',
+      'Existing race',
+      'race',
+      'track-old'
+    );
+    db.close();
+
+    expect(hasColumn(dbPath, 'Session', 'damageLapThresholdMs')).toBe(false);
+    expect(hasPendingMigrations()).toBe(true);
+
+    migrateSchema();
+
+    for (const column of ['virtualFuelRate', 'weatherSeed', 'tyreMismatchPercent', 'damageLapThresholdMs']) {
+      expect(hasColumn(dbPath, 'Session', column)).toBe(true);
+    }
+    expect(hasColumn(dbPath, 'SessionDriver', 'damageStatus')).toBe(true);
+    expect(hasColumn(dbPath, 'Lap', 'simulatedLapTime')).toBe(true);
+    for (const table of ['SessionPenalty', 'VirtualFuelEvent', 'TyreChange']) {
+      expect(hasColumn(dbPath, table, 'id')).toBe(true);
+    }
+    const migrated = new Database(dbPath, { readonly: true });
+    expect(migrated.prepare('SELECT name, damageLapThresholdMs FROM Session WHERE id = ?').get('session-old')).toEqual({
+      name: 'Existing race',
+      damageLapThresholdMs: null,
+    });
+    migrated.close();
+    expect(hasPendingMigrations()).toBe(false);
+    expect(historyOf(dbPath)).toEqual(migrationNames());
+  }, 120000);
+
+  it('rejects a missing column even when migration history claims everything is installed', () => {
+    migrateSchema();
+    const db = new Database(dbPath);
+    db.exec('ALTER TABLE Session DROP COLUMN damageLapThresholdMs');
+    db.close();
+
+    expect(hasPendingMigrations()).toBe(false);
+    expect(() => migrateSchema()).toThrow('Database schema does not match schema.prisma');
+    expect(hasColumn(dbPath, 'Session', 'damageLapThresholdMs')).toBe(false);
   }, 120000);
 
   it('does nothing on a database whose history is already complete', () => {
