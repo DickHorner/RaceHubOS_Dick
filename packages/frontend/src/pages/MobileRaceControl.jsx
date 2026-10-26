@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useDevice } from '../context/DeviceContext'
 import { useSession } from '../context/SessionContext'
 import { Button } from '@/components/ui/button'
+import { SessionStatus } from '@racehubos/shared'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -258,10 +259,10 @@ export default function MobileRaceControl() {
                 <>
                   <p className="text-sm">{t('state')}: {t(`glossary:sessionStatus.${session.status}`, { defaultValue: session.status })}</p>
                   <div className="flex flex-wrap gap-2">
-                    <Button disabled={busy || !connected || session.status !== 'active'} onClick={() => control('pause')} variant="outline">
+                    <Button disabled={busy || !connected || session.status !== SessionStatus.ACTIVE} onClick={() => control('pause')} variant="outline">
                       {t('pause')}
                     </Button>
-                    <Button disabled={busy || !connected || session.status !== 'paused'} onClick={() => control('resume')}>
+                    <Button disabled={busy || !connected || session.status !== SessionStatus.PAUSED} onClick={() => control('resume')}>
                       {t('resume')}
                     </Button>
                     <Button disabled={busy || !connected || !['active', 'paused', 'finishing'].includes(session.status)} onClick={() => control('stop')} variant="destructive">
