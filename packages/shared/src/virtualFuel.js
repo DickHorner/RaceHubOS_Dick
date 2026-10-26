@@ -9,7 +9,7 @@ export function validVirtualFuelRate(rate) {
 // %/minute -> basis points per completed lap; never read/write CU fuel values.
 export function virtualFuelBurn(lapTimeMs, rate) {
   if (!Number.isFinite(lapTimeMs) || lapTimeMs <= 0 || !validVirtualFuelRate(rate) || rate === null) return 0;
-  return Math.min(VIRTUAL_FUEL_FULL, Math.round(Math.round(lapTimeMs) * rate / 600));
+  return Math.min(VIRTUAL_FUEL_FULL, Math.round((Math.round(lapTimeMs) * rate) / 600));
 }
 
 export function virtualFuelAfter(units, event) {
