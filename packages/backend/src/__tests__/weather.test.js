@@ -153,7 +153,6 @@ describe('persisted session weather and heartbeat', () => {
   });
 
   test('heartbeat freezes rain when paused unless the configured weather clock continues', async () => {
-    jest.useFakeTimers({ now: start });
     const track = await makeTrack();
     const created = await service.createSession({ type: 'race', trackId: track.id, ...config });
     await prisma.session.update({
@@ -161,6 +160,8 @@ describe('persisted session weather and heartbeat', () => {
       data: { status: 'paused', startedAt: new Date(start), pauses: JSON.stringify([{ start, end: null }]) },
     });
     await service.loadSession(created.id);
+    // Prisma uses real event-loop timers: fake only the race heartbeat after DB setup.
+    jest.useFakeTimers({ now: start });
     service.startHeartbeat();
 
     await jest.advanceTimersByTimeAsync(11000);
