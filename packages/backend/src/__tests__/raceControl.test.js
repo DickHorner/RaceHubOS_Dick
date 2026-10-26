@@ -295,3 +295,91 @@ describe('SessionService physical-first pause and resume ordering', () => {
     expect(service.sessionStatus).toBe('paused');
   });
 });
+
+
+describe('VSC director authorization and legacy speed boundary', () => {
+  const previousSecret = process.env.RACE_CONTROL_SECRET;
+
+  beforeEach(() => { process.env.RACE_CONTROL_SECRET = secret; });
+  afterEach(() => {
+    if (previousSecret === undefined) delete process.env.RACE_CONTROL_SECRET;
+    else process.env.RACE_CONTROL_SECRET = previousSecret;
+  });
+
+  function setupVsc() {
+    const { app, session, sync } = setup();
+    session.vsc = null;
+    session.getVscState = jest.fn(() =>
+      session.vsc
+        ? { status: session.vsc.status, sessionId: 'race-1', active: true, cap: session.vsc.cap }
+        : { status: 'inactive', active: false }
+    );
+    session.startVsc = jest.fn(async (cap) => {
+      session.vsc = { status: 'active', cap };
+      return session.getVscState();
+    });
+    session.endVsc = jest.fn(async () => {
+      session.vsc = null;
+      return session.getVscState();
+    });
+    return { app, session, sync };
+  }
+
+  test('exposes VSC state without exposing director credentials', async () => {
+    const { app } = setupVsc();
+    const result = await request(app).get('/api/race-control/vsc').expect(200);
+
+    expect(result.body).toEqual({
+      success: true,
+      data: { status: 'inactive', active: false },
+    });
+  });
+
+  test('allows only the director to start and end VSC', async () => {
+    const { app, session } = setupVsc();
+    const url = '/api/race-control/director/vsc/start';
+    const body = { sessionId: 'race-1', cap: 3, durationSeconds: 0 };
+
+    await request(app).post(url).send(body).expect(403);
+    await request(app).post(url).set('Authorization', 'Bearer forged').send(body).expect(403);
+    await request(app).post(url).set('Authorization', 'Bearer ' + secret).send(body).expect(200);
+
+    expect(session.startVsc).toHaveBeenCalledWith(3, 0);
+    await request(app).post('/api/race-control/director/vsc/end')
+      .set('Authorization', 'Bearer ' + secret)
+      .send({ sessionId: 'race-1' })
+      .expect(200);
+    expect(session.endVsc).toHaveBeenCalledTimes(1);
+  });
+
+  test('rejects invalid cap, duration and a stale session before calling the CU', async () => {
+    const { app, session } = setupVsc();
+    const url = '/api/race-control/director/vsc/start';
+    const auth = 'Bearer ' + secret;
+
+    await request(app).post(url).set('Authorization', auth)
+      .send({ sessionId: 'race-1', cap: 0 }).expect(400);
+    await request(app).post(url).set('Authorization', auth)
+      .send({ sessionId: 'race-1', cap: 3, durationSeconds: 2 }).expect(400);
+    await request(app).post(url).set('Authorization', auth)
+      .send({ sessionId: 'old-race', cap: 3 }).expect(409);
+
+    expect(session.startVsc).not.toHaveBeenCalled();
+  });
+
+  test.each(['activating', 'active', 'restoring', 'restore_failed', 'disconnected'])(
+    'blocks the direct CU speed endpoint while VSC is %s',
+    (status) => {
+      const { session } = setupVsc();
+      session.vsc = { status };
+      const next = jest.fn();
+      const response = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+      const req = { method: 'POST', path: '/bluetooth/set-speed', socket: { remoteAddress: '127.0.0.1' } };
+
+      remoteWriteGuard(req, response, next);
+
+      expect(response.status).toHaveBeenCalledWith(409);
+      expect(next).not.toHaveBeenCalled();
+    }
+  );
+});
