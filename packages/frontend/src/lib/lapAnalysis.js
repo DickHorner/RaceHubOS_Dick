@@ -1,3 +1,5 @@
+import { SessionType } from '@racehubos/shared'
+
 const MAX_CHART_LAPS = 600
 
 /**
@@ -85,7 +87,7 @@ export function analyzeSessionLaps(session) {
   }
 
   const leaders = []
-  if (!incomplete && session.type === 'race') {
+  if (!incomplete && session.type === SessionType.RACE) {
     let highestLap = 0
     let leader = null
     for (const lap of crossings) {
