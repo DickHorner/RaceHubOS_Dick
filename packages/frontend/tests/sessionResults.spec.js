@@ -74,9 +74,7 @@ test('qualifying sorts by measured best lap and omits race total time', async ({
       { ...race.drivers[1], bestLapTime: 11000, totalLaps: 4 },
     ],
   }
-  await page.route('**/api/sessions/qualif-print', (route) =>
-    route.fulfill({ json: { success: true, data: qualif } })
-  )
+  await page.route('**/api/sessions/qualif-print', (route) => route.fulfill({ json: { success: true, data: qualif } }))
   await page.goto('/results/qualif-print')
 
   await expect(page.getByRole('table').locator('tbody tr').first()).toContainText('Pilote Beta')
