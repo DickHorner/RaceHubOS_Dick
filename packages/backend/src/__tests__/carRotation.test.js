@@ -75,7 +75,8 @@ describe('championship car rotation', () => {
     [3, 5],
   ])('generates each driver/car pair exactly once for %i drivers and %i cars', async (driverCount, carCount) => {
     const { championship, carIds, oldRace } = await fixture(driverCount, carCount);
-    const preview = await request(app).post(`/api/championships/${championship.id}/car-rotation/preview`)
+    const preview = await request(app)
+      .post(`/api/championships/${championship.id}/car-rotation/preview`)
       .send({ carIds });
     expect(preview.status).toBe(200);
     const plan = preview.body.data;
@@ -93,7 +94,8 @@ describe('championship car rotation', () => {
     expect(pairs.size).toBe(driverCount * carCount);
     expect((await service.previewCarRotation(championship.id, carIds)).races).toEqual(plan.races);
 
-    const apply = await request(app).post(`/api/championships/${championship.id}/car-rotation`)
+    const apply = await request(app)
+      .post(`/api/championships/${championship.id}/car-rotation`)
       .send({ carIds, participantIds: plan.participantIds });
     expect(apply.status).toBe(200);
     expect(apply.body.data.count).toBe(plan.races.length);
@@ -118,16 +120,24 @@ describe('championship car rotation', () => {
     const plan = await service.previewCarRotation(championship.id, carIds);
     await service.applyCarRotation(championship.id, carIds, plan.participantIds);
     const race = await prisma.session.findFirst({ where: { championshipId: championship.id, type: 'race' } });
-    const assigned = await prisma.sessionDriver.findMany({ where: { sessionId: race.id }, orderBy: { controller: 'asc' } });
-    const swap = await request(app).put(`/api/sessions/${race.id}/drivers`).send({
-      drivers: [
-        { controller: 0, driverId: assigned[0].driverId, carId: assigned[1].carId },
-        { controller: 1, driverId: assigned[1].driverId, carId: assigned[0].carId },
-      ],
+    const assigned = await prisma.sessionDriver.findMany({
+      where: { sessionId: race.id },
+      orderBy: { controller: 'asc' },
     });
+    const swap = await request(app)
+      .put(`/api/sessions/${race.id}/drivers`)
+      .send({
+        drivers: [
+          { controller: 0, driverId: assigned[0].driverId, carId: assigned[1].carId },
+          { controller: 1, driverId: assigned[1].driverId, carId: assigned[0].carId },
+        ],
+      });
     expect(swap.status).toBe(200);
     await service.assignDriversToRaces(championship.id);
-    const after = await prisma.sessionDriver.findMany({ where: { sessionId: race.id }, orderBy: { controller: 'asc' } });
+    const after = await prisma.sessionDriver.findMany({
+      where: { sessionId: race.id },
+      orderBy: { controller: 'asc' },
+    });
     expect(after.map((d) => d.carId)).toEqual([assigned[1].carId, assigned[0].carId]);
   });
 
@@ -135,14 +145,15 @@ describe('championship car rotation', () => {
     const { championship, drivers, carIds } = await fixture(3, 2);
     await expect(service.previewCarRotation(championship.id, [carIds[0], carIds[0]])).rejects.toThrow();
     await expect(service.previewCarRotation(championship.id, ['missing', carIds[0]])).rejects.toThrow();
-    const plan = await service.previewCarRotation(championship.id, carIds);
     await expect(service.applyCarRotation(championship.id, carIds, [drivers[1].id, drivers[0].id])).rejects.toThrow();
   });
 
   it('does not replace races with history or started races, or uncompleted qualification', async () => {
     const { championship, carIds, oldRace, qualification } = await fixture(3, 2, 'draft');
     const plan = await service.previewCarRotation(championship.id, carIds);
-    await expect(service.applyCarRotation(championship.id, carIds, plan.participantIds)).rejects.toThrow('qualifications');
+    await expect(service.applyCarRotation(championship.id, carIds, plan.participantIds)).rejects.toThrow(
+      'qualifications'
+    );
     await prisma.session.update({ where: { id: qualification.id }, data: { status: 'finished' } });
     await prisma.session.update({ where: { id: oldRace.id }, data: { status: 'active' } });
     await expect(service.applyCarRotation(championship.id, carIds, plan.participantIds)).rejects.toThrow('Started');
@@ -153,16 +164,20 @@ describe('championship car rotation', () => {
 
   it('rejects duplicate draft controller or car assignments without erasing the previous grid', async () => {
     const { carIds, oldRace, drivers } = await fixture(2, 2);
-    const first = await request(app).put(`/api/sessions/${oldRace.id}/drivers`).send({
-      drivers: [{ controller: 0, driverId: drivers[0].id, carId: carIds[0] }],
-    });
+    const first = await request(app)
+      .put(`/api/sessions/${oldRace.id}/drivers`)
+      .send({
+        drivers: [{ controller: 0, driverId: drivers[0].id, carId: carIds[0] }],
+      });
     expect(first.status).toBe(200);
-    const duplicate = await request(app).put(`/api/sessions/${oldRace.id}/drivers`).send({
-      drivers: [
-        { controller: 0, driverId: drivers[0].id, carId: carIds[0] },
-        { controller: 1, driverId: drivers[1].id, carId: carIds[0] },
-      ],
-    });
+    const duplicate = await request(app)
+      .put(`/api/sessions/${oldRace.id}/drivers`)
+      .send({
+        drivers: [
+          { controller: 0, driverId: drivers[0].id, carId: carIds[0] },
+          { controller: 1, driverId: drivers[1].id, carId: carIds[0] },
+        ],
+      });
     expect(duplicate.status).toBe(400);
     expect(await prisma.sessionDriver.count({ where: { sessionId: oldRace.id } })).toBe(1);
   });
