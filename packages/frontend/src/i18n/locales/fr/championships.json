@@ -190,7 +190,12 @@
       "lapsUnit": "tours"
     },
     "deletedTrack": "{{name}} (supprimé)",
-    "finishedLocked": "Championnat terminé : la configuration est verrouillée. Rouvrez-le pour la modifier."
+    "finishedLocked": "Championnat terminé : la configuration est verrouillée. Rouvrez-le pour la modifier.",
+    "rotationTitle": "Rotation des voitures",
+    "rotationHint": "Sélectionnez 2 à 6 voitures. Prévisualisez avant application ; les courses commencées sont protégées.",
+    "rotationPreview": "Aperçu de rotation",
+    "rotationCount": "{{count}} courses prévues",
+    "rotationApply": "Appliquer la rotation"
   },
   "sessionConfigModal": {
     "title": "Configuration Session",
