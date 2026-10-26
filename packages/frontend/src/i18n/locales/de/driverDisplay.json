@@ -39,5 +39,8 @@
   "tyreTokenRequired": "Zum Vormerken ist Dein persönlicher Fahrerlink erforderlich.",
   "tyreError": "Reifenwahl fehlgeschlagen",
   "tyreRequested": "Reifen für den nächsten Boxenstopp vorgemerkt.",
-  "tyreRequestCleared": "Vormerkung zurückgenommen."
+  "tyreRequestCleared": "Vormerkung zurückgenommen.",
+  "hardwareFuel": "CU-Tankstand (Hardware)",
+  "virtualFuel": "Virtueller Tank (Software)",
+  "virtualFuelNote": "Unabhängig von der CU; Simulator-Boxenstopps füllen auf."
 }

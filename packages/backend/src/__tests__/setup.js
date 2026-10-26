@@ -22,6 +22,8 @@ beforeAll(async () => {
   await prisma.controllerConfig.deleteMany();
   await prisma.tyreChange.deleteMany();
   await prisma.lap.deleteMany();
+  await prisma.virtualFuelEvent.deleteMany();
+  await prisma.sessionPenalty.deleteMany();
   await prisma.sessionDriver.deleteMany();
   await prisma.championshipParticipant.deleteMany();
   await prisma.session.deleteMany();

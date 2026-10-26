@@ -454,3 +454,66 @@ describe('driver tyre requests and manual pit confirmation', () => {
     expect(denied.body.success).toBe(false);
   });
 });
+
+describe('director penalty permissions', () => {
+  const previousSecret = process.env.RACE_CONTROL_SECRET;
+  beforeEach(() => { process.env.RACE_CONTROL_SECRET = secret; });
+  afterEach(() => {
+    if (previousSecret === undefined) delete process.env.RACE_CONTROL_SECRET;
+    else process.env.RACE_CONTROL_SECRET = previousSecret;
+  });
+
+  const input = {
+    sessionId: 'race-1',
+    sessionDriverId: 'sd-1',
+    kind: 'time',
+    amount: 5000,
+    reason: 'Unsafe overtake',
+    requestId: 'penalty-request-route-1',
+  };
+
+  function setupPenalties() {
+    const { app, session } = setup();
+    const penalty = { id: 'pen-1', ...input, status: 'active', controller: 2 };
+    session.issuePenalty = jest.fn().mockResolvedValue(penalty);
+    session.revokePenalty = jest.fn().mockResolvedValue({ ...penalty, status: 'revoked' });
+    return { app, session };
+  }
+
+  test('only the director may issue or revoke penalties', async () => {
+    const { app, session } = setupPenalties();
+    const token = await issueToken(app);
+
+    await request(app).post('/api/race-control/director/penalties').send(input).expect(403);
+    await request(app).post('/api/race-control/director/penalties')
+      .set('Authorization', `Bearer ${token}`).send(input).expect(403);
+    const issued = await request(app).post('/api/race-control/director/penalties')
+      .set('Authorization', `Bearer ${secret}`).send(input).expect(201);
+    expect(issued.body.data.id).toBe('pen-1');
+    expect(session.issuePenalty).toHaveBeenCalledWith(input);
+
+    await request(app).post('/api/race-control/director/penalties/pen-1/revoke')
+      .send({ sessionId: 'race-1' }).expect(403);
+    await request(app).post('/api/race-control/director/penalties/pen-1/revoke')
+      .set('Authorization', `Bearer ${token}`).send({ sessionId: 'race-1' }).expect(403);
+    await request(app).post('/api/race-control/director/penalties/pen-1/revoke')
+      .set('Authorization', `Bearer ${secret}`).send({ sessionId: 'race-1' }).expect(200);
+    expect(session.revokePenalty).toHaveBeenCalledWith('race-1', 'pen-1');
+  });
+
+  test('invalid requests return a validation error instead of a false success', async () => {
+    const { app, session } = setupPenalties();
+    session.issuePenalty.mockRejectedValueOnce(Object.assign(new Error('Invalid race penalty details'), { status: 400 }));
+    const res = await request(app).post('/api/race-control/director/penalties')
+      .set('Authorization', `Bearer ${secret}`).send({ ...input, amount: -1 }).expect(400);
+    expect(res.body).toMatchObject({ success: false, error: 'Invalid race penalty details' });
+  });
+
+  test('replayed requests are rejected and serialized with other director commands', async () => {
+    const { app, session } = setupPenalties();
+    session.issuePenalty.mockRejectedValueOnce(Object.assign(new Error('Duplicate penalty request'), { status: 409 }));
+    const res = await request(app).post('/api/race-control/director/penalties')
+      .set('Authorization', `Bearer ${secret}`).send(input).expect(409);
+    expect(res.body.success).toBe(false);
+  });
+});

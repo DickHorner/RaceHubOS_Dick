@@ -39,5 +39,8 @@
   "tyreTokenRequired": "Use your personal driver link to request tyres.",
   "tyreError": "Could not request tyres",
   "tyreRequested": "Tyres requested for the next pit stop.",
-  "tyreRequestCleared": "Tyre request withdrawn."
+  "tyreRequestCleared": "Tyre request withdrawn.",
+  "hardwareFuel": "CU fuel level (hardware)",
+  "virtualFuel": "Virtual fuel (software)",
+  "virtualFuelNote": "Independent of the CU; confirmed simulator pit stops refuel."
 }

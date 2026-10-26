@@ -326,6 +326,32 @@ router.post('/director/tyres/confirm', requireDirector, async (req, res) => {
   }
 });
 
+router.post('/director/penalties', requireDirector, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const penalty = await serialize(() => sessionService.issuePenalty(req.body || {}));
+    console.info(`[RaceControl] Penalty issued for session=${penalty.sessionId}, controller=${penalty.controller + 1}`);
+    res.status(201).json({ success: true, data: penalty });
+  } catch (error) {
+    const status = error.status || 500;
+    if (status === 500) console.error('[RaceControl] Penalty issue failed:', error);
+    res.status(status).json({ success: false, error: status === 500 ? 'Could not issue penalty' : error.message });
+  }
+});
+
+router.post('/director/penalties/:id/revoke', requireDirector, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const penalty = await serialize(() => sessionService.revokePenalty(req.body?.sessionId, req.params.id));
+    console.info(`[RaceControl] Penalty revoked for session=${penalty.sessionId}, controller=${penalty.controller + 1}`);
+    res.json({ success: true, data: penalty });
+  } catch (error) {
+    const status = error.status || 500;
+    if (status === 500) console.error('[RaceControl] Penalty revocation failed:', error);
+    res.status(status).json({ success: false, error: status === 500 ? 'Could not revoke penalty' : error.message });
+  }
+});
+
 router.post('/director/:action', requireDirector, async (req, res) => {
   res.set('Cache-Control', 'no-store');
   const { action } = req.params;

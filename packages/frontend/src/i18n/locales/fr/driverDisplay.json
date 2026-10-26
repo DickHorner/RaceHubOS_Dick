@@ -39,5 +39,8 @@
   "tyreTokenRequired": "Utilise ton lien pilote personnel pour demander les pneus.",
   "tyreError": "Demande de pneus impossible",
   "tyreRequested": "Pneus demandés pour le prochain arrêt.",
-  "tyreRequestCleared": "Demande annulée."
+  "tyreRequestCleared": "Demande annulée.",
+  "hardwareFuel": "Carburant CU (matériel)",
+  "virtualFuel": "Carburant virtuel (logiciel)",
+  "virtualFuelNote": "Indépendant de la CU ; le simulateur ravitaille après un arrêt confirmé."
 }

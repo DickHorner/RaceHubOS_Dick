@@ -53,7 +53,11 @@
     "weatherInvalid": "Météo invalide : probabilité 0–100 %, intervalle 10–3600 s, graine 0–2147483647.",
     "tyreMismatchPercent": "Pénalité de temps avec mauvais pneus (%)",
     "tyreHint": "Facteur optionnel pour les tours simulés. Pneus secs sous la pluie ou pneus pluie sur piste sèche ajoutent du temps. Les mesures et la vitesse CU restent inchangées.",
-    "tyreInvalid": "Pénalité de pneus : 0–30 % et météo activée requise."
+    "tyreInvalid": "Pénalité de pneus : 0–30 % et météo activée requise.",
+    "virtualFuel": "Carburant virtuel (indépendant de la CU)",
+    "virtualFuelRate": "Consommation (% par minute de course)",
+    "virtualFuelInvalid": "La consommation virtuelle doit être comprise entre 1 et 100 % par minute.",
+    "virtualFuelHint": "Calcul logiciel : durée du tour mesurée × taux / 60 secondes. Chaque voiture commence à 100 %. Seuls les arrêts aux stands confirmés du simulateur ravitaillent automatiquement. Les données CU restent inchangées."
   },
   "profile": {
     "notFound": "Session introuvable",
@@ -74,6 +78,14 @@
     "tyreDirector": "Confirmé manuellement par le directeur",
     "simulatedTime": "Temps simulé",
     "weatherDry": "sec",
-    "weatherRain": "pluie"
+    "weatherRain": "pluie",
+    "penalties": "Pénalités ({{count}})",
+    "penaltyAmount": "Déduction",
+    "penaltyReason": "Motif",
+    "penaltyStatus": "État",
+    "penaltyLaps": "−{{count}} tours",
+    "penaltyTime": "+{{seconds}} s",
+    "penaltyActive": "Active",
+    "penaltyRevoked": "Annulée"
   }
 }

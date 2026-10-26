@@ -41,7 +41,10 @@
     "tyreWet": "Pneus pluie",
     "tyrePending": "Changement demandé",
     "simulatedBest": "Sim.",
-    "simulatedTotal": "Temps total simulé"
+    "simulatedTotal": "Temps total simulé",
+    "virtualFuel": "Carburant virtuel : {{percent}} %",
+    "penaltyLaps": "−{{count}} tours de pénalité",
+    "penaltyTime": "+{{seconds}} s de pénalité"
   },
   "resultsModal": {
     "title": "Résultats",

@@ -53,5 +53,20 @@
   "tyreDry": "Secs",
   "tyreWet": "Pluie",
   "tyreConfirm": "Confirmer",
-  "tyreConfirmError": "Impossible de confirmer le changement."
+  "tyreConfirmError": "Impossible de confirmer le changement.",
+  "penaltiesTitle": "Pénalités manuelles",
+  "penaltyDriver": "Pilote",
+  "penaltyKind": "Type de pénalité",
+  "penaltyTime": "Pénalité de temps",
+  "penaltyLap": "Retrait de tours",
+  "penaltySeconds": "Secondes",
+  "penaltyLaps": "Tours",
+  "penaltyReason": "Motif",
+  "penaltyIssue": "Appliquer la pénalité",
+  "penaltyRevoke": "Annuler",
+  "penaltyHelp": "Les pénalités modifient le classement, pas les tours enregistrés.",
+  "penaltyError": "Échec de la modification",
+  "penaltyHistory": "Pénalités appliquées",
+  "penaltyActive": "Active",
+  "penaltyRevoked": "Annulée"
 }
