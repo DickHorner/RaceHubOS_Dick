@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useDevice } from '../context/DeviceContext'
 import { useSession } from '../context/SessionContext'
 import { Button } from '@/components/ui/button'
-import { SessionStatus, SessionType } from '@racehubos/shared'
+import { SessionStatus, SessionType, TyreType } from '@racehubos/shared'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -85,6 +85,7 @@ export default function MobileRaceControl() {
     window.addEventListener('session:finished', refresh)
     window.addEventListener('session:vsc', refresh)
     window.addEventListener('session:vsc_error', refresh)
+    window.addEventListener('session:tyre_changed', refresh)
     document.addEventListener('visibilitychange', onVisible)
     return () => {
       clearInterval(interval)
@@ -92,6 +93,7 @@ export default function MobileRaceControl() {
       window.removeEventListener('session:finished', refresh)
       window.removeEventListener('session:vsc', refresh)
       window.removeEventListener('session:vsc_error', refresh)
+      window.removeEventListener('session:tyre_changed', refresh)
       document.removeEventListener('visibilitychange', onVisible)
     }
   }, [refresh])
@@ -187,6 +189,26 @@ export default function MobileRaceControl() {
     } catch (cause) {
       setError(cause.message)
       await refresh()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function confirmTyres(sessionDriverId) {
+    if (!session?.id || !directorKey || busy) return
+    setError('')
+    setBusy(true)
+    try {
+      const response = await fetch(`${API_URL}/api/race-control/director/tyres/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${directorKey}` },
+        body: JSON.stringify({ sessionId: session.id, sessionDriverId }),
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error(result.error || t('tyreConfirmError'))
+      await refresh()
+    } catch (cause) {
+      setError(cause.message)
     } finally {
       setBusy(false)
     }
@@ -349,6 +371,24 @@ export default function MobileRaceControl() {
                 )}
               </section>
             )}
+            {session?.id === selectedId && session.type === SessionType.RACE &&
+              assigned.some((row) => row.pendingTyreType) && (
+                <section className="rounded-xl border border-border bg-card p-5 space-y-3">
+                  <h2 className="font-bold">{t('tyreConfirmTitle')}</h2>
+                  <p className="text-xs text-muted-foreground">{t('tyreConfirmWarning')}</p>
+                  {assigned.filter((row) => row.pendingTyreType).map((row) => (
+                    <div key={row.id} className="flex items-center justify-between gap-3 border-t border-border pt-3">
+                      <div className="text-sm">
+                        <p className="font-semibold">{row.driver?.name || `${t('controller')} ${row.controller + 1}`}</p>
+                        <p>{t(row.tyreType === TyreType.WET ? 'tyreWet' : 'tyreDry')} → {t(row.pendingTyreType === TyreType.WET ? 'tyreWet' : 'tyreDry')}</p>
+                      </div>
+                      <Button type="button" variant="outline" size="sm"
+                        disabled={busy || ![SessionStatus.ACTIVE, SessionStatus.PAUSED].includes(session.status)}
+                        onClick={() => confirmTyres(row.id)}>{t('tyreConfirm')}</Button>
+                    </div>
+                  ))}
+                </section>
+              )}
             {session?.id === selectedId && assigned.length > 0 && (
               <section className="rounded-xl border border-border bg-card p-5 space-y-3">
                 <h2 className="font-bold">{t('driverLinks')}</h2>
