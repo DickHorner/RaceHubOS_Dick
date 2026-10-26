@@ -1,7 +1,13 @@
 import express from 'express';
 import SessionService from '../services/SessionService.js';
 import { getReferenceDriver } from '../lib/referenceDriver.js';
-import { SessionStatus, SessionType, validVirtualFuelRate, replayVirtualFuel, VIRTUAL_FUEL_FULL } from '@racehubos/shared';
+import {
+  SessionStatus,
+  SessionType,
+  validVirtualFuelRate,
+  replayVirtualFuel,
+  VIRTUAL_FUEL_FULL,
+} from '@racehubos/shared';
 import { idsFromQuery, sendWorkbook, sessionWorkbook, sessionsWorkbook } from '../lib/exportQueries.js';
 
 const router = express.Router();
@@ -211,7 +217,8 @@ router.post('/', async (req, res) => {
  */
 router.put('/:id', async (req, res) => {
   try {
-    const { name, type, trackId, championshipId, fuelMode, maxDuration, maxLaps, gracePeriod, order, virtualFuelRate } = req.body;
+    const { name, type, trackId, championshipId, fuelMode, maxDuration, maxLaps, gracePeriod, order, virtualFuelRate } =
+      req.body;
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;
