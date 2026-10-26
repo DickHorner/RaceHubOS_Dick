@@ -26,7 +26,7 @@ export default function MobileRaceControl() {
   const [vsc, setVsc] = useState({ status: 'inactive', active: false })
   const [vscCap, setVscCap] = useState(3)
   const [vscDuration, setVscDuration] = useState(0)
-  const [now, setNow] = useState(Date.now())
+  const [now, setNow] = useState(0)
   const updating = useRef(false)
 
   const refresh = useCallback(async () => {
@@ -317,7 +317,7 @@ export default function MobileRaceControl() {
               <section className="rounded-xl border border-border bg-card p-5 space-y-3">
                 <h2 className="font-bold">{t('vscTitle')}</h2>
                 <p role="status" className="text-sm">{t('vscState')}: {t(`vscStatus.${vsc.status}`)}</p>
-                {vsc.expiresAt && vsc.status === 'active' && (
+                {vsc.expiresAt && now > 0 && vsc.status === 'active' && (
                   <p className="font-mono text-lg tabular-nums">
                     {t('vscRemaining', { seconds: Math.max(0, Math.ceil((Date.parse(vsc.expiresAt) - now) / 1000)) })}
                   </p>
