@@ -42,7 +42,7 @@
     "step2": "Drücke CODE an der CU zweimal, danach einmal die Weichentaste am Handregler.",
     "step3": "Warte, bis an der CU wieder nur die mittlere LED leuchtet.",
     "step4": "Beschleunige auf eine sichere Rundengeschwindigkeit und drücke erneut die Weichentaste zum Speichern.",
-    "limitation": "RaceHubOS kann die Ghost-Programmierung derzeit nicht bestätigen. Ghost- und Pace-Car-Adressen 7 und 8 (CU-intern 6 und 7) werden nicht als Fahrer gewertet. Das Pace Car ist ein anderer Modus.",
+    "limitation": "RaceHubOS kann die Ghost-Programmierung derzeit nicht bestätigen. Ghost- und Pace-Car-Runden werden nicht in die Fahrerwertung übernommen. Das Pace Car ist ein anderer Modus.",
     "manualLink": "Carrera-Anleitung zur autonomen Fahrzeugprogrammierung"
   },
   "appearance": {
