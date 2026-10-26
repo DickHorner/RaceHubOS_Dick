@@ -4,19 +4,19 @@ import { DURATION_FORMAT } from './excelExport.js';
 export function worksheetTableRows(sheet, heading) {
   let headingRow;
   sheet.eachRow((row, number) => {
-    if (!headingRow && row.getCell(1).value === heading) headingRow = number;
+    if (row.getCell(1).value === heading) headingRow = number;
   });
   if (!headingRow) return null;
 
   const header = sheet.getRow(headingRow + 2);
   const width = header.cellCount;
-  const firstData = sheet.getRow(headingRow + 3);
   const rows = [
     Array.from({ length: width }, (_, index) => {
       const label = String(header.getCell(index + 1).value ?? '');
-      const sample = firstData.getCell(index + 1);
-      if (sample.numFmt === DURATION_FORMAT) return `${label} (s)`;
-      if (sample.value instanceof Date) return `${label} (UTC ISO 8601)`;
+      if (['Temps total', 'Meilleur tour', 'Dernier tour', 'Temps', 'S1', 'S2', 'S3'].includes(label)) {
+        return `${label} (s)`;
+      }
+      if (label === 'Horodatage') return `${label} (UTC ISO 8601)`;
       return label;
     }),
   ];
