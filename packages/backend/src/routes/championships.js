@@ -232,6 +232,10 @@ router.post('/', async (req, res) => {
       });
     }
 
+    if (pointsSystem !== undefined) {
+      return res.status(400).json({ success: false, error: 'Custom points systems are not supported' });
+    }
+
     // Validate trackId if provided
     if (trackId) {
       const track = await prisma.track.findUnique({ where: { id: trackId } });
@@ -369,19 +373,7 @@ router.put('/:id', async (req, res) => {
     if (status !== undefined) updateData.status = status;
 
     if (pointsSystem !== undefined) {
-      try {
-        if (typeof pointsSystem === 'string') {
-          JSON.parse(pointsSystem);
-          updateData.pointsSystem = pointsSystem;
-        } else {
-          updateData.pointsSystem = JSON.stringify(pointsSystem);
-        }
-      } catch (e) {
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid points system format',
-        });
-      }
+      return res.status(400).json({ success: false, error: 'Custom points systems are not supported' });
     }
 
     const championship = await prisma.championship.update({
