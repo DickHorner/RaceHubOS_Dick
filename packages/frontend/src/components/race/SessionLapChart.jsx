@@ -1,6 +1,16 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CartesianGrid, Line, LineChart, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceDot,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { SessionStatus, SessionType } from '@racehubos/shared'
 import { analyzeSessionLaps } from '../../lib/lapAnalysis'
@@ -39,7 +49,9 @@ export default function SessionLapChart({ session }) {
                   }
                 />
                 <span className="size-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                <span>{item.driverName} · {item.carName || t('lapAnalysis.carUnknown')}</span>
+                <span>
+                  {item.driverName} · {item.carName || t('lapAnalysis.carUnknown')}
+                </span>
               </label>
             ))}
           </div>
@@ -70,9 +82,7 @@ export default function SessionLapChart({ session }) {
                     selected.find((entry) => entry.key === key)?.driverName || key,
                   ]}
                 />
-                {record !== null && (
-                  <ReferenceLine y={record} stroke="#7c3aed" strokeDasharray="5 5" />
-                )}
+                {record !== null && <ReferenceLine y={record} stroke="#7c3aed" strokeDasharray="5 5" />}
                 {selected.map((item) => (
                   <Line
                     key={item.key}
@@ -109,16 +119,16 @@ export default function SessionLapChart({ session }) {
           <p className="text-sm text-muted-foreground">{t('lapAnalysis.noSeries')}</p>
         )}
 
-        {sampled && (
-          <p className="text-xs text-muted-foreground">{t('lapAnalysis.sampled')}</p>
-        )}
+        {sampled && <p className="text-xs text-muted-foreground">{t('lapAnalysis.sampled')}</p>}
 
         {session.type === SessionType.RACE && session.status === SessionStatus.FINISHED && (
           <section className="border-t border-border pt-4 space-y-2">
             <h3 className="text-sm font-semibold">{t('lapAnalysis.leadTitle')}</h3>
             <p className="text-xs text-muted-foreground">{t('lapAnalysis.leadCaveat')}</p>
             {incomplete ? (
-              <p role="status" className="text-sm text-amber-600">{t('lapAnalysis.uncertain')}</p>
+              <p role="status" className="text-sm text-amber-600">
+                {t('lapAnalysis.uncertain')}
+              </p>
             ) : leaders.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t('lapAnalysis.noLeader')}</p>
             ) : (
@@ -134,9 +144,12 @@ export default function SessionLapChart({ session }) {
                     return (
                       <li key={`${event.controller}-${event.lapNumber}`}>
                         {event.type === 'first' ? t('lapAnalysis.firstLeader') : t('lapAnalysis.leadChange')}
-                        {' · '}{item?.driverName || `Ctrl ${event.controller + 1}`}
-                        {' · '}{t('lapAnalysis.lapLabel', { lap: event.lapNumber })}
-                        {' · '}{new Date(event.timestamp).toLocaleTimeString(i18n.language)}
+                        {' · '}
+                        {item?.driverName || `Ctrl ${event.controller + 1}`}
+                        {' · '}
+                        {t('lapAnalysis.lapLabel', { lap: event.lapNumber })}
+                        {' · '}
+                        {new Date(event.timestamp).toLocaleTimeString(i18n.language)}
                       </li>
                     )
                   })}
