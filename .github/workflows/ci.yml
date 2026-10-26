@@ -22,6 +22,10 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: |
+          for file in packages/backend/src/__tests__/raceDamage.test.js packages/backend/src/routes/sessions.js packages/frontend/src/components/SessionForm.jsx packages/frontend/src/components/race/SessionLeaderboard.jsx packages/frontend/src/pages/SessionDetail.jsx; do
+            ./node_modules/.bin/prettier "$file" | diff -u "$file" - || true
+          done
       - run: npm run check -- --ci
       - run: npm run build
       - run: npm run prisma:generate -w @racehubos/backend
