@@ -22,12 +22,6 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: |
-          ./node_modules/.bin/prettier --write packages/backend/src/__tests__/championshipPoints.test.js
-          echo FORMATTED_START:packages/backend/src/__tests__/championshipPoints.test.js
-          base64 -w0 packages/backend/src/__tests__/championshipPoints.test.js
-          echo
-          echo FORMATTED_END
       - run: npm run check -- --ci
       - run: npm run build
       - run: npm run prisma:generate -w @racehubos/backend
