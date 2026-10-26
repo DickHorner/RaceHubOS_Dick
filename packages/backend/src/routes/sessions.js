@@ -1,7 +1,7 @@
 import express from 'express';
 import SessionService from '../services/SessionService.js';
 import { getReferenceDriver } from '../lib/referenceDriver.js';
-import { SessionStatus, SessionType } from '@racehubos/shared';
+import { SessionStatus, SessionType, validWeatherConfig, weatherForSession } from '@racehubos/shared';
 import { idsFromQuery, sendWorkbook, sessionWorkbook, sessionsWorkbook } from '../lib/exportQueries.js';
 
 const router = express.Router();
@@ -159,7 +159,7 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Session not found' });
     }
 
-    res.json({ success: true, data: session });
+    res.json({ success: true, data: { ...session, weatherCondition: weatherForSession(session, Date.now()) } });
   } catch (error) {
     console.error('Error fetching session:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -203,7 +203,10 @@ router.post('/', async (req, res) => {
  */
 router.put('/:id', async (req, res) => {
   try {
-    const { name, type, trackId, championshipId, fuelMode, maxDuration, maxLaps, gracePeriod, order } = req.body;
+    const {
+      name, type, trackId, championshipId, fuelMode, maxDuration, maxLaps, gracePeriod, order,
+      weatherSeed, weatherInitial, weatherRainChance, weatherIntervalSeconds,
+    } = req.body;
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;
@@ -211,6 +214,24 @@ router.put('/:id', async (req, res) => {
     if (trackId !== undefined) updateData.trackId = trackId;
     if (championshipId !== undefined) updateData.championshipId = championshipId === '' ? null : championshipId;
     if (fuelMode !== undefined) updateData.fuelMode = fuelMode;
+
+    const weatherUpdate = { weatherSeed, weatherInitial, weatherRainChance, weatherIntervalSeconds };
+    const weatherKeys = Object.keys(weatherUpdate).filter((key) => weatherUpdate[key] !== undefined);
+    if (weatherKeys.length || type !== undefined) {
+      const current = await prisma().session.findUnique({ where: { id: req.params.id } });
+      if (!current || current.deletedAt) {
+        return res.status(404).json({ success: false, error: 'Session not found' });
+      }
+      const nextWeather = { ...current, ...Object.fromEntries(weatherKeys.map((key) => [key, weatherUpdate[key]])) };
+      if (!validWeatherConfig(nextWeather) ||
+          (nextWeather.weatherSeed !== null && (type ?? current.type) !== SessionType.RACE)) {
+        return res.status(400).json({ success: false, error: 'Invalid race weather configuration' });
+      }
+      if (current.status !== SessionStatus.DRAFT && weatherKeys.some((key) => current[key] !== nextWeather[key])) {
+        return res.status(409).json({ success: false, error: 'Weather cannot be changed after race start' });
+      }
+      for (const key of weatherKeys) updateData[key] = nextWeather[key];
+    }
     if (maxDuration !== undefined) updateData.maxDuration = maxDuration || null;
     if (maxLaps !== undefined) updateData.maxLaps = maxLaps || null;
     if (gracePeriod !== undefined) updateData.gracePeriod = gracePeriod || null;
