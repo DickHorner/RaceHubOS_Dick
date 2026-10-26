@@ -58,8 +58,13 @@ export function analyzeSessionLaps(session) {
       bestLapTime: best.lapTime / 1000,
     })
 
+    if (Number.isInteger(entry.totalLaps) && entry.totalLaps > own.length) incomplete = true
     own.forEach((lap, index) => {
-      if (lap.lapNumber !== index + 1 || !Number.isFinite(lap.crossingTime)) incomplete = true
+      if (
+        lap.lapNumber !== index + 1 ||
+        !Number.isFinite(lap.crossingTime) ||
+        (index > 0 && lap.crossingTime <= own[index - 1].crossingTime)
+      ) incomplete = true
       if (!rows.has(lap.lapNumber)) rows.set(lap.lapNumber, { lap: lap.lapNumber })
       rows.get(lap.lapNumber)[key] = lap.lapTime / 1000
     })
@@ -71,6 +76,7 @@ export function analyzeSessionLaps(session) {
   if (lapNumbers.length) visibleLaps.add(lapNumbers.at(-1))
   for (const item of series) visibleLaps.add(item.bestLapNumber)
   const chartData = [...visibleLaps].sort((a, b) => a - b).map((number) => rows.get(number))
+  const sampled = chartData.length < lapNumbers.length
 
   const crossings = [...laps].sort((a, b) => a.crossingTime - b.crossingTime)
   for (let i = 1; i < crossings.length; i++) {
@@ -96,5 +102,5 @@ export function analyzeSessionLaps(session) {
     }
   }
 
-  return { series, chartData, leaders, incomplete }
+  return { series, chartData, leaders, incomplete, sampled }
 }
