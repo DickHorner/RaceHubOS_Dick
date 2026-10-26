@@ -5,6 +5,20 @@
     "showStandings": "Gesamtwertung anzeigen",
     "hideStandings": "Gesamtwertung ausblenden"
   },
+  "layout": {
+    "configure": "Layout",
+    "title": "Live-Widgets",
+    "pinned": "Rennsteuerung, Uhr und Soundboard bleiben immer sichtbar.",
+    "widgets": {
+      "leaderboard": "Live-Leaderboard",
+      "standings": "Gesamtwertung"
+    },
+    "moveUp": "{{widget}} nach oben",
+    "moveDown": "{{widget}} nach unten",
+    "autoHidden": "Die Gesamtwertung wird während einer laufenden Sitzung automatisch ausgeblendet.",
+    "loadError": "Das gespeicherte Layout konnte nicht geladen werden. Die bisherige Ansicht bleibt aktiv.",
+    "saveError": "Layout nicht gespeichert. Bitte erneut versuchen."
+  },
   "standings": {
     "title": "Gesamtwertung"
   }
