@@ -1,5 +1,5 @@
 import { createPrismaClient } from '../lib/prisma.js';
-import { ChampionshipMode, SessionStatus, SessionType } from '@racehubos/shared';
+import { ChampionshipMode, ChampionshipStatus, SessionStatus, SessionType } from '@racehubos/shared';
 import { sessionName } from '../lib/sessionNames.js';
 
 /**
@@ -74,6 +74,175 @@ export class ChampionshipService {
       offset += size;
     }
     return groups;
+  }
+
+
+  /**
+   * Preview a complete driver/car rotation without changing any sessions.
+   * Each heat is a matching: no driver or physical car appears twice.
+   */
+  async previewCarRotation(championshipId, carIds) {
+    const championship = await this.prisma.championship.findUnique({
+      where: { id: championshipId, deletedAt: null },
+      include: {
+        participants: {
+          where: { deletedAt: null },
+          include: { driver: true },
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    if (!championship || championship.mode !== ChampionshipMode.AUTO) {
+      throw new Error('Car rotation requires an automatic championship');
+    }
+    if (championship.status === ChampionshipStatus.FINISHED) {
+      throw new Error('Finished championships cannot be rescheduled');
+    }
+    if (!championship.trackId || championship.participants.length < 2) {
+      throw new Error('Car rotation requires a track and at least two drivers');
+    }
+    if (
+      !Array.isArray(carIds) ||
+      carIds.length < 2 ||
+      carIds.length > 6 ||
+      carIds.length > championship.driversPerRace ||
+      carIds.some((id) => typeof id !== 'string' || !id) ||
+      new Set(carIds).size !== carIds.length
+    ) {
+      throw new Error('Select 2 to 6 distinct cars, no more than drivers per race');
+    }
+
+    const availableCars = await this.prisma.car.findMany({
+      where: { id: { in: carIds }, deletedAt: null },
+      select: { id: true, brand: true, model: true },
+    });
+    if (availableCars.length !== carIds.length) {
+      throw new Error('One or more selected cars are unavailable');
+    }
+
+    const carsById = new Map(availableCars.map((car) => [car.id, car]));
+    const cars = carIds.map((id) => carsById.get(id));
+    const participants = championship.participants;
+    const driversOutnumberCars = participants.length >= cars.length;
+    const heatSize = Math.min(participants.length, cars.length);
+    const heatCount = Math.max(participants.length, cars.length);
+    const races = Array.from({ length: heatCount }, (_, round) => ({
+      round: round + 1,
+      drivers: Array.from({ length: heatSize }, (_, controller) => {
+        const participant = participants[driversOutnumberCars ? (round + controller) % participants.length : controller];
+        const car = cars[driversOutnumberCars ? controller : (round + controller) % cars.length];
+        return {
+          controller,
+          gridPos: controller + 1,
+          driverId: participant.driverId,
+          carId: car.id,
+          driver: { id: participant.driverId, name: participant.driver.name },
+          car,
+        };
+      }),
+    }));
+
+    return { participantIds: participants.map((p) => p.driverId), races };
+  }
+
+  /**
+   * Replace only unstarted draft race shells; keep every qualification and
+   * any race with results untouched. A stale preview must be regenerated.
+   */
+  async applyCarRotation(championshipId, carIds, expectedParticipantIds, sessionNames = {}) {
+    const plan = await this.previewCarRotation(championshipId, carIds);
+    if (
+      !Array.isArray(expectedParticipantIds) ||
+      JSON.stringify(expectedParticipantIds) !== JSON.stringify(plan.participantIds)
+    ) {
+      throw new Error('Participants changed; preview the rotation again');
+    }
+
+    const count = await this.prisma.$transaction(async (tx) => {
+      const championship = await tx.championship.findUnique({
+        where: { id: championshipId, deletedAt: null },
+        include: {
+          participants: { where: { deletedAt: null }, orderBy: { order: 'asc' } },
+          sessions: { where: { deletedAt: null } },
+        },
+      });
+      if (
+        !championship ||
+        championship.mode !== ChampionshipMode.AUTO ||
+        championship.status === ChampionshipStatus.FINISHED ||
+        JSON.stringify(championship.participants.map((p) => p.driverId)) !== JSON.stringify(plan.participantIds)
+      ) {
+        throw new Error('Championship changed; preview the rotation again');
+      }
+
+      const qualifications = championship.sessions.filter((session) => session.type === SessionType.QUALIF);
+      if (!qualifications.length || qualifications.some((session) => session.status !== SessionStatus.FINISHED)) {
+        throw new Error('Finish all qualifications before applying a car rotation');
+      }
+
+      const previousRaces = championship.sessions.filter((session) => session.type === SessionType.RACE);
+      if (
+        previousRaces.some(
+          (race) => race.status !== SessionStatus.DRAFT || race.startedAt !== null || race.finishedAt !== null
+        )
+      ) {
+        throw new Error('Started races cannot be replaced; edit remaining drafts individually');
+      }
+
+      const previousIds = previousRaces.map((race) => race.id);
+      if (previousIds.length) {
+        const withHistory = await tx.session.count({
+          where: {
+            id: { in: previousIds },
+            OR: [
+              { laps: { some: {} } },
+              { pitStops: { some: {} } },
+              { tyreChanges: { some: {} } },
+              { virtualFuelEvents: { some: {} } },
+              { penalties: { some: {} } },
+              { trackRecords: { some: {} } },
+            ],
+          },
+        });
+        if (withHistory) throw new Error('Race history exists; draft sessions cannot be replaced');
+        await tx.session.deleteMany({ where: { id: { in: previousIds } } });
+      }
+
+      const firstOrder =
+        Math.max(0, ...championship.sessions.filter((session) => session.type !== SessionType.RACE).map((s) => s.order)) +
+        1;
+      for (let index = 0; index < plan.races.length; index++) {
+        await tx.session.create({
+          data: {
+            name: `${sessionName(SessionType.RACE, sessionNames)} ${index + 1}`,
+            type: SessionType.RACE,
+            status: SessionStatus.DRAFT,
+            trackId: championship.trackId,
+            championshipId,
+            maxDuration: championship.raceMaxDuration,
+            maxLaps: championship.raceMaxLaps,
+            order: firstOrder + index,
+            autoGroup: index,
+            drivers: {
+              create: plan.races[index].drivers.map(({ controller, gridPos, driverId, carId }) => ({
+                controller,
+                gridPos,
+                driverId,
+                carId,
+              })),
+            },
+          },
+        });
+      }
+      return plan.races.length;
+    });
+
+    this.io?.emit('championship:races_assigned', {
+      championshipId,
+      timestamp: new Date().toISOString(),
+    });
+    return { count };
   }
 
   /**
@@ -220,6 +389,13 @@ export class ChampionshipService {
     for (let r = 0; r < raceSessions.length; r++) {
       const raceSession = raceSessions[r];
       const raceDrivers = raceGroups[r] || [];
+
+      // Completed races and explicitly assigned cars are never overwritten by qualifying.
+      if (raceSession.status !== SessionStatus.DRAFT) continue;
+      const hasAssignedCar = await this.prisma.sessionDriver.count({
+        where: { sessionId: raceSession.id, deletedAt: null, carId: { not: null } },
+      });
+      if (hasAssignedCar) continue;
 
       // Clear existing session drivers
       await this.prisma.sessionDriver.deleteMany({
@@ -391,9 +567,14 @@ export class ChampionshipService {
     if (resetSession?.type !== SessionType.QUALIF) return;
 
     // Clear race session drivers since qualif results changed
-    const raceSessions = championship.sessions.filter((s) => s.type === SessionType.RACE);
+    const raceSessions = championship.sessions.filter(
+      (s) => s.type === SessionType.RACE && s.status === SessionStatus.DRAFT
+    );
     for (const race of raceSessions) {
-      await this.prisma.sessionDriver.deleteMany({ where: { sessionId: race.id } });
+      const hasAssignedCar = await this.prisma.sessionDriver.count({
+        where: { sessionId: race.id, deletedAt: null, carId: { not: null } },
+      });
+      if (!hasAssignedCar) await this.prisma.sessionDriver.deleteMany({ where: { sessionId: race.id } });
     }
 
     this.io?.emit('championship:races_assigned', {
