@@ -30,7 +30,7 @@ export class SyncService {
     this._onDisconnected = () => {
       this.pitStates.clear();
       this.pitSessionId = null;
-      this.sessionService?.onVscDisconnect();
+      this.sessionService?.onVscDisconnect?.();
       this.io?.emit('cu:disconnected');
     };
   }
@@ -46,7 +46,7 @@ export class SyncService {
    * @param {ControlUnit|CarreraSimulator} device
    */
   setDevice(device) {
-    if (this.source && this.source !== device) this.sessionService?.onVscDisconnect();
+    if (this.source && this.source !== device) this.sessionService?.onVscDisconnect?.();
     // Remove listeners from old device
     if (this.source) {
       this.stopPolling();
