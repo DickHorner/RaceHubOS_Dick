@@ -1,6 +1,6 @@
 import { createPrismaClient } from '../lib/prisma.js';
 import EventEmitter from 'events';
-import { SESSION_TYPES, SessionStatus, SessionType, WeatherCondition, isSessionType, toLevel, validWeatherConfig, weatherAtElapsed, weatherForSession } from '@racehubos/shared';
+import { SESSION_TYPES, SessionStatus, SessionType, WeatherCondition, TyreType, isSessionType, toLevel, validWeatherConfig, weatherAtElapsed, weatherForSession, validTyreType, validTyreMismatchPercent, tyreAdjustedLapTime } from '@racehubos/shared';
 import { sessionName } from '../lib/sessionNames.js';
 
 const DEFAULT_GRACE_PERIOD_MS = 30000;
@@ -33,6 +33,7 @@ export class SessionService extends EventEmitter {
 
     // Driver states
     this.sessionDrivers = [];
+    this.tyreWrites = Promise.resolve();
     this.firstCrossingProgrammed = new Set();
     this.speedWrites = Promise.resolve();
     this.vscOperation = Promise.resolve();
@@ -66,7 +67,7 @@ export class SessionService extends EventEmitter {
     const { controller, timestamp, lapTime, sector } = data;
 
     // Ignore stale hardware events when there is no running session.
-    if (!this.activeSessionId || !this.isActive()) {
+    if (!this.activeSessionId || !this.isActive() || this.sessionStatus === SessionStatus.PAUSED) {
       return;
     }
 
@@ -105,7 +106,7 @@ export class SessionService extends EventEmitter {
     }
 
     // Only record laps with a valid measured time.
-    if (lapTime <= 0) return;
+    if (!Number.isFinite(lapTime) || lapTime <= 0) return;
 
     // Track crossings - first crossing is start, doesn't count as lap
     // const isFirstCrossing = driver.crossings === 0; // DISABLED: count first lap
@@ -157,17 +158,30 @@ export class SessionService extends EventEmitter {
       });
     }
 
-    // Only accumulate time up to maxLaps (for race classification)
-    // Extra laps during grace period don't count toward total time
+    // Measured and simulated lap times are separate; no CU speed command is sent.
+    const weatherAtLap = weatherForSession(this.sessionConfig, Date.now());
+    const simulate = this.currentPhase === SessionType.RACE &&
+      this.sessionConfig?.tyreMismatchPercent > 0 && weatherAtLap !== null;
+    const simulatedLapTime = simulate
+      ? tyreAdjustedLapTime(lapTime, driver.tyreType, weatherAtLap, this.sessionConfig.tyreMismatchPercent)
+      : null;
+    if (simulatedLapTime !== null) {
+      driver.simulatedBestLapTime = Math.min(driver.simulatedBestLapTime ?? Infinity, simulatedLapTime);
+    }
+
+    // Extra laps during the grace period don't count toward the total.
     if (!maxLaps || driver.totalLaps <= maxLaps) {
       driver.totalTime += Math.round(lapTime);
+      if (simulatedLapTime !== null) {
+        driver.simulatedTotalTime = (driver.simulatedTotalTime ?? 0) + simulatedLapTime;
+      }
     }
 
     // 2. Recalculate positions (pass controller who just completed a lap)
     this.recalculatePositions(controller);
 
     // 3. Save to DB
-    await this.saveLap(driver, lapTime);
+    await this.saveLap(driver, lapTime, simulatedLapTime, simulate ? weatherAtLap : null);
     await this.updateSessionDriver(driver);
 
     // 4. Emit leaderboard
@@ -224,6 +238,7 @@ export class SessionService extends EventEmitter {
    * Load session from DB
    */
   async loadSession(sessionId) {
+    await this.tyreWrites;
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
       include: {
@@ -273,6 +288,7 @@ export class SessionService extends EventEmitter {
       weatherRainChance: session.weatherRainChance,
       weatherIntervalSeconds: session.weatherIntervalSeconds,
       weatherAdvanceDuringPause: session.weatherAdvanceDuringPause,
+      tyreMismatchPercent: session.tyreMismatchPercent,
       pauses: session.pauses ? JSON.parse(session.pauses) : [],
     };
     this.sessionStatus = session.status;
@@ -290,6 +306,10 @@ export class SessionService extends EventEmitter {
       position: sd.position || 0,
       totalLaps: sd.totalLaps || 0,
       totalTime: sd.totalTime || 0,
+      simulatedTotalTime: sd.simulatedTotalTime,
+      simulatedBestLapTime: sd.simulatedBestLapTime,
+      tyreType: sd.tyreType,
+      pendingTyreType: sd.pendingTyreType,
       bestLapTime: sd.bestLapTime || null,
       lastLapTime: sd.lastLapTime || null,
       lapsAtFinishing: sd.lapsAtFinishing ?? null, // For checkered flag logic
@@ -456,6 +476,7 @@ export class SessionService extends EventEmitter {
    */
   async resetForNewSession() {
     this.stopHeartbeat();
+    await this.tyreWrites;
     if (this.vsc) {
       try {
         await this.syncService?.stopRace();
@@ -595,7 +616,7 @@ export class SessionService extends EventEmitter {
     if (isRace) {
       this.sessionDrivers.sort((a, b) => {
         if (b.totalLaps !== a.totalLaps) return b.totalLaps - a.totalLaps;
-        return a.totalTime - b.totalTime;
+        return (a.simulatedTotalTime ?? a.totalTime) - (b.simulatedTotalTime ?? b.totalTime);
       });
     } else {
       this.sessionDrivers.sort((a, b) => {
@@ -638,7 +659,7 @@ export class SessionService extends EventEmitter {
         if (lapDiff > 0) {
           driver.gap = lapDiff;
         } else {
-          driver.gap = driver.totalTime - leader.totalTime;
+          driver.gap = (driver.simulatedTotalTime ?? driver.totalTime) - (leader.simulatedTotalTime ?? leader.totalTime);
         }
       } else {
         if (leader.bestLapTime && driver.bestLapTime) {
@@ -675,7 +696,7 @@ export class SessionService extends EventEmitter {
     const sorted = [...drivers].sort((a, b) => {
       if (isRace) {
         if (b.totalLaps !== a.totalLaps) return b.totalLaps - a.totalLaps;
-        return a.totalTime - b.totalTime;
+        return (a.simulatedTotalTime ?? a.totalTime) - (b.simulatedTotalTime ?? b.totalTime);
       } else {
         if (a.bestLapTime === null && b.bestLapTime === null) return 0;
         if (a.bestLapTime === null) return 1;
@@ -690,7 +711,7 @@ export class SessionService extends EventEmitter {
       if (i > 0 && leader) {
         if (isRace) {
           const lapDiff = leader.totalLaps - driver.totalLaps;
-          gap = lapDiff > 0 ? lapDiff : driver.totalTime - leader.totalTime;
+          gap = lapDiff > 0 ? lapDiff : (driver.simulatedTotalTime ?? driver.totalTime) - (leader.simulatedTotalTime ?? leader.totalTime);
         } else {
           if (leader.bestLapTime && driver.bestLapTime) {
             gap = driver.bestLapTime - leader.bestLapTime;
@@ -1212,7 +1233,7 @@ export class SessionService extends EventEmitter {
 
   // ==================== DB Operations ====================
 
-  async saveLap(driver, lapTime) {
+  async saveLap(driver, lapTime, simulatedLapTime = null, weatherAtLap = null) {
     await this.prisma.lap.create({
       data: {
         sessionId: this.activeSessionId,
@@ -1222,7 +1243,10 @@ export class SessionService extends EventEmitter {
         controller: driver.controller,
         phase: this.currentPhase,
         lapNumber: driver.totalLaps,
-        lapTime: lapTime,
+        lapTime,
+        simulatedLapTime,
+        tyreAtLap: simulatedLapTime !== null ? driver.tyreType : null,
+        weatherAtLap,
       },
     });
   }
@@ -1234,6 +1258,8 @@ export class SessionService extends EventEmitter {
         position: driver.position,
         totalLaps: driver.totalLaps,
         totalTime: driver.totalTime,
+        simulatedTotalTime: driver.simulatedTotalTime,
+        simulatedBestLapTime: driver.simulatedBestLapTime,
         bestLapTime: driver.bestLapTime,
         lastLapTime: driver.lastLapTime,
       },
@@ -1262,10 +1288,14 @@ export class SessionService extends EventEmitter {
       weatherRainChance = 35,
       weatherIntervalSeconds = 60,
       weatherAdvanceDuringPause = false,
+      tyreMismatchPercent = 0,
     } = params;
 
     if (!validWeatherConfig({ weatherSeed, weatherInitial, weatherRainChance, weatherIntervalSeconds, weatherAdvanceDuringPause })) {
       throw new Error('Invalid weather configuration');
+    }
+    if (!validTyreMismatchPercent(tyreMismatchPercent) || (tyreMismatchPercent > 0 && weatherSeed === null)) {
+      throw new Error('Tyre time penalty requires enabled weather and 0-30 percent');
     }
     if (weatherSeed !== null && type !== SessionType.RACE) {
       throw new Error('Weather is only supported for race sessions');
@@ -1304,6 +1334,7 @@ export class SessionService extends EventEmitter {
         weatherRainChance,
         weatherIntervalSeconds,
         weatherAdvanceDuringPause,
+        tyreMismatchPercent,
         order: order ?? 0,
       },
     });
@@ -1387,6 +1418,8 @@ export class SessionService extends EventEmitter {
       data: { deletedAt: new Date() },
     });
 
+    await this.prisma.tyreChange.deleteMany({ where: { sessionId } });
+
     // Reset session driver stats
     await this.prisma.sessionDriver.updateMany({
       where: { sessionId },
@@ -1395,6 +1428,10 @@ export class SessionService extends EventEmitter {
         finalPos: null,
         totalLaps: 0,
         totalTime: 0,
+        simulatedTotalTime: null,
+        simulatedBestLapTime: null,
+        tyreType: TyreType.DRY,
+        pendingTyreType: null,
         bestLapTime: null,
         lastLapTime: null,
         isDNF: false,
