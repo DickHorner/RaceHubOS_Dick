@@ -213,10 +213,10 @@ export default function FreeSessionPage() {
         data.maxDuration !== undefined ||
         data.maxLaps !== undefined ||
         data.gracePeriod !== undefined ||
-          data.weatherSeed !== undefined ||
-          data.weatherInitial !== undefined ||
-          data.weatherRainChance !== undefined ||
-          data.weatherIntervalSeconds !== undefined
+        data.weatherSeed !== undefined ||
+        data.weatherInitial !== undefined ||
+        data.weatherRainChance !== undefined ||
+        data.weatherIntervalSeconds !== undefined
       ) {
         const response = await fetch(`${API_URL}/api/sessions/${session.id}`, {
           method: 'PUT',
@@ -226,17 +226,17 @@ export default function FreeSessionPage() {
             maxDuration: data.maxDuration,
             maxLaps: data.maxLaps,
             gracePeriod: data.gracePeriod,
-              weatherSeed: data.weatherSeed,
-              weatherInitial: data.weatherInitial,
-              weatherRainChance: data.weatherRainChance,
-              weatherIntervalSeconds: data.weatherIntervalSeconds,
+            weatherSeed: data.weatherSeed,
+            weatherInitial: data.weatherInitial,
+            weatherRainChance: data.weatherRainChance,
+            weatherIntervalSeconds: data.weatherIntervalSeconds,
           }),
         })
         if (!response.ok) {
-            const failure = await response.json()
-            return { success: false, error: failure.error || 'Weather configuration could not be saved' }
-          }
+          const failure = await response.json()
+          return { success: false, error: failure.error || 'Weather configuration could not be saved' }
         }
+      }
       if (data.status !== undefined && data.status !== session.status) {
         await fetch(`${API_URL}/api/sessions/${session.id}/status`, {
           method: 'PATCH',
@@ -269,8 +269,10 @@ export default function FreeSessionPage() {
         }
       }
       await loadSession(session.id)
+        return { success: true }
     } catch (err) {
       console.error('Error saving session config:', err)
+        return { success: false, error: err.message }
     }
   }
 
