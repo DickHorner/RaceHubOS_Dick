@@ -70,7 +70,7 @@ test('session detail charts measured laps, filters driver/car, and labels logged
   await page.route('**/api/sessions/lap-analysis', (route) => route.fulfill({ json: { success: true, data: race } }))
   await page.goto('/sessions/lap-analysis')
 
-  await expect(page.getByRole('heading', { name: 'Évolution des temps au tour' })).toBeVisible()
+  await expect(page.getByText('Évolution des temps au tour', { exact: true })).toBeVisible()
   await expect(page.getByRole('checkbox', { name: /Alpha.*BMW M4/ })).toBeChecked()
   await expect(page.getByRole('checkbox', { name: /Beta.*Porsche GT1/ })).toBeChecked()
   await expect(page.getByText('Changement de leader observé', { exact: false })).toHaveCount(2)
@@ -94,7 +94,7 @@ test('uncertain race timestamps show a warning instead of claimed lead changes',
 
   await expect(page.getByRole('status')).toContainText('Impossible de reconstruire les changements de leader')
   await expect(page.getByText('Changement de leader observé', { exact: false })).toHaveCount(0)
-  await expect(page.getByRole('heading', { name: 'Évolution des temps au tour' })).toBeVisible()
+  await expect(page.getByText('Évolution des temps au tour', { exact: true })).toBeVisible()
 })
 
 test('practice lap-time chart has no race-lead timeline', async ({ page }) => {
@@ -109,6 +109,6 @@ test('practice lap-time chart has no race-lead timeline', async ({ page }) => {
   )
   await page.goto('/sessions/lap-analysis')
 
-  await expect(page.getByRole('heading', { name: 'Évolution des temps au tour' })).toBeVisible()
+  await expect(page.getByText('Évolution des temps au tour', { exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Leaders aux passages enregistrés' })).toHaveCount(0)
 })
