@@ -48,6 +48,12 @@
     "restore_failed": "Rétablissement échoué",
     "disconnected": "CU déconnectée"
   },
+  "tyreConfirmTitle": "Changement de pneus aux stands",
+  "tyreConfirmWarning": "Signaux de stand CU non validés sur matériel. Confirme seulement un arrêt réellement observé. Seuls les pneus virtuels changent.",
+  "tyreDry": "Secs",
+  "tyreWet": "Pluie",
+  "tyreConfirm": "Confirmer",
+  "tyreConfirmError": "Impossible de confirmer le changement.",
   "penaltiesTitle": "Pénalités manuelles",
   "penaltyDriver": "Pilote",
   "penaltyKind": "Type de pénalité",

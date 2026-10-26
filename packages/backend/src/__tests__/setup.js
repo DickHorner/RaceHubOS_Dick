@@ -20,6 +20,7 @@ beforeAll(async () => {
   // onDelete: Restrict, so they must go before their parents.
   await prisma.trackRecord.deleteMany();
   await prisma.controllerConfig.deleteMany();
+  await prisma.tyreChange.deleteMany();
   await prisma.lap.deleteMany();
   await prisma.virtualFuelEvent.deleteMany();
   await prisma.sessionPenalty.deleteMany();

@@ -37,7 +37,12 @@
     "last": "Last",
     "gap": "Gap",
     "total": "Total",
-    "virtualFuel": "Virtual fuel: {{percent}}%"
+    "tyreDry": "Dry tyres",
+    "tyreWet": "Wet tyres",
+    "tyrePending": "Change requested",
+    "simulatedBest": "Sim.",
+    "simulatedTotal": "Simulated total time",
+    "virtualFuel": "Virtual fuel: {{percent}}%",
     "penaltyLaps": "−{{count}} lap penalty",
     "penaltyTime": "+{{seconds}} s penalty"
   },

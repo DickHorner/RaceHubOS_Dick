@@ -37,7 +37,12 @@
     "last": "Dernier",
     "gap": "Écart",
     "total": "Total",
-    "virtualFuel": "Carburant virtuel : {{percent}} %"
+    "tyreDry": "Pneus secs",
+    "tyreWet": "Pneus pluie",
+    "tyrePending": "Changement demandé",
+    "simulatedBest": "Sim.",
+    "simulatedTotal": "Temps total simulé",
+    "virtualFuel": "Carburant virtuel : {{percent}} %",
     "penaltyLaps": "−{{count}} tours de pénalité",
     "penaltyTime": "+{{seconds}} s de pénalité"
   },

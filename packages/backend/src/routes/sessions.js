@@ -1,10 +1,12 @@
 import express from 'express';
 import SessionService from '../services/SessionService.js';
 import { getReferenceDriver } from '../lib/referenceDriver.js';
-import { SessionStatus, SessionType, validWeatherConfig, weatherForSession } from '@racehubos/shared';
 import {
   SessionStatus,
   SessionType,
+  validWeatherConfig,
+  validTyreMismatchPercent,
+  weatherForSession,
   validVirtualFuelRate,
   replayVirtualFuel,
   VIRTUAL_FUEL_FULL,
@@ -159,6 +161,7 @@ router.get('/:id', async (req, res) => {
           include: { sessionDriver: { include: { driver: true, car: true } } },
           orderBy: { enteredAt: 'asc' },
         },
+        tyreChanges: { orderBy: { changedAt: 'asc' } },
         virtualFuelEvents: { orderBy: { id: 'asc' } },
         penalties: { orderBy: { issuedAt: 'asc' } },
       },
@@ -168,7 +171,6 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Session not found' });
     }
 
-    res.json({ success: true, data: { ...session, weatherCondition: weatherForSession(session, Date.now()) } });
     if (session.virtualFuelRate != null) {
       const levels = replayVirtualFuel(session.virtualFuelEvents);
       session.drivers = session.drivers.map((driver) => ({
@@ -176,7 +178,7 @@ router.get('/:id', async (req, res) => {
         virtualFuelUnits: levels.get(driver.id) ?? VIRTUAL_FUEL_FULL,
       }));
     }
-    res.json({ success: true, data: session });
+    res.json({ success: true, data: { ...session, weatherCondition: weatherForSession(session, Date.now()) } });
   } catch (error) {
     console.error('Error fetching session:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -235,9 +237,9 @@ router.put('/:id', async (req, res) => {
       weatherRainChance,
       weatherIntervalSeconds,
       weatherAdvanceDuringPause,
+      tyreMismatchPercent,
+      virtualFuelRate,
     } = req.body;
-    const { name, type, trackId, championshipId, fuelMode, maxDuration, maxLaps, gracePeriod, order, virtualFuelRate } =
-      req.body;
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;
@@ -254,22 +256,31 @@ router.put('/:id', async (req, res) => {
       weatherAdvanceDuringPause,
     };
     const weatherKeys = Object.keys(weatherUpdate).filter((key) => weatherUpdate[key] !== undefined);
-    if (weatherKeys.length || type !== undefined) {
+    if (weatherKeys.length || type !== undefined || tyreMismatchPercent !== undefined) {
       const current = await prisma().session.findUnique({ where: { id: req.params.id } });
       if (!current || current.deletedAt) {
         return res.status(404).json({ success: false, error: 'Session not found' });
       }
       const nextWeather = { ...current, ...Object.fromEntries(weatherKeys.map((key) => [key, weatherUpdate[key]])) };
+      const nextTyrePercent = tyreMismatchPercent ?? current.tyreMismatchPercent;
       if (
         !validWeatherConfig(nextWeather) ||
-        (nextWeather.weatherSeed !== null && (type ?? current.type) !== SessionType.RACE)
+        (nextWeather.weatherSeed !== null && (type ?? current.type) !== SessionType.RACE) ||
+        !validTyreMismatchPercent(nextTyrePercent) ||
+        (nextTyrePercent > 0 && (nextWeather.weatherSeed === null || (type ?? current.type) !== SessionType.RACE))
       ) {
         return res.status(400).json({ success: false, error: 'Invalid race weather configuration' });
       }
-      if (current.status !== SessionStatus.DRAFT && weatherKeys.some((key) => current[key] !== nextWeather[key])) {
+      if (
+        current.status !== SessionStatus.DRAFT &&
+        (weatherKeys.some((key) => current[key] !== nextWeather[key]) ||
+          (tyreMismatchPercent !== undefined && current.tyreMismatchPercent !== nextTyrePercent))
+      ) {
         return res.status(409).json({ success: false, error: 'Weather cannot be changed after race start' });
       }
       for (const key of weatherKeys) updateData[key] = nextWeather[key];
+      if (tyreMismatchPercent !== undefined) updateData.tyreMismatchPercent = nextTyrePercent;
+    }
     if (virtualFuelRate !== undefined) {
       if (!validVirtualFuelRate(virtualFuelRate)) {
         return res.status(400).json({ success: false, error: 'Invalid virtual fuel rate (1-100 %/min or disabled)' });
@@ -674,8 +685,8 @@ router.get('/:id/leaderboard', async (req, res) => {
       include: {
         drivers: { include: { driver: true, car: true } },
         virtualFuelEvents: { orderBy: { id: 'asc' } },
+        penalties: true,
       },
-      include: { drivers: { include: { driver: true, car: true } }, penalties: true },
     });
 
     if (!session) {
@@ -694,6 +705,10 @@ router.get('/:id/leaderboard', async (req, res) => {
         id: sd.id,
         controller: sd.controller,
         driverId: sd.driverId,
+        tyreType: sd.tyreType,
+        pendingTyreType: sd.pendingTyreType,
+        simulatedTotalTime: sd.simulatedTotalTime,
+        simulatedBestLapTime: sd.simulatedBestLapTime,
         virtualFuelUnits: fuelLevels ? (fuelLevels.get(sd.id) ?? VIRTUAL_FUEL_FULL) : null,
         isDNF: sd.isDNF,
         driver: sd.driver,

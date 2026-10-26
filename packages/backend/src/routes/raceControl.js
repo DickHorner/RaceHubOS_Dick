@@ -81,13 +81,15 @@ export function mayControlSocket(socket) {
 }
 
 function signDriverAccess(assignment, expiresAt) {
-  const data = Buffer.from(JSON.stringify({
-    sid: assignment.sessionId,
-    sdid: assignment.id,
-    did: assignment.driverId,
-    controller: assignment.controller,
-    exp: expiresAt,
-  })).toString('base64url');
+  const data = Buffer.from(
+    JSON.stringify({
+      sid: assignment.sessionId,
+      sdid: assignment.id,
+      did: assignment.driverId,
+      controller: assignment.controller,
+      exp: expiresAt,
+    })
+  ).toString('base64url');
   const signature = createHmac('sha256', directorSecret()).update(data).digest('base64url');
   return `${data}.${signature}`;
 }
@@ -102,12 +104,20 @@ function decodeDriverAccess(token) {
   try {
     const data = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
     if (
-      typeof data.sid !== 'string' || !data.sid ||
-      typeof data.sdid !== 'string' || !data.sdid ||
-      typeof data.did !== 'string' || !data.did ||
-      !Number.isInteger(data.controller) || data.controller < 0 || data.controller > 5 ||
-      !Number.isSafeInteger(data.exp) || data.exp <= Date.now() || data.exp > Date.now() + TOKEN_LIFETIME_MS
-    ) return null;
+      typeof data.sid !== 'string' ||
+      !data.sid ||
+      typeof data.sdid !== 'string' ||
+      !data.sdid ||
+      typeof data.did !== 'string' ||
+      !data.did ||
+      !Number.isInteger(data.controller) ||
+      data.controller < 0 ||
+      data.controller > 5 ||
+      !Number.isSafeInteger(data.exp) ||
+      data.exp <= Date.now() ||
+      data.exp > Date.now() + TOKEN_LIFETIME_MS
+    )
+      return null;
     return data;
   } catch {
     return null;
@@ -122,22 +132,33 @@ function serialize(action) {
 
 router.get('/status', (req, res) => {
   res.set('Cache-Control', 'no-store');
-  const local = isLoopback(req.socket.remoteAddress) &&
-    trustedOrigin('http://localhost', req.get('host'));
-  res.json({ success: true, enabled: Boolean(directorSecret()), setupAvailable: !process.env.RACE_CONTROL_SECRET && local });
+  const local = isLoopback(req.socket.remoteAddress) && trustedOrigin('http://localhost', req.get('host'));
+  res.json({
+    success: true,
+    enabled: Boolean(directorSecret()),
+    setupAvailable: !process.env.RACE_CONTROL_SECRET && local,
+  });
 });
 
 // Only the browser running on the race PC may bootstrap a director credential.
 // The server generates and stores the key; never accept a secret from remote input.
 router.post('/setup', async (req, res) => {
   res.set('Cache-Control', 'no-store');
-  if (!isLoopback(req.socket.remoteAddress) ||
-      !req.get('origin') || !trustedOrigin(req.get('origin'), req.get('host'))) {
-    return res.status(403).json({ success: false, error: 'Initial setup is only available on the race PC at localhost' });
+  if (
+    !isLoopback(req.socket.remoteAddress) ||
+    !req.get('origin') ||
+    !trustedOrigin(req.get('origin'), req.get('host'))
+  ) {
+    return res
+      .status(403)
+      .json({ success: false, error: 'Initial setup is only available on the race PC at localhost' });
   }
   if (directorSecret()) return res.status(409).json({ success: false, error: 'Race control is already configured' });
   if (process.env.RACE_CONTROL_SECRET) {
-    return res.status(409).json({ success: false, error: 'Existing invalid RACE_CONTROL_SECRET must be corrected in the server configuration' });
+    return res.status(409).json({
+      success: false,
+      error: 'Existing invalid RACE_CONTROL_SECRET must be corrected in the server configuration',
+    });
   }
   if (setupInProgress) return res.status(409).json({ success: false, error: 'Race control setup is already running' });
 
@@ -152,7 +173,9 @@ router.post('/setup', async (req, res) => {
       envExists = false;
     }
     if (/^\s*(?:export\s+)?RACE_CONTROL_SECRET\s*=/m.test(existing)) {
-      return res.status(409).json({ success: false, error: 'RACE_CONTROL_SECRET already exists in .env; correct it there' });
+      return res
+        .status(409)
+        .json({ success: false, error: 'RACE_CONTROL_SECRET already exists in .env; correct it there' });
     }
 
     if (envExists) await fs.chmod(directorEnvPath, 0o600);
@@ -164,7 +187,9 @@ router.post('/setup', async (req, res) => {
     res.json({ success: true, secret });
   } catch (error) {
     console.error('[RaceControl] Local setup failed:', error);
-    res.status(500).json({ success: false, error: 'Could not save the race-control secret; check server file permissions' });
+    res
+      .status(500)
+      .json({ success: false, error: 'Could not save the race-control secret; check server file permissions' });
   } finally {
     setupInProgress = false;
   }
@@ -183,7 +208,8 @@ router.post('/driver-link', requireDirector, async (req, res) => {
   }
   try {
     const session = await sessionService.prisma.session.findUnique({
-      where: { id: sessionId }, include: { drivers: true },
+      where: { id: sessionId },
+      include: { drivers: true },
     });
     if (!session || session.deletedAt || !['draft', 'active', 'paused'].includes(session.status)) {
       return res.status(409).json({ success: false, error: 'Session is not available for driver access' });
@@ -200,6 +226,38 @@ router.post('/driver-link', requireDirector, async (req, res) => {
   }
 });
 
+// A driver can plan their own tyres, but cannot claim that a pit stop has occurred.
+router.post('/driver/tyres', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const access = decodeDriverAccess(bearer(req));
+  if (!access) return res.status(403).json({ success: false, error: 'Invalid or expired driver access' });
+  const { tyreType } = req.body || {};
+  try {
+    const result = await serialize(async () => {
+      const assignments = await sessionService.prisma.sessionDriver.findMany({
+        where: { sessionId: access.sid, driverId: access.did, deletedAt: null },
+      });
+      if (
+        assignments.length !== 1 ||
+        assignments[0].id !== access.sdid ||
+        assignments[0].controller !== access.controller
+      ) {
+        return { status: 403, error: 'Driver assignment has changed; request a new link' };
+      }
+      if (sessionService.activeSessionId !== access.sid) {
+        return { status: 409, error: 'Driver link is not for the current session' };
+      }
+      return { status: 200, data: await sessionService.requestTyreChange(access.sid, access.sdid, tyreType) };
+    });
+    if (result.error) return res.status(result.status).json({ success: false, error: result.error });
+    res.json({ success: true, data: result.data });
+  } catch (error) {
+    const status = error.status || 500;
+    if (status === 500) console.error('[RaceControl] Tyre request failed:', error);
+    res.status(status).json({ success: false, error: status === 500 ? 'Could not request tyres' : error.message });
+  }
+});
+
 router.post('/chaos', async (req, res) => {
   res.set('Cache-Control', 'no-store');
   const access = decodeDriverAccess(bearer(req));
@@ -210,18 +268,25 @@ router.post('/chaos', async (req, res) => {
       const assignments = await sessionService.prisma.sessionDriver.findMany({
         where: { sessionId: access.sid, driverId: access.did, deletedAt: null },
       });
-      if (assignments.length !== 1 || assignments[0].id !== access.sdid || assignments[0].controller !== access.controller) {
+      if (
+        assignments.length !== 1 ||
+        assignments[0].id !== access.sdid ||
+        assignments[0].controller !== access.controller
+      ) {
         return { code: 403, error: 'Driver assignment has changed; request a new link' };
       }
       if (sessionService.activeSessionId !== access.sid) {
         return { code: 409, error: 'This driver link is not for the current session' };
       }
-      if (sessionService.sessionStatus === SessionStatus.PAUSED) return { code: 200, paused: true, alreadyPaused: true };
+      if (sessionService.sessionStatus === SessionStatus.PAUSED)
+        return { code: 200, paused: true, alreadyPaused: true };
       if (sessionService.sessionStatus !== SessionStatus.ACTIVE) return { code: 409, error: 'Race is not running' };
       if (!syncService?.isConnected()) return { code: 503, error: 'Control Unit is disconnected' };
 
       await sessionService.pauseSession();
-      console.info(`[RaceControl] Chaos pause by driver=${access.did}, controller=${access.controller + 1}, session=${access.sid}`);
+      console.info(
+        `[RaceControl] Chaos pause by driver=${access.did}, controller=${access.controller + 1}, session=${access.sid}`
+      );
       return { code: 200, paused: true, alreadyPaused: false };
     });
     if (result.error) return res.status(result.code).json({ success: false, error: result.error });
@@ -247,10 +312,16 @@ router.post('/director/vsc/:action', requireDirector, async (req, res) => {
   if (typeof sessionId !== 'string' || !sessionId) {
     return res.status(400).json({ success: false, error: 'Session is required' });
   }
-  if (action === 'start' &&
-      (!Number.isInteger(cap) || cap < 1 || cap > 10 ||
-       !Number.isInteger(durationSeconds) || durationSeconds < 0 || durationSeconds > 3600 ||
-       (durationSeconds > 0 && durationSeconds < 5))) {
+  if (
+    action === 'start' &&
+    (!Number.isInteger(cap) ||
+      cap < 1 ||
+      cap > 10 ||
+      !Number.isInteger(durationSeconds) ||
+      durationSeconds < 0 ||
+      durationSeconds > 3600 ||
+      (durationSeconds > 0 && durationSeconds < 5))
+  ) {
     return res.status(400).json({ success: false, error: 'Invalid VSC cap/duration' });
   }
   try {
@@ -278,6 +349,26 @@ router.post('/director/vsc/:action', requireDirector, async (req, res) => {
   }
 });
 
+// Explicit human observation when the physical CU pit signals have not been validated.
+router.post('/director/tyres/confirm', requireDirector, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const { sessionId, sessionDriverId } = req.body || {};
+  if (typeof sessionId !== 'string' || !sessionId || typeof sessionDriverId !== 'string' || !sessionDriverId) {
+    return res.status(400).json({ success: false, error: 'Session and driver assignment are required' });
+  }
+  try {
+    const change = await serialize(() => sessionService.confirmTyreChange(sessionId, sessionDriverId));
+    console.info(`[RaceControl] Manual tyre change confirmed session=${sessionId} assignment=${sessionDriverId}`);
+    res.json({ success: true, data: change });
+  } catch (error) {
+    const status = error.status || 500;
+    if (status === 500) console.error('[RaceControl] Manual tyre confirmation failed:', error);
+    res
+      .status(status)
+      .json({ success: false, error: status === 500 ? 'Could not confirm tyre change' : error.message });
+  }
+});
+
 router.post('/director/penalties', requireDirector, async (req, res) => {
   res.set('Cache-Control', 'no-store');
   try {
@@ -295,7 +386,9 @@ router.post('/director/penalties/:id/revoke', requireDirector, async (req, res) 
   res.set('Cache-Control', 'no-store');
   try {
     const penalty = await serialize(() => sessionService.revokePenalty(req.body?.sessionId, req.params.id));
-    console.info(`[RaceControl] Penalty revoked for session=${penalty.sessionId}, controller=${penalty.controller + 1}`);
+    console.info(
+      `[RaceControl] Penalty revoked for session=${penalty.sessionId}, controller=${penalty.controller + 1}`
+    );
     res.json({ success: true, data: penalty });
   } catch (error) {
     const status = error.status || 500;

@@ -8,9 +8,9 @@ import {
   SessionType,
   WeatherCondition,
   validWeatherConfig,
+  validTyreMismatchPercent,
   sessionTypeFullKey,
 } from '@racehubos/shared'
-import { FuelMode, STANDARD_SESSION_TYPES, SessionType, SessionStatus, sessionTypeFullKey } from '@racehubos/shared'
 
 const API_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -29,6 +29,7 @@ export default function SessionForm({ session, onClose, onSaved }) {
     weatherRainChance: 35,
     weatherIntervalSeconds: 60,
     weatherAdvanceDuringPause: false,
+    tyreMismatchPercent: 0,
     virtualFuelRate: null,
     drivers: [],
   })
@@ -60,6 +61,7 @@ export default function SessionForm({ session, onClose, onSaved }) {
         weatherRainChance: session.weatherRainChance ?? 35,
         weatherIntervalSeconds: session.weatherIntervalSeconds ?? 60,
         weatherAdvanceDuringPause: session.weatherAdvanceDuringPause ?? false,
+        tyreMismatchPercent: session.tyreMismatchPercent ?? 0,
         virtualFuelRate: session.virtualFuelRate ?? null,
         drivers:
           session.drivers?.map((sd) => ({
@@ -124,11 +126,22 @@ export default function SessionForm({ session, onClose, onSaved }) {
 
       if (!validWeatherConfig(formData) || (formData.weatherSeed !== null && formData.type !== SessionType.RACE)) {
         setError(t('form.weatherInvalid'))
+        return
+      }
+
       if (
         formData.virtualFuelRate != null &&
         (!Number.isInteger(formData.virtualFuelRate) || formData.virtualFuelRate < 1 || formData.virtualFuelRate > 100)
       ) {
         setError(t('form.virtualFuelInvalid'))
+        return
+      }
+
+      if (
+        !validTyreMismatchPercent(formData.tyreMismatchPercent) ||
+        (formData.tyreMismatchPercent > 0 && formData.weatherSeed === null)
+      ) {
+        setError(t('form.tyreInvalid'))
         return
       }
 
@@ -262,6 +275,7 @@ export default function SessionForm({ session, onClose, onSaved }) {
                       ...formData,
                       type: e.target.value,
                       weatherSeed: e.target.value === SessionType.RACE ? formData.weatherSeed : null,
+                      tyreMismatchPercent: e.target.value === SessionType.RACE ? formData.tyreMismatchPercent : 0,
                     })
                   }
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500"
@@ -335,7 +349,13 @@ export default function SessionForm({ session, onClose, onSaved }) {
                     type="checkbox"
                     checked={formData.weatherSeed !== null}
                     disabled={session?.status && session.status !== SessionStatus.DRAFT}
-                    onChange={(e) => setFormData({ ...formData, weatherSeed: e.target.checked ? 1 : null })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        weatherSeed: e.target.checked ? 1 : null,
+                        tyreMismatchPercent: e.target.checked ? formData.tyreMismatchPercent : 0,
+                      })
+                    }
                   />
                   {t('form.weatherEnabled')}
                 </label>
@@ -384,6 +404,25 @@ export default function SessionForm({ session, onClose, onSaved }) {
                   />
                   {t('form.weatherAdvanceDuringPause')}
                 </label>
+                {formData.weatherSeed !== null && (
+                  <label className="block text-sm text-gray-700 dark:text-gray-300">
+                    {t('form.tyreMismatchPercent')}
+                    <input
+                      type="number"
+                      min="0"
+                      max="30"
+                      step="1"
+                      required
+                      disabled={session?.status && session.status !== SessionStatus.DRAFT}
+                      value={formData.tyreMismatchPercent}
+                      onChange={(event) =>
+                        setFormData({ ...formData, tyreMismatchPercent: Number(event.target.value) })
+                      }
+                      className="w-full mt-1 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg"
+                    />
+                  </label>
+                )}
+                <p className="text-xs text-gray-500 dark:text-gray-400">{t('form.tyreHint')}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">{t('form.weatherHint')}</p>
               </div>
             )}

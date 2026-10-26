@@ -134,9 +134,7 @@ describe('pit stop observations', () => {
     sync.handleStatus(simulator.getCuStatus());
     await Promise.resolve();
 
-    expect(session.recordPitStop).toHaveBeenCalledWith(
-      expect.objectContaining({ controller: 0, source: 'simulator' })
-    );
+    expect(session.recordPitStop).toHaveBeenCalledWith(expect.objectContaining({ controller: 0, source: 'simulator' }));
   });
 });
 
@@ -167,24 +165,36 @@ describe('pit stop persistence', () => {
 
     await session.recordPitStop({ controller: 0, enteredAt, exitedAt, source: 'cu' });
 
-    expect(create).toHaveBeenCalledWith({ data: {
-      sessionId: 'session-1',
-      sessionDriverId: 'sd-1',
-      controller: 0,
-      enteredAt,
-      exitedAt,
-      durationMs: 2500,
-      source: 'cu',
-    } });
+    expect(create).toHaveBeenCalledWith({
+      data: {
+        sessionId: 'session-1',
+        sessionDriverId: 'sd-1',
+        controller: 0,
+        enteredAt,
+        exitedAt,
+        durationMs: 2500,
+        source: 'cu',
+      },
+    });
     expect(session.io.emit).toHaveBeenCalledWith('session:pit_stop', expect.objectContaining({ id: 'pit-1' }));
   });
 
   test('ignores unassigned controllers, invalid intervals and inactive sessions', async () => {
     const enteredAt = new Date('2026-10-25T16:00:01.000Z');
-    await session.recordPitStop({ controller: 2, enteredAt, exitedAt: new Date('2026-10-25T16:00:04.000Z'), source: 'cu' });
+    await session.recordPitStop({
+      controller: 2,
+      enteredAt,
+      exitedAt: new Date('2026-10-25T16:00:04.000Z'),
+      source: 'cu',
+    });
     await session.recordPitStop({ controller: 0, enteredAt, exitedAt: enteredAt, source: 'cu' });
     session.sessionStatus = 'paused';
-    await session.recordPitStop({ controller: 0, enteredAt, exitedAt: new Date('2026-10-25T16:00:04.000Z'), source: 'cu' });
+    await session.recordPitStop({
+      controller: 0,
+      enteredAt,
+      exitedAt: new Date('2026-10-25T16:00:04.000Z'),
+      source: 'cu',
+    });
     expect(create).not.toHaveBeenCalled();
   });
 });

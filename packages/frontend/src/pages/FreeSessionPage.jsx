@@ -216,7 +216,8 @@ export default function FreeSessionPage() {
         data.weatherSeed !== undefined ||
         data.weatherInitial !== undefined ||
         data.weatherRainChance !== undefined ||
-        data.weatherIntervalSeconds !== undefined
+        data.weatherIntervalSeconds !== undefined ||
+        data.tyreMismatchPercent !== undefined
       ) {
         const response = await fetch(`${API_URL}/api/sessions/${session.id}`, {
           method: 'PUT',
@@ -230,6 +231,7 @@ export default function FreeSessionPage() {
             weatherInitial: data.weatherInitial,
             weatherRainChance: data.weatherRainChance,
             weatherIntervalSeconds: data.weatherIntervalSeconds,
+            tyreMismatchPercent: data.tyreMismatchPercent,
           }),
         })
         if (!response.ok) {

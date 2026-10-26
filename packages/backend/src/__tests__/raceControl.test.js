@@ -12,9 +12,15 @@ function setup() {
   const session = {
     activeSessionId: 'race-1',
     sessionStatus: 'active',
-    pauseSession: jest.fn(async () => { session.sessionStatus = 'paused'; }),
-    resumeSession: jest.fn(async () => { session.sessionStatus = 'active'; }),
-    stopSession: jest.fn(async () => { session.sessionStatus = 'finished'; }),
+    pauseSession: jest.fn(async () => {
+      session.sessionStatus = 'paused';
+    }),
+    resumeSession: jest.fn(async () => {
+      session.sessionStatus = 'active';
+    }),
+    stopSession: jest.fn(async () => {
+      session.sessionStatus = 'finished';
+    }),
     prisma: {
       session: { findUnique: jest.fn(async () => ({ id: 'race-1', status: 'active', drivers: [assignment] })) },
       sessionDriver: { findMany: jest.fn(async () => [assignment]) },
@@ -29,7 +35,8 @@ function setup() {
 }
 
 async function issueToken(app) {
-  const res = await request(app).post('/api/race-control/driver-link')
+  const res = await request(app)
+    .post('/api/race-control/driver-link')
     .set('Authorization', `Bearer ${secret}`)
     .send({ sessionId: 'race-1', driverId: 'driver-1' });
   expect(res.status).toBe(200);
@@ -38,7 +45,9 @@ async function issueToken(app) {
 
 describe('race director and driver-scoped chaos access', () => {
   const previousSecret = process.env.RACE_CONTROL_SECRET;
-  beforeEach(() => { process.env.RACE_CONTROL_SECRET = secret; });
+  beforeEach(() => {
+    process.env.RACE_CONTROL_SECRET = secret;
+  });
   afterEach(() => {
     if (previousSecret === undefined) delete process.env.RACE_CONTROL_SECRET;
     else process.env.RACE_CONTROL_SECRET = previousSecret;
@@ -47,16 +56,29 @@ describe('race director and driver-scoped chaos access', () => {
 
   test('refuses to mint driver access without the director credential', async () => {
     const { app } = setup();
-    await request(app).post('/api/race-control/driver-link').send({ sessionId: 'race-1', driverId: 'driver-1' }).expect(403);
-    await request(app).post('/api/race-control/driver-link').set('Authorization', 'Bearer forged')
-      .send({ sessionId: 'race-1', driverId: 'driver-1' }).expect(403);
+    await request(app)
+      .post('/api/race-control/driver-link')
+      .send({ sessionId: 'race-1', driverId: 'driver-1' })
+      .expect(403);
+    await request(app)
+      .post('/api/race-control/driver-link')
+      .set('Authorization', 'Bearer forged')
+      .send({ sessionId: 'race-1', driverId: 'driver-1' })
+      .expect(403);
   });
 
   test('issues access only for one current driver assignment', async () => {
     const { app, session } = setup();
-    session.prisma.session.findUnique.mockResolvedValueOnce({ id: 'race-1', status: 'draft', drivers: [assignment, { ...assignment, id: 'sd-2', controller: 3 }] });
-    await request(app).post('/api/race-control/driver-link').set('Authorization', `Bearer ${secret}`)
-      .send({ sessionId: 'race-1', driverId: 'driver-1' }).expect(409);
+    session.prisma.session.findUnique.mockResolvedValueOnce({
+      id: 'race-1',
+      status: 'draft',
+      drivers: [assignment, { ...assignment, id: 'sd-2', controller: 3 }],
+    });
+    await request(app)
+      .post('/api/race-control/driver-link')
+      .set('Authorization', `Bearer ${secret}`)
+      .send({ sessionId: 'race-1', driverId: 'driver-1' })
+      .expect(409);
     await issueToken(app);
   });
 
@@ -75,10 +97,16 @@ describe('race director and driver-scoped chaos access', () => {
   test('driver access cannot resume, stop, or change controller assignments', async () => {
     const { app, session } = setup();
     const token = await issueToken(app);
-    await request(app).post('/api/race-control/director/resume').set('Authorization', `Bearer ${token}`)
-      .send({ sessionId: 'race-1' }).expect(403);
-    await request(app).post('/api/race-control/director/stop').set('Authorization', `Bearer ${token}`)
-      .send({ sessionId: 'race-1' }).expect(403);
+    await request(app)
+      .post('/api/race-control/director/resume')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ sessionId: 'race-1' })
+      .expect(403);
+    await request(app)
+      .post('/api/race-control/director/stop')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ sessionId: 'race-1' })
+      .expect(403);
     expect(session.stopSession).not.toHaveBeenCalled();
     expect(session.resumeSession).not.toHaveBeenCalled();
   });
@@ -109,26 +137,29 @@ describe('race director and driver-scoped chaos access', () => {
   test('director alone may resume and stop', async () => {
     const { app, session } = setup();
     session.sessionStatus = 'paused';
-    await request(app).post('/api/race-control/director/resume').set('Authorization', `Bearer ${secret}`)
-      .send({ sessionId: 'race-1' }).expect(200);
-    await request(app).post('/api/race-control/director/stop').set('Authorization', `Bearer ${secret}`)
-      .send({ sessionId: 'race-1' }).expect(200);
+    await request(app)
+      .post('/api/race-control/director/resume')
+      .set('Authorization', `Bearer ${secret}`)
+      .send({ sessionId: 'race-1' })
+      .expect(200);
+    await request(app)
+      .post('/api/race-control/director/stop')
+      .set('Authorization', `Bearer ${secret}`)
+      .send({ sessionId: 'race-1' })
+      .expect(200);
     expect(session.resumeSession).toHaveBeenCalledTimes(1);
     expect(session.stopSession).toHaveBeenCalledTimes(1);
   });
-
 
   test('unconfigured status offers setup only on the race PC', async () => {
     const { app } = setup();
     delete process.env.RACE_CONTROL_SECRET;
 
-    const local = await request(app).get('/api/race-control/status')
-      .set('Host', 'localhost:3001').expect(200);
+    const local = await request(app).get('/api/race-control/status').set('Host', 'localhost:3001').expect(200);
     expect(local.body).toMatchObject({ success: true, enabled: false, setupAvailable: true });
     expect(local.body.secret).toBeUndefined();
 
-    const remoteHost = await request(app).get('/api/race-control/status')
-      .set('Host', '192.168.0.10:3001').expect(200);
+    const remoteHost = await request(app).get('/api/race-control/status').set('Host', '192.168.0.10:3001').expect(200);
     expect(remoteHost.body.setupAvailable).toBe(false);
   });
 
@@ -136,20 +167,18 @@ describe('race director and driver-scoped chaos access', () => {
     const { app } = setup();
     process.env.RACE_CONTROL_SECRET = 'short';
 
-    const status = await request(app).get('/api/race-control/status')
-      .set('Host', 'localhost:3001').expect(200);
+    const status = await request(app).get('/api/race-control/status').set('Host', 'localhost:3001').expect(200);
     expect(status.body).toMatchObject({ success: true, enabled: false, setupAvailable: false });
   });
 
   test('first-run setup generates and saves a key without restarting', async () => {
     const { app } = setup();
     delete process.env.RACE_CONTROL_SECRET;
-    jest.spyOn(fs, 'readFile').mockRejectedValue(
-      Object.assign(new Error('missing'), { code: 'ENOENT' })
-    );
+    jest.spyOn(fs, 'readFile').mockRejectedValue(Object.assign(new Error('missing'), { code: 'ENOENT' }));
     const append = jest.spyOn(fs, 'appendFile').mockResolvedValue();
 
-    const result = await request(app).post('/api/race-control/setup')
+    const result = await request(app)
+      .post('/api/race-control/setup')
       .set('Host', 'localhost:3001')
       .set('Origin', 'http://localhost:5173')
       .expect(200);
@@ -159,13 +188,17 @@ describe('race director and driver-scoped chaos access', () => {
     expect(append).toHaveBeenCalledWith(
       expect.stringMatching(/packages[\\/]backend[\\/]\.env$/),
       `RACE_CONTROL_SECRET=${result.body.secret}\n`,
-      { mode: 0o600 },
+      { mode: 0o600 }
     );
-    await request(app).get('/api/race-control/director/check')
-      .set('Authorization', `Bearer ${result.body.secret}`).expect(200);
-    await request(app).post('/api/race-control/setup')
+    await request(app)
+      .get('/api/race-control/director/check')
+      .set('Authorization', `Bearer ${result.body.secret}`)
+      .expect(200);
+    await request(app)
+      .post('/api/race-control/setup')
       .set('Host', 'localhost:3001')
-      .set('Origin', 'http://localhost:5173').expect(409);
+      .set('Origin', 'http://localhost:5173')
+      .expect(409);
     expect(append).toHaveBeenCalledTimes(1);
   });
 
@@ -174,20 +207,25 @@ describe('race director and driver-scoped chaos access', () => {
     delete process.env.RACE_CONTROL_SECRET;
     const append = jest.spyOn(fs, 'appendFile').mockResolvedValue();
 
-    await request(app).post('/api/race-control/setup')
+    await request(app)
+      .post('/api/race-control/setup')
       .set('Host', '192.168.0.10:3001')
-      .set('Origin', 'http://192.168.0.10:3001').expect(403);
-    await request(app).post('/api/race-control/setup')
+      .set('Origin', 'http://192.168.0.10:3001')
+      .expect(403);
+    await request(app)
+      .post('/api/race-control/setup')
       .set('Host', 'localhost:3001')
-      .set('Origin', 'https://evil.test').expect(403);
-    await request(app).post('/api/race-control/setup')
-      .set('Host', 'localhost:3001').expect(403);
+      .set('Origin', 'https://evil.test')
+      .expect(403);
+    await request(app).post('/api/race-control/setup').set('Host', 'localhost:3001').expect(403);
     expect(append).not.toHaveBeenCalled();
 
     process.env.RACE_CONTROL_SECRET = 'short';
-    await request(app).post('/api/race-control/setup')
+    await request(app)
+      .post('/api/race-control/setup')
       .set('Host', 'localhost:3001')
-      .set('Origin', 'http://localhost:5173').expect(409);
+      .set('Origin', 'http://localhost:5173')
+      .expect(409);
     expect(append).not.toHaveBeenCalled();
   });
 
@@ -197,9 +235,11 @@ describe('race director and driver-scoped chaos access', () => {
     jest.spyOn(fs, 'readFile').mockResolvedValue('SITE_NAME=test\nRACE_CONTROL_SECRET=existing\n');
     const append = jest.spyOn(fs, 'appendFile').mockResolvedValue();
 
-    await request(app).post('/api/race-control/setup')
+    await request(app)
+      .post('/api/race-control/setup')
       .set('Host', 'localhost:3001')
-      .set('Origin', 'http://localhost:5173').expect(409);
+      .set('Origin', 'http://localhost:5173')
+      .expect(409);
     expect(append).not.toHaveBeenCalled();
   });
 
@@ -208,14 +248,19 @@ describe('race director and driver-scoped chaos access', () => {
     delete process.env.RACE_CONTROL_SECRET;
     const status = await request(app).get('/api/race-control/status').expect(200);
     expect(status.body.enabled).toBe(false);
-    await request(app).post('/api/race-control/driver-link').set('Authorization', `Bearer ${secret}`)
-      .send({ sessionId: 'race-1', driverId: 'driver-1' }).expect(503);
+    await request(app)
+      .post('/api/race-control/driver-link')
+      .set('Authorization', `Bearer ${secret}`)
+      .send({ sessionId: 'race-1', driverId: 'driver-1' })
+      .expect(503);
   });
 });
 
 describe('legacy write boundaries', () => {
   const previousSecret = process.env.RACE_CONTROL_SECRET;
-  beforeEach(() => { process.env.RACE_CONTROL_SECRET = secret; });
+  beforeEach(() => {
+    process.env.RACE_CONTROL_SECRET = secret;
+  });
   afterEach(() => {
     if (previousSecret === undefined) delete process.env.RACE_CONTROL_SECRET;
     else process.env.RACE_CONTROL_SECRET = previousSecret;
@@ -223,58 +268,84 @@ describe('legacy write boundaries', () => {
 
   const response = () => ({ status: jest.fn().mockReturnThis(), json: jest.fn() });
   const requestFor = ({ address, origin, token, method = 'POST', path = '/sessions/race-1/resume' }) => ({
-    socket: { remoteAddress: address }, method, path,
-    get: (name) => ({ host: 'localhost:3001', origin, authorization: token && `Bearer ${token}` }[name]),
+    socket: { remoteAddress: address },
+    method,
+    path,
+    get: (name) => ({ host: 'localhost:3001', origin, authorization: token && `Bearer ${token}` })[name],
   });
 
   test('remote legacy writes require director credentials, but GET stays readable', () => {
-    let res = response(), next = jest.fn();
+    let res = response(),
+      next = jest.fn();
     remoteWriteGuard(requestFor({ address: '192.168.1.5' }), res, next);
     expect(res.status).toHaveBeenCalledWith(403);
     expect(next).not.toHaveBeenCalled();
 
-    res = response(); next = jest.fn();
+    res = response();
+    next = jest.fn();
     remoteWriteGuard(requestFor({ address: '192.168.1.5', token: secret }), res, next);
     expect(next).toHaveBeenCalledTimes(1);
 
-    res = response(); next = jest.fn();
+    res = response();
+    next = jest.fn();
     remoteWriteGuard(requestFor({ address: '192.168.1.5', method: 'GET' }), res, next);
     expect(next).toHaveBeenCalledTimes(1);
   });
 
   test('loopback browser writes require a trusted Origin', () => {
-    let res = response(), next = jest.fn();
+    let res = response(),
+      next = jest.fn();
     remoteWriteGuard(requestFor({ address: '127.0.0.1', origin: 'https://evil.test' }), res, next);
     expect(res.status).toHaveBeenCalledWith(403);
 
-    res = response(); next = jest.fn();
+    res = response();
+    next = jest.fn();
     remoteWriteGuard(requestFor({ address: '::1', origin: 'http://localhost:5173' }), res, next);
     expect(next).toHaveBeenCalledTimes(1);
 
     // Reject DNS-rebinding origins even if their Host header matches.
-    res = response(); next = jest.fn();
+    res = response();
+    next = jest.fn();
     const rebound = requestFor({ address: '127.0.0.1', origin: 'http://evil.test:3001' });
-    rebound.get = (name) => ({ host: 'evil.test:3001', origin: 'http://evil.test:3001' }[name]);
+    rebound.get = (name) => ({ host: 'evil.test:3001', origin: 'http://evil.test:3001' })[name];
     remoteWriteGuard(rebound, res, next);
     expect(res.status).toHaveBeenCalledWith(403);
   });
 
   test('remote Socket.IO clients cannot use legacy race-control events', () => {
-    expect(mayControlSocket({ handshake: { address: '192.168.1.6', headers: { host: 'localhost:3001' } } })).toBe(false);
-    expect(mayControlSocket({ handshake: { address: '127.0.0.1', headers: { host: 'localhost:3001', origin: 'http://localhost:5173' } } })).toBe(true);
-    expect(mayControlSocket({ handshake: { address: '127.0.0.1', headers: { host: 'localhost:3001', origin: 'https://evil.test' } } })).toBe(false);
+    expect(mayControlSocket({ handshake: { address: '192.168.1.6', headers: { host: 'localhost:3001' } } })).toBe(
+      false
+    );
+    expect(
+      mayControlSocket({
+        handshake: { address: '127.0.0.1', headers: { host: 'localhost:3001', origin: 'http://localhost:5173' } },
+      })
+    ).toBe(true);
+    expect(
+      mayControlSocket({
+        handshake: { address: '127.0.0.1', headers: { host: 'localhost:3001', origin: 'https://evil.test' } },
+      })
+    ).toBe(false);
   });
 });
-
 
 describe('SessionService physical-first pause and resume ordering', () => {
   test('does not report paused when the CU stop fails', async () => {
     const order = [];
     const service = {
-      activeSessionId: 'race-1', sessionStatus: 'active', sessionConfig: { pauses: [] },
-      syncService: { isConnected: () => true, stopRace: jest.fn(async () => { order.push('stop'); throw new Error('CU disconnected'); }) },
+      activeSessionId: 'race-1',
+      sessionStatus: 'active',
+      sessionConfig: { pauses: [] },
+      syncService: {
+        isConnected: () => true,
+        stopRace: jest.fn(async () => {
+          order.push('stop');
+          throw new Error('CU disconnected');
+        }),
+      },
       prisma: { session: { update: jest.fn(async () => order.push('database')) } },
-      emit: jest.fn(), emitStatusChanged: jest.fn(),
+      emit: jest.fn(),
+      emitStatusChanged: jest.fn(),
     };
     await expect(SessionService.prototype.pauseSession.call(service)).rejects.toThrow('CU disconnected');
     expect(order).toEqual(['stop']);
@@ -285,10 +356,18 @@ describe('SessionService physical-first pause and resume ordering', () => {
   test('does not mark a session resumed if preparing the CU fails', async () => {
     const order = [];
     const service = {
-      activeSessionId: 'race-1', sessionStatus: 'paused',
-      syncService: { isConnected: () => true, prepareRace: jest.fn(async () => { order.push('lights'); throw new Error('timeout'); }) },
+      activeSessionId: 'race-1',
+      sessionStatus: 'paused',
+      syncService: {
+        isConnected: () => true,
+        prepareRace: jest.fn(async () => {
+          order.push('lights');
+          throw new Error('timeout');
+        }),
+      },
       prisma: { session: { update: jest.fn(async () => order.push('database')) } },
-      emit: jest.fn(), emitStatusChanged: jest.fn(),
+      emit: jest.fn(),
+      emitStatusChanged: jest.fn(),
     };
     await expect(SessionService.prototype.resumeSession.call(service)).rejects.toThrow('timeout');
     expect(order).toEqual(['lights']);
@@ -296,11 +375,12 @@ describe('SessionService physical-first pause and resume ordering', () => {
   });
 });
 
-
 describe('VSC director authorization and legacy speed boundary', () => {
   const previousSecret = process.env.RACE_CONTROL_SECRET;
 
-  beforeEach(() => { process.env.RACE_CONTROL_SECRET = secret; });
+  beforeEach(() => {
+    process.env.RACE_CONTROL_SECRET = secret;
+  });
   afterEach(() => {
     if (previousSecret === undefined) delete process.env.RACE_CONTROL_SECRET;
     else process.env.RACE_CONTROL_SECRET = previousSecret;
@@ -342,10 +422,15 @@ describe('VSC director authorization and legacy speed boundary', () => {
 
     await request(app).post(url).send(body).expect(403);
     await request(app).post(url).set('Authorization', 'Bearer forged').send(body).expect(403);
-    await request(app).post(url).set('Authorization', 'Bearer ' + secret).send(body).expect(200);
+    await request(app)
+      .post(url)
+      .set('Authorization', 'Bearer ' + secret)
+      .send(body)
+      .expect(200);
 
     expect(session.startVsc).toHaveBeenCalledWith(3, 0);
-    await request(app).post('/api/race-control/director/vsc/end')
+    await request(app)
+      .post('/api/race-control/director/vsc/end')
       .set('Authorization', 'Bearer ' + secret)
       .send({ sessionId: 'race-1' })
       .expect(200);
@@ -357,12 +442,13 @@ describe('VSC director authorization and legacy speed boundary', () => {
     const url = '/api/race-control/director/vsc/start';
     const auth = 'Bearer ' + secret;
 
-    await request(app).post(url).set('Authorization', auth)
-      .send({ sessionId: 'race-1', cap: 0 }).expect(400);
-    await request(app).post(url).set('Authorization', auth)
-      .send({ sessionId: 'race-1', cap: 3, durationSeconds: 2 }).expect(400);
-    await request(app).post(url).set('Authorization', auth)
-      .send({ sessionId: 'old-race', cap: 3 }).expect(409);
+    await request(app).post(url).set('Authorization', auth).send({ sessionId: 'race-1', cap: 0 }).expect(400);
+    await request(app)
+      .post(url)
+      .set('Authorization', auth)
+      .send({ sessionId: 'race-1', cap: 3, durationSeconds: 2 })
+      .expect(400);
+    await request(app).post(url).set('Authorization', auth).send({ sessionId: 'old-race', cap: 3 }).expect(409);
 
     expect(session.startVsc).not.toHaveBeenCalled();
   });
@@ -384,9 +470,106 @@ describe('VSC director authorization and legacy speed boundary', () => {
   );
 });
 
+describe('driver tyre requests and manual pit confirmation', () => {
+  const previousSecret = process.env.RACE_CONTROL_SECRET;
+
+  beforeEach(() => {
+    process.env.RACE_CONTROL_SECRET = secret;
+  });
+  afterEach(() => {
+    if (previousSecret === undefined) delete process.env.RACE_CONTROL_SECRET;
+    else process.env.RACE_CONTROL_SECRET = previousSecret;
+  });
+
+  function setupTyres() {
+    const { app, session } = setup();
+    session.requestTyreChange = jest.fn().mockResolvedValue({ tyreType: 'dry', pendingTyreType: 'wet' });
+    session.confirmTyreChange = jest.fn().mockResolvedValue({
+      sessionId: 'race-1',
+      sessionDriverId: 'sd-1',
+      fromType: 'dry',
+      toType: 'wet',
+      source: 'director',
+    });
+    return { app, session };
+  }
+
+  test('only the signed driver may request tyres for their current assignment', async () => {
+    const { app, session } = setupTyres();
+    const token = await issueToken(app);
+    await request(app).post('/api/race-control/driver/tyres').send({ tyreType: 'wet' }).expect(403);
+    await request(app)
+      .post('/api/race-control/driver/tyres')
+      .set('Authorization', 'Bearer forged')
+      .send({ tyreType: 'wet' })
+      .expect(403);
+
+    const result = await request(app)
+      .post('/api/race-control/driver/tyres')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ tyreType: 'wet' })
+      .expect(200);
+    expect(result.body.data.pendingTyreType).toBe('wet');
+    expect(session.requestTyreChange).toHaveBeenCalledWith('race-1', 'sd-1', 'wet');
+
+    session.prisma.sessionDriver.findMany.mockResolvedValueOnce([{ ...assignment, controller: 1 }]);
+    await request(app)
+      .post('/api/race-control/driver/tyres')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ tyreType: 'dry' })
+      .expect(403);
+
+    session.activeSessionId = 'another-race';
+    await request(app)
+      .post('/api/race-control/driver/tyres')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ tyreType: 'wet' })
+      .expect(409);
+    expect(session.requestTyreChange).toHaveBeenCalledTimes(1);
+  });
+
+  test('driver token cannot confirm a physical tyre change; only the director can', async () => {
+    const { app, session } = setupTyres();
+    const token = await issueToken(app);
+    const url = '/api/race-control/director/tyres/confirm';
+    const body = { sessionId: 'race-1', sessionDriverId: 'sd-1' };
+
+    await request(app).post(url).send(body).expect(403);
+    await request(app).post(url).set('Authorization', `Bearer ${token}`).send(body).expect(403);
+    await request(app).post(url).set('Authorization', `Bearer ${secret}`).send({ sessionId: 'race-1' }).expect(400);
+
+    const result = await request(app).post(url).set('Authorization', `Bearer ${secret}`).send(body).expect(200);
+    expect(result.body.data.source).toBe('director');
+    expect(session.confirmTyreChange).toHaveBeenCalledWith('race-1', 'sd-1');
+  });
+
+  test('a rejected or already completed tyre operation is not reported as success', async () => {
+    const { app, session } = setupTyres();
+    session.confirmTyreChange.mockRejectedValueOnce(
+      Object.assign(new Error('No pending tyre change'), { status: 409 })
+    );
+    await request(app)
+      .post('/api/race-control/director/tyres/confirm')
+      .set('Authorization', `Bearer ${secret}`)
+      .send({ sessionId: 'race-1', sessionDriverId: 'sd-1' })
+      .expect(409);
+
+    session.requestTyreChange.mockRejectedValueOnce(Object.assign(new Error('Invalid tyre choice'), { status: 400 }));
+    const token = await issueToken(app);
+    const denied = await request(app)
+      .post('/api/race-control/driver/tyres')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ tyreType: 'rainbow' })
+      .expect(400);
+    expect(denied.body.success).toBe(false);
+  });
+});
+
 describe('director penalty permissions', () => {
   const previousSecret = process.env.RACE_CONTROL_SECRET;
-  beforeEach(() => { process.env.RACE_CONTROL_SECRET = secret; });
+  beforeEach(() => {
+    process.env.RACE_CONTROL_SECRET = secret;
+  });
   afterEach(() => {
     if (previousSecret === undefined) delete process.env.RACE_CONTROL_SECRET;
     else process.env.RACE_CONTROL_SECRET = previousSecret;
@@ -414,35 +597,57 @@ describe('director penalty permissions', () => {
     const token = await issueToken(app);
 
     await request(app).post('/api/race-control/director/penalties').send(input).expect(403);
-    await request(app).post('/api/race-control/director/penalties')
-      .set('Authorization', `Bearer ${token}`).send(input).expect(403);
-    const issued = await request(app).post('/api/race-control/director/penalties')
-      .set('Authorization', `Bearer ${secret}`).send(input).expect(201);
+    await request(app)
+      .post('/api/race-control/director/penalties')
+      .set('Authorization', `Bearer ${token}`)
+      .send(input)
+      .expect(403);
+    const issued = await request(app)
+      .post('/api/race-control/director/penalties')
+      .set('Authorization', `Bearer ${secret}`)
+      .send(input)
+      .expect(201);
     expect(issued.body.data.id).toBe('pen-1');
     expect(session.issuePenalty).toHaveBeenCalledWith(input);
 
-    await request(app).post('/api/race-control/director/penalties/pen-1/revoke')
-      .send({ sessionId: 'race-1' }).expect(403);
-    await request(app).post('/api/race-control/director/penalties/pen-1/revoke')
-      .set('Authorization', `Bearer ${token}`).send({ sessionId: 'race-1' }).expect(403);
-    await request(app).post('/api/race-control/director/penalties/pen-1/revoke')
-      .set('Authorization', `Bearer ${secret}`).send({ sessionId: 'race-1' }).expect(200);
+    await request(app)
+      .post('/api/race-control/director/penalties/pen-1/revoke')
+      .send({ sessionId: 'race-1' })
+      .expect(403);
+    await request(app)
+      .post('/api/race-control/director/penalties/pen-1/revoke')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ sessionId: 'race-1' })
+      .expect(403);
+    await request(app)
+      .post('/api/race-control/director/penalties/pen-1/revoke')
+      .set('Authorization', `Bearer ${secret}`)
+      .send({ sessionId: 'race-1' })
+      .expect(200);
     expect(session.revokePenalty).toHaveBeenCalledWith('race-1', 'pen-1');
   });
 
   test('invalid requests return a validation error instead of a false success', async () => {
     const { app, session } = setupPenalties();
-    session.issuePenalty.mockRejectedValueOnce(Object.assign(new Error('Invalid race penalty details'), { status: 400 }));
-    const res = await request(app).post('/api/race-control/director/penalties')
-      .set('Authorization', `Bearer ${secret}`).send({ ...input, amount: -1 }).expect(400);
+    session.issuePenalty.mockRejectedValueOnce(
+      Object.assign(new Error('Invalid race penalty details'), { status: 400 })
+    );
+    const res = await request(app)
+      .post('/api/race-control/director/penalties')
+      .set('Authorization', `Bearer ${secret}`)
+      .send({ ...input, amount: -1 })
+      .expect(400);
     expect(res.body).toMatchObject({ success: false, error: 'Invalid race penalty details' });
   });
 
   test('replayed requests are rejected and serialized with other director commands', async () => {
     const { app, session } = setupPenalties();
     session.issuePenalty.mockRejectedValueOnce(Object.assign(new Error('Duplicate penalty request'), { status: 409 }));
-    const res = await request(app).post('/api/race-control/director/penalties')
-      .set('Authorization', `Bearer ${secret}`).send(input).expect(409);
+    const res = await request(app)
+      .post('/api/race-control/director/penalties')
+      .set('Authorization', `Bearer ${secret}`)
+      .send(input)
+      .expect(409);
     expect(res.body.success).toBe(false);
   });
 });
