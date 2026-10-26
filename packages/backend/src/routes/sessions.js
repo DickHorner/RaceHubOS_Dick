@@ -429,12 +429,18 @@ router.put('/:id/drivers', async (req, res) => {
 
     // Accept partial configs for drafts, never duplicate a driver or physical car in a heat.
     const validDrivers = drivers.filter((d) => d && (d.driverId || d.carId));
-    const unique = (values) => new Set(values.filter((value) => value != null)).size ===
-      values.filter((value) => value != null).length;
+    const unique = (values) =>
+      new Set(values.filter((value) => value != null)).size === values.filter((value) => value != null).length;
     if (
       validDrivers.length > 6 ||
-      validDrivers.some((d) => !Number.isInteger(Number(d.controller)) || Number(d.controller) < 0 ||
-        Number(d.controller) > 5 || d.controller === null || d.controller === undefined) ||
+      validDrivers.some(
+        (d) =>
+          !Number.isInteger(Number(d.controller)) ||
+          Number(d.controller) < 0 ||
+          Number(d.controller) > 5 ||
+          d.controller === null ||
+          d.controller === undefined
+      ) ||
       !unique(validDrivers.map((d) => Number(d.controller))) ||
       (session.type !== SessionType.BALANCING && !unique(validDrivers.map((d) => d.driverId))) ||
       !unique(validDrivers.map((d) => d.carId))
