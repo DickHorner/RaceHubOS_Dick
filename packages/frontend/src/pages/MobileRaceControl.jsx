@@ -214,7 +214,7 @@ export default function MobileRaceControl() {
             kind: penaltyKind,
             amount: penaltyKind === PenaltyKind.TIME ? penaltyValue * 1000 : penaltyValue,
             reason: penaltyReason.trim(),
-            requestId: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,
+            requestId: Array.from(window.crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, '0')).join(''),
           }
         : {}
       const response = await fetch(`${API_URL}${endpoint}`, {
