@@ -298,10 +298,19 @@ router.post('/button/:id', async (req, res) => {
   }
 });
 
+// Direct CU tuning must not program native Autonomous/Pace slots 6 and 7.
+function requireHumanController(req, res, next) {
+  const { address } = req.body ?? {};
+  if (!Number.isInteger(address) || address < 0 || address > 5) {
+    return res.status(400).json({ success: false, error: 'Invalid controller (0-5)' });
+  }
+  next();
+}
+
 /**
  * POST /api/bluetooth/set-speed
  */
-router.post('/set-speed', async (req, res) => {
+router.post('/set-speed', requireHumanController, async (req, res) => {
   const currentDevice = syncService?.getDevice();
 
   if (!currentDevice?.setSpeed) {
@@ -320,7 +329,7 @@ router.post('/set-speed', async (req, res) => {
 /**
  * POST /api/bluetooth/set-brake
  */
-router.post('/set-brake', async (req, res) => {
+router.post('/set-brake', requireHumanController, async (req, res) => {
   const currentDevice = syncService?.getDevice();
 
   if (!currentDevice?.setBrake) {
@@ -339,7 +348,7 @@ router.post('/set-brake', async (req, res) => {
 /**
  * POST /api/bluetooth/set-fuel
  */
-router.post('/set-fuel', async (req, res) => {
+router.post('/set-fuel', requireHumanController, async (req, res) => {
   const currentDevice = syncService?.getDevice();
 
   if (!currentDevice?.setFuel) {
