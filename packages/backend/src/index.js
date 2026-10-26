@@ -96,6 +96,10 @@ sessionService.on('sessionReset', async ({ sessionId, championshipId }) => {
   await championshipService.onStandingsChanged(championshipId, sessionId, 'session_reset');
 });
 
+sessionService.on('sessionResultsChanged', async ({ sessionId, championshipId }) => {
+  await championshipService.onStandingsChanged(championshipId, sessionId, 'penalty_changed');
+});
+
 sessionService.on('sessionDeleted', async ({ sessionId, championshipId }) => {
   await championshipService.onStandingsChanged(championshipId, sessionId, 'session_deleted');
 });
