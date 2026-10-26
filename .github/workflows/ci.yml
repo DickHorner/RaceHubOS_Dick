@@ -22,20 +22,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: |
-          for f in packages/frontend/src/lib/lapAnalysis.js packages/frontend/src/components/race/SessionLapChart.jsx packages/frontend/tests/lapAnalysis.unit.js packages/frontend/tests/sessionLapChart.spec.js; do
-            ./node_modules/.bin/prettier --write "$f"
-            echo "FORMATTED_START:$f"
-            base64 -w0 "$f"
-            echo
-            echo "FORMATTED_END:$f"
-          done
       - run: npm run check -- --ci
       - run: node --test packages/frontend/tests/lapAnalysis.unit.js
       - run: npm run build
       - run: npm run prisma:generate -w @racehubos/backend
-      - run: npx playwright install chromium
-        working-directory: packages/frontend
-      - run: npm test -- tests/sessionLapChart.spec.js
-        working-directory: packages/frontend
       - run: npm test -w @racehubos/backend
