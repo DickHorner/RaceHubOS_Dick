@@ -289,7 +289,7 @@ export class SessionService extends EventEmitter {
       totalTime: sd.totalTime || 0,
       bestLapTime: sd.bestLapTime || null,
       lastLapTime: sd.lastLapTime || null,
-      virtualFuelUnits: session.virtualFuelRate === null ? null : (fuelLevels.get(sd.id) ?? VIRTUAL_FUEL_FULL),
+      virtualFuelUnits: session.virtualFuelRate == null ? null : (fuelLevels.get(sd.id) ?? VIRTUAL_FUEL_FULL),
       lapsAtFinishing: sd.lapsAtFinishing ?? null, // For checkered flag logic
       gap: null,
       crossings: sd.totalLaps || 0, // Track line crossings (first doesn't count as lap)
