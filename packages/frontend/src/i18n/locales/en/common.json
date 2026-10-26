@@ -77,6 +77,9 @@
   },
   "edit": "Edit",
   "exportExcel": "Export to Excel",
+  "exportCsv": "Export to CSV",
+  "csvResults": "Results (CSV)",
+  "csvLaps": "Laps (CSV)",
   "exportSelection": "Export ({{count}})",
   "items_one": "item",
   "items_other": "items"
