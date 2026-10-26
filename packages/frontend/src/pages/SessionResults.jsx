@@ -98,7 +98,9 @@ export default function SessionResults() {
               <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground print:text-gray-600">
                 RaceHubOS · {t('printResults.title')}
               </p>
-              <h1 className="text-2xl font-bold">{session.name || t('unnamedSession', { id: session.id.slice(0, 8) })}</h1>
+              <h1 className="text-2xl font-bold">
+                {session.name || t('unnamedSession', { id: session.id.slice(0, 8) })}
+              </h1>
               <p className="text-sm text-muted-foreground print:text-gray-600">
                 {t(`glossary:sessionTypeFull.${session.type}`, { defaultValue: session.type })} ·{' '}
                 {t(`glossary:sessionStatus.${session.status}`, { defaultValue: session.status })}
@@ -145,7 +147,9 @@ export default function SessionResults() {
                         <tr key={entry.id} className="break-inside-avoid border-b border-border print:border-gray-300">
                           <td className="p-2 font-semibold">{entry.isDNF ? 'DNF' : index + 1}</td>
                           <td className="p-2">{entry.driver?.name || `Ctrl ${entry.controller + 1}`}</td>
-                          <td className="p-2">{[entry.car?.brand, entry.car?.model].filter(Boolean).join(' ') || '–'}</td>
+                          <td className="p-2">
+                            {[entry.car?.brand, entry.car?.model].filter(Boolean).join(' ') || '–'}
+                          </td>
                           <td className="p-2 text-right tabular-nums">
                             {isRace ? entry.classifiedLaps : (entry.totalLaps ?? 0)}
                           </td>
@@ -156,9 +160,7 @@ export default function SessionResults() {
                             <td className="p-2 text-right">
                               <LapTime
                                 time={
-                                  session.tyreMismatchPercent > 0
-                                    ? entry.classifiedSimulatedTime
-                                    : entry.classifiedTime
+                                  session.tyreMismatchPercent > 0 ? entry.classifiedSimulatedTime : entry.classifiedTime
                                 }
                                 format="total"
                                 size="sm"
