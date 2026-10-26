@@ -40,7 +40,11 @@
     "update": "Aktualisieren",
     "loadError": "Daten konnten nicht geladen werden",
     "trackRequired": "Eine Strecke ist erforderlich",
-    "driverRequired": "Mindestens eine vollständige Zuordnung aus Fahrer, Auto und Regler ist erforderlich"
+    "driverRequired": "Mindestens eine vollständige Zuordnung aus Fahrer, Auto und Regler ist erforderlich",
+    "virtualFuel": "Virtueller Tank (unabhängig von der CU)",
+    "virtualFuelRate": "Verbrauch (% pro Rennminute)",
+    "virtualFuelInvalid": "Virtueller Verbrauch muss zwischen 1 und 100 % pro Minute liegen.",
+    "virtualFuelHint": "Softwareberechnung: gemessene Rundenzeit × Rate / 60 Sekunden. Jeder Wagen startet mit 100 %. Nur bestätigte Simulator-Boxenstopps tanken automatisch nach. Die echte CU-Tankanzeige bleibt unverändert."
   },
   "profile": {
     "notFound": "Sitzung nicht gefunden",

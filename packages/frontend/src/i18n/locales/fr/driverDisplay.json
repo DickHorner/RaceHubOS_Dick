@@ -28,5 +28,8 @@
   "chaosDescription": "Interrompt toute la course. Seule la direction peut reprendre. Ce n'est pas un arrêt d'urgence de sécurité.",
   "chaosRequested": "Interruption demandée.",
   "alreadyPaused": "La course est déjà interrompue.",
-  "chaosError": "Impossible d'interrompre la course."
+  "chaosError": "Impossible d'interrompre la course.",
+  "hardwareFuel": "Carburant CU (matériel)",
+  "virtualFuel": "Carburant virtuel (logiciel)",
+  "virtualFuelNote": "Indépendant de la CU ; le simulateur ravitaille après un arrêt confirmé."
 }

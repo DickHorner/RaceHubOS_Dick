@@ -28,5 +28,8 @@
   "chaosDescription": "Pauses the entire race. Only the director may resume. Not a safety-rated emergency stop.",
   "chaosRequested": "Race pause requested.",
   "alreadyPaused": "The race is already paused.",
-  "chaosError": "Could not pause the race."
+  "chaosError": "Could not pause the race.",
+  "hardwareFuel": "CU fuel level (hardware)",
+  "virtualFuel": "Virtual fuel (software)",
+  "virtualFuelNote": "Independent of the CU; confirmed simulator pit stops refuel."
 }

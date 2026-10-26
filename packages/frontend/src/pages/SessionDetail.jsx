@@ -106,6 +106,7 @@ export default function SessionDetail() {
         driver: sd.driver,
         car: sd.car,
         gridPos: sd.gridPos ?? null,
+        virtualFuelUnits: sd.virtualFuelUnits ?? null,
         stats: {
           laps: sd.classifiedLaps ?? sd.totalLaps ?? 0,
           bestLap: sd.bestLapTime || null,

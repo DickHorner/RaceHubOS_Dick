@@ -28,5 +28,8 @@
   "chaosDescription": "Unterbricht das gesamte Rennen. Nur die Rennleitung darf es wieder freigeben. Kein sicherheitstechnischer Not-Aus.",
   "chaosRequested": "Rennunterbrechung angefordert.",
   "alreadyPaused": "Das Rennen ist bereits unterbrochen.",
-  "chaosError": "Rennunterbrechung fehlgeschlagen."
+  "chaosError": "Rennunterbrechung fehlgeschlagen.",
+  "hardwareFuel": "CU-Tankstand (Hardware)",
+  "virtualFuel": "Virtueller Tank (Software)",
+  "virtualFuelNote": "Unabhängig von der CU; Simulator-Boxenstopps füllen auf."
 }

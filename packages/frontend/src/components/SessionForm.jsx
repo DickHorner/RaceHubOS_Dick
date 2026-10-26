@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { X, Plus, Trash2 } from 'lucide-react'
-import { FuelMode, STANDARD_SESSION_TYPES, SessionType, sessionTypeFullKey } from '@racehubos/shared'
+import { FuelMode, STANDARD_SESSION_TYPES, SessionType, SessionStatus, sessionTypeFullKey } from '@racehubos/shared'
 
 const API_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -15,6 +15,7 @@ export default function SessionForm({ session, onClose, onSaved }) {
     duration: null,
     maxLaps: null,
     fuelMode: FuelMode.OFF,
+    virtualFuelRate: null,
     drivers: [],
   })
 
@@ -40,6 +41,7 @@ export default function SessionForm({ session, onClose, onSaved }) {
         duration: session.duration || null,
         maxLaps: session.maxLaps || null,
         fuelMode: session.fuelMode || 'OFF',
+        virtualFuelRate: session.virtualFuelRate ?? null,
         drivers:
           session.drivers?.map((sd) => ({
             driverId: sd.driverId,
@@ -98,6 +100,14 @@ export default function SessionForm({ session, onClose, onSaved }) {
       // Validation
       if (!formData.trackId) {
         setError(t('form.trackRequired'))
+        return
+      }
+
+      if (
+        formData.virtualFuelRate != null &&
+        (!Number.isInteger(formData.virtualFuelRate) || formData.virtualFuelRate < 1 || formData.virtualFuelRate > 100)
+      ) {
+        setError(t('form.virtualFuelInvalid'))
         return
       }
 
@@ -289,6 +299,40 @@ export default function SessionForm({ session, onClose, onSaved }) {
                   <option value="ON">{t('form.fuelOn')}</option>
                 </select>
               </div>
+            </div>
+
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-3">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <input
+                  type="checkbox"
+                  checked={formData.virtualFuelRate != null}
+                  disabled={session?.status && session.status !== SessionStatus.DRAFT}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      virtualFuelRate: e.target.checked ? 6 : null,
+                    })
+                  }
+                />
+                {t('form.virtualFuel')}
+              </label>
+              {formData.virtualFuelRate != null && (
+                <label className="block text-sm text-gray-700 dark:text-gray-300">
+                  {t('form.virtualFuelRate')}
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    step="1"
+                    required
+                    disabled={session?.status && session.status !== SessionStatus.DRAFT}
+                    value={formData.virtualFuelRate}
+                    onChange={(e) => setFormData({ ...formData, virtualFuelRate: Number(e.target.value) })}
+                    className="w-full mt-1 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg"
+                  />
+                </label>
+              )}
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('form.virtualFuelHint')}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

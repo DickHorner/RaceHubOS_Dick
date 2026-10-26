@@ -1,5 +1,6 @@
 import { createPrismaClient } from '../lib/prisma.js';
 import EventEmitter from 'events';
+import { SESSION_TYPES, SessionStatus, SessionType, isSessionType, toLevel, validVirtualFuelRate, virtualFuelBurn, virtualFuelAfter, replayVirtualFuel, VIRTUAL_FUEL_FULL } from '@racehubos/shared';
 import { SESSION_TYPES, SessionStatus, SessionType, PenaltyKind, PenaltyStatus, isSessionType, toLevel, withRacePenalties, compareRaceClassification, rankRaceDrivers } from '@racehubos/shared';
 import { sessionName } from '../lib/sessionNames.js';
 
@@ -36,6 +37,7 @@ export class SessionService extends EventEmitter {
 
     // Driver states
     this.sessionDrivers = [];
+    this.virtualFuelWrites = Promise.resolve();
     this.sessionPenalties = [];
     this.firstCrossingProgrammed = new Set();
     this.speedWrites = Promise.resolve();
@@ -70,7 +72,7 @@ export class SessionService extends EventEmitter {
     const { controller, timestamp, lapTime, sector } = data;
 
     // Ignore stale hardware events when there is no running session.
-    if (!this.activeSessionId || !this.isActive()) {
+    if (!this.activeSessionId || !this.isActive() || this.sessionStatus === SessionStatus.PAUSED) {
       return;
     }
 
@@ -109,7 +111,7 @@ export class SessionService extends EventEmitter {
     }
 
     // Only record laps with a valid measured time.
-    if (lapTime <= 0) return;
+    if (!Number.isFinite(lapTime) || lapTime <= 0) return;
 
     // Track crossings - first crossing is start, doesn't count as lap
     // const isFirstCrossing = driver.crossings === 0; // DISABLED: count first lap
@@ -228,6 +230,7 @@ export class SessionService extends EventEmitter {
    * Load session from DB
    */
   async loadSession(sessionId) {
+    await this.virtualFuelWrites;
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
       include: {
@@ -237,6 +240,7 @@ export class SessionService extends EventEmitter {
         },
         track: true,
         championship: true,
+        virtualFuelEvents: { orderBy: { id: 'asc' } },
         penalties: true,
       },
     });
@@ -272,12 +276,14 @@ export class SessionService extends EventEmitter {
       gracePeriod: session.gracePeriod || DEFAULT_GRACE_PERIOD_MS,
       startedAt: session.startedAt,
       championshipId: session.championshipId,
+      virtualFuelRate: session.virtualFuelRate,
       pauses: session.pauses ? JSON.parse(session.pauses) : [],
     };
     this.sessionStatus = session.status;
     this.sessionPenalties = (session.penalties || []).filter((penalty) => penalty.status === PenaltyStatus.ACTIVE);
 
-    // Initialize driver states
+    // Replay saved fuel events in database order; the cache is not the source of truth.
+    const fuelLevels = replayVirtualFuel(session.virtualFuelEvents);
     this.sessionDrivers = session.drivers.map((sd) => ({
       id: sd.id,
       controller: sd.controller,
@@ -291,6 +297,7 @@ export class SessionService extends EventEmitter {
       totalTime: sd.totalTime || 0,
       bestLapTime: sd.bestLapTime || null,
       lastLapTime: sd.lastLapTime || null,
+      virtualFuelUnits: session.virtualFuelRate == null ? null : (fuelLevels.get(sd.id) ?? VIRTUAL_FUEL_FULL),
       isDNF: sd.isDNF || false,
       lapsAtFinishing: sd.lapsAtFinishing ?? null, // For checkered flag logic
       gap: null,
@@ -456,6 +463,7 @@ export class SessionService extends EventEmitter {
    */
   async resetForNewSession() {
     this.stopHeartbeat();
+    await this.virtualFuelWrites;
     if (this.vsc) {
       try {
         await this.syncService?.stopRace();
@@ -564,17 +572,34 @@ export class SessionService extends EventEmitter {
     const durationMs = exitedAt.getTime() - enteredAt.getTime();
     if (!Number.isFinite(durationMs) || durationMs <= 0) return;
 
-    const pitStop = await this.prisma.pitStop.create({
-      data: {
-        sessionId: this.activeSessionId,
-        sessionDriverId: driver.id,
-        controller,
-        enteredAt,
-        exitedAt,
-        durationMs,
-        source,
-      },
-    });
+    const sessionId = this.activeSessionId;
+    const data = { sessionId, sessionDriverId: driver.id, controller, enteredAt, exitedAt, durationMs, source };
+    let pitStop;
+
+    if (this.sessionConfig?.virtualFuelRate != null && source === 'simulator') {
+      const write = this.virtualFuelWrites.then(async () => {
+        const { pit, event } = await this.prisma.$transaction(async (tx) => {
+          const pit = await tx.pitStop.create({ data });
+          const event = await tx.virtualFuelEvent.create({
+            data: {
+              sessionId, sessionDriverId: driver.id, controller,
+              kind: 'refuel', units: 0, source: 'simulator', reference: `pit:${pit.id}`,
+            },
+          });
+          return { pit, event };
+        });
+        if (this.activeSessionId === sessionId) {
+          driver.virtualFuelUnits = virtualFuelAfter(driver.virtualFuelUnits ?? VIRTUAL_FUEL_FULL, event);
+        }
+        return pit;
+      });
+      this.virtualFuelWrites = write.catch(() => {});
+      pitStop = await write;
+      if (this.activeSessionId === sessionId) this.emitLeaderboard();
+    } else {
+      // CU pit flags are not hardware-validated: record the stop, never infer a refuel.
+      pitStop = await this.prisma.pitStop.create({ data });
+    }
     this.emit('session:pit_stop', pitStop);
   }
 
@@ -1292,18 +1317,41 @@ export class SessionService extends EventEmitter {
   // ==================== DB Operations ====================
 
   async saveLap(driver, lapTime) {
-    await this.prisma.lap.create({
-      data: {
-        sessionId: this.activeSessionId,
-        trackId: this.activeTrackId,
-        driverId: driver.driverId,
-        carId: driver.carId,
-        controller: driver.controller,
-        phase: this.currentPhase,
-        lapNumber: driver.totalLaps,
-        lapTime: lapTime,
-      },
+    const sessionId = this.activeSessionId;
+    const data = {
+      sessionId,
+      trackId: this.activeTrackId,
+      driverId: driver.driverId,
+      carId: driver.carId,
+      controller: driver.controller,
+      phase: this.currentPhase,
+      lapNumber: driver.totalLaps,
+      lapTime,
+    };
+
+    const rate = this.sessionConfig?.virtualFuelRate;
+    if (rate == null) {
+      await this.prisma.lap.create({ data });
+      return;
+    }
+
+    const write = this.virtualFuelWrites.then(async () => {
+      const event = await this.prisma.$transaction(async (tx) => {
+        const lap = await tx.lap.create({ data });
+        return tx.virtualFuelEvent.create({
+          data: {
+            sessionId, sessionDriverId: driver.id, controller: driver.controller,
+            kind: 'lap', units: virtualFuelBurn(lapTime, rate),
+            source: 'lap', reference: `lap:${lap.id}`,
+          },
+        });
+      });
+      if (this.activeSessionId === sessionId) {
+        driver.virtualFuelUnits = virtualFuelAfter(driver.virtualFuelUnits ?? VIRTUAL_FUEL_FULL, event);
+      }
     });
+    this.virtualFuelWrites = write.catch(() => {});
+    await write;
   }
 
   async updateSessionDriver(driver) {
@@ -1336,7 +1384,12 @@ export class SessionService extends EventEmitter {
       order,
       gridFromQualifying,
       status: initialStatus,
+      virtualFuelRate = null,
     } = params;
+
+    if (!validVirtualFuelRate(virtualFuelRate)) {
+      throw new Error('Virtual fuel rate must be 1-100 percent per minute or disabled');
+    }
 
     if (!isSessionType(type)) {
       throw new Error(`Invalid session type. Must be one of: ${SESSION_TYPES.join(', ')}`);
@@ -1366,6 +1419,7 @@ export class SessionService extends EventEmitter {
         championshipId: championshipId || null,
         maxDuration: maxDuration || null,
         maxLaps: maxLaps || null,
+        virtualFuelRate,
         order: order ?? 0,
       },
     });
@@ -1449,6 +1503,8 @@ export class SessionService extends EventEmitter {
       data: { deletedAt: new Date() },
     });
 
+    // A restarted session begins with a full virtual tank and a fresh event log.
+    await this.prisma.virtualFuelEvent.deleteMany({ where: { sessionId } });
     // Keep the audit trail, but do not carry penalties into a restarted race.
     await this.prisma.sessionPenalty.updateMany({
       where: { sessionId, status: PenaltyStatus.ACTIVE },

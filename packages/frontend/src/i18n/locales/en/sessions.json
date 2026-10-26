@@ -40,7 +40,11 @@
     "update": "Update",
     "loadError": "Error loading data",
     "trackRequired": "Track is required",
-    "driverRequired": "At least one complete driver is required (driver, car, controller)"
+    "driverRequired": "At least one complete driver is required (driver, car, controller)",
+    "virtualFuel": "Virtual fuel (independent of the CU)",
+    "virtualFuelRate": "Consumption (% per racing minute)",
+    "virtualFuelInvalid": "Virtual consumption must be between 1 and 100% per minute.",
+    "virtualFuelHint": "Software calculation: measured lap duration × rate / 60 seconds. Each car starts at 100%. Only confirmed simulator pit stops refuel automatically. CU fuel readings remain unchanged."
   },
   "profile": {
     "notFound": "Session not found",
