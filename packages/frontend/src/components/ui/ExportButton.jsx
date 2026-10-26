@@ -6,12 +6,12 @@ import { Button } from '@/components/ui/button'
 const API_URL = import.meta.env.VITE_API_URL || ''
 
 /**
- * Downloads an Excel workbook from an export route.
+ * Downloads an Excel or CSV file from an export route.
  *
  * The file name comes from the server's Content-Disposition, so a session and
  * a championship keep the same naming without the page having to know it.
  */
-export default function ExportButton({ url, label = null, size, variant = 'outline' }) {
+export default function ExportButton({ url, label = null, size, variant = 'outline', format = 'xlsx' }) {
   const { t } = useTranslation('common')
   const [busy, setBusy] = useState(false)
 
@@ -25,7 +25,7 @@ export default function ExportButton({ url, label = null, size, variant = 'outli
 
       const blob = await response.blob()
       const disposition = response.headers.get('Content-Disposition') || ''
-      const fileName = disposition.match(/filename="([^"]+)"/)?.[1] || 'export.xlsx'
+      const fileName = disposition.match(/filename="([^"]+)"/)?.[1] || `export.${format}`
 
       const href = URL.createObjectURL(blob)
       const link = document.createElement('a')
@@ -49,7 +49,7 @@ export default function ExportButton({ url, label = null, size, variant = 'outli
       onClick={handleExport}
       disabled={busy}
       data-testid="export-button"
-      title={t('exportExcel')}
+      title={t(format === 'csv' ? 'exportCsv' : 'exportExcel')}
     >
       {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
       {label}
