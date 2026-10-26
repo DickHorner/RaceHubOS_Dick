@@ -12,7 +12,7 @@ import SessionLeaderboard from '../components/race/SessionLeaderboard'
 import BalancingChart from '../components/balancing/BalancingChart'
 import Podium from '../components/race/Podium'
 import LapTime from '../components/race/LapTime'
-import { SessionStatus, SessionType } from '@racehubos/shared'
+import { SessionStatus, SessionType, rankRaceDrivers, PenaltyKind, PenaltyStatus } from '@racehubos/shared'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -48,6 +48,23 @@ export default function SessionDetail() {
     load()
   }, [id])
 
+  useEffect(() => {
+    const onPenaltyChange = ({ detail }) => {
+      if (detail?.sessionId !== id) return
+      fetch(`${API_URL}/api/sessions/${id}`)
+        .then((response) => response.json())
+        .then((result) => { if (result.success) setSession(result.data) })
+        .catch((error) => console.error('Error refreshing penalties:', error))
+    }
+    window.addEventListener('session:penalties_changed', onPenaltyChange)
+    return () => window.removeEventListener('session:penalties_changed', onPenaltyChange)
+  }, [id])
+
+  const rankedRaceDrivers = useMemo(() => {
+    if (session?.type !== SessionType.RACE) return []
+    return rankRaceDrivers(session.drivers || [], session.penalties || [])
+  }, [session])
+
   // Build entries from session.drivers (same format as SessionContext entries)
   const entries = useMemo(() => {
     if (!session?.drivers?.length) return []
@@ -58,11 +75,7 @@ export default function SessionDetail() {
 
     // Sort
     const isRace = session.type === SessionType.RACE
-    const sorted = [...drivers].sort((a, b) => {
-      if (isRace) {
-        if ((b.totalLaps || 0) !== (a.totalLaps || 0)) return (b.totalLaps || 0) - (a.totalLaps || 0)
-        return (a.totalTime || Infinity) - (b.totalTime || Infinity)
-      }
+    const sorted = isRace ? rankedRaceDrivers : [...drivers].sort((a, b) => {
       if (!a.bestLapTime && !b.bestLapTime) return 0
       if (!a.bestLapTime) return 1
       if (!b.bestLapTime) return -1
@@ -75,9 +88,9 @@ export default function SessionDetail() {
       let gap = null
       if (i > 0 && leader) {
         if (isRace) {
-          const lapDiff = (leader.totalLaps || 0) - (sd.totalLaps || 0)
+          const lapDiff = leader.classifiedLaps - sd.classifiedLaps
           if (lapDiff > 0) gap = { type: 'laps', value: lapDiff }
-          else gap = { type: 'time', value: (sd.totalTime || 0) - (leader.totalTime || 0) }
+          else gap = { type: 'time', value: sd.classifiedTime - leader.classifiedTime }
         } else {
           if (leader.bestLapTime && sd.bestLapTime) gap = { type: 'time', value: sd.bestLapTime - leader.bestLapTime }
         }
@@ -90,19 +103,21 @@ export default function SessionDetail() {
         car: sd.car,
         gridPos: sd.gridPos ?? null,
         stats: {
-          laps: sd.totalLaps || 0,
+          laps: sd.classifiedLaps ?? sd.totalLaps ?? 0,
           bestLap: sd.bestLapTime || null,
           lastLap: sd.lastLapTime || null,
-          totalTime: sd.totalTime || 0,
+          totalTime: sd.classifiedTime ?? sd.totalTime ?? 0,
           gap,
         },
         position: i + 1,
         positionDelta: 0,
+        penaltyLaps: sd.penaltyLaps || 0,
+        penaltyTimeMs: sd.penaltyTimeMs || 0,
         hasFastestLap: fastestLapTime && sd.bestLapTime === fastestLapTime,
         isDNF: sd.isDNF || false,
       }
     })
-  }, [session])
+  }, [session, rankedRaceDrivers])
 
   // Build entries for balancing chart (needs laps array per controller)
   const balancingEntries = useMemo(() => {
@@ -224,7 +239,13 @@ export default function SessionDetail() {
           <Card>
             <CardContent className="p-0 overflow-hidden">
               <Podium
-                drivers={session.drivers}
+                drivers={session.type === SessionType.RACE
+                  ? rankedRaceDrivers.filter((driver) => !driver.isDNF).map((driver) => ({
+                      ...driver,
+                      totalLaps: driver.classifiedLaps,
+                      totalTime: driver.classifiedTime,
+                    }))
+                  : session.drivers}
                 sessionType={session.type}
                 stats={{
                   duration: sessionDuration ? Math.floor(sessionDuration / 1000) : null,
@@ -298,6 +319,53 @@ export default function SessionDetail() {
                   ))}
                 </tbody>
               </table>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Audited race penalties; raw lap history below is unchanged. */}
+        {session.penalties?.length > 0 && (
+          <Card>
+            <CardContent className="p-0">
+              <div className="px-4 py-3 border-b border-border">
+                <h3 className="text-sm font-semibold">{t('profile.penalties', { count: session.penalties.length })}</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-border text-left text-xs text-muted-foreground uppercase">
+                    <tr>
+                      <th className="px-4 py-2 font-medium">{t('profile.pitDriver')}</th>
+                      <th className="px-4 py-2 font-medium">{t('profile.penaltyAmount')}</th>
+                      <th className="px-4 py-2 font-medium">{t('profile.penaltyReason')}</th>
+                      <th className="px-4 py-2 font-medium">{t('profile.penaltyStatus')}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {session.penalties.map((penalty) => {
+                      const assignment = session.drivers?.find((driver) => driver.id === penalty.sessionDriverId)
+                      const value = penalty.kind === PenaltyKind.LAP
+                        ? t('profile.penaltyLaps', { count: penalty.amount })
+                        : t('profile.penaltyTime', { seconds: penalty.amount / 1000 })
+                      return (
+                        <tr key={penalty.id}>
+                          <td className="px-4 py-2">{assignment?.driver?.name || `Ctrl ${penalty.controller + 1}`}</td>
+                          <td className="px-4 py-2 tabular-nums">{value}</td>
+                          <td className="px-4 py-2">{penalty.reason}</td>
+                          <td className="px-4 py-2">
+                            <Badge variant={penalty.status === PenaltyStatus.ACTIVE ? 'default' : 'secondary'}>
+                              {t(penalty.status === PenaltyStatus.ACTIVE ? 'profile.penaltyActive' : 'profile.penaltyRevoked')}
+                            </Badge>
+                            <div className="text-xs text-muted-foreground">{formatDate(penalty.issuedAt, i18n.language)}</div>
+                            {penalty.revokedAt && (
+                              <div className="text-xs text-muted-foreground">{formatDate(penalty.revokedAt, i18n.language)}</div>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </CardContent>
           </Card>
         )}
