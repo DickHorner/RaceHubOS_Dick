@@ -165,17 +165,20 @@ describe('session tyre requests and pit changes', () => {
   test('a failed transaction cannot report a tyre change or partial pit event', async () => {
     const { session, assigned } = await fixture();
     await service.requestTyreChange(session.id, assigned.id, TyreType.WET);
-    const create = service.prisma.tyreChange.create;
-    const spy = jest.spyOn(service.prisma.tyreChange, 'create').mockRejectedValueOnce(new Error('DB failure'));
+    // A real SQLite constraint failure after the pit insert must roll back both writes.
+    await prisma.$executeRawUnsafe(`
+      CREATE TRIGGER reject_test_tyre_change
+      BEFORE INSERT ON "TyreChange"
+      BEGIN SELECT RAISE(ABORT, 'DB failure'); END;
+    `);
     try {
-      await expect(pit('simulator')).rejects.toThrow('DB failure');
+      await expect(pit('simulator')).rejects.toThrow();
       expect(await prisma.tyreChange.count()).toBe(0);
       expect(await prisma.pitStop.count()).toBe(0);
       expect(service.getLeaderboard()[0]).toMatchObject({ tyreType: TyreType.DRY, pendingTyreType: TyreType.WET });
     } finally {
-      spy.mockRestore();
+      await prisma.$executeRawUnsafe('DROP TRIGGER IF EXISTS reject_test_tyre_change');
     }
-    expect(create).toBeTruthy();
   });
 
   test('invalid, stale or inactive requests cannot change the selected tyres', async () => {

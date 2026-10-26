@@ -159,7 +159,7 @@ export class SessionService extends EventEmitter {
     }
 
     // Measured and simulated lap times are separate; no CU speed command is sent.
-    const weatherAtLap = weatherForSession(this.sessionConfig, Date.now());
+    const weatherAtLap = this.sessionConfig ? weatherForSession(this.sessionConfig, Date.now()) : null;
     const simulate = this.currentPhase === SessionType.RACE &&
       this.sessionConfig?.tyreMismatchPercent > 0 && weatherAtLap !== null;
     const simulatedLapTime = simulate
