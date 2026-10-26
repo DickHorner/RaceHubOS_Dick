@@ -23,6 +23,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check -- --ci
+      - run: node --test packages/frontend/tests/lapAnalysis.unit.js
       - run: npm run build
       - run: npm run prisma:generate -w @racehubos/backend
       - run: npm test -w @racehubos/backend
