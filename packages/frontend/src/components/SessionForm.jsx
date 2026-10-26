@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { X, Plus, Trash2 } from 'lucide-react'
-import { FuelMode, STANDARD_SESSION_TYPES, SessionType, sessionTypeFullKey } from '@racehubos/shared'
+import { FuelMode, STANDARD_SESSION_TYPES, SessionStatus, SessionType, WeatherCondition, validWeatherConfig, sessionTypeFullKey } from '@racehubos/shared'
 
 const API_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -15,6 +15,10 @@ export default function SessionForm({ session, onClose, onSaved }) {
     duration: null,
     maxLaps: null,
     fuelMode: FuelMode.OFF,
+    weatherSeed: null,
+    weatherInitial: WeatherCondition.DRY,
+    weatherRainChance: 35,
+    weatherIntervalSeconds: 60,
     drivers: [],
   })
 
@@ -40,6 +44,10 @@ export default function SessionForm({ session, onClose, onSaved }) {
         duration: session.duration || null,
         maxLaps: session.maxLaps || null,
         fuelMode: session.fuelMode || 'OFF',
+        weatherSeed: session.weatherSeed ?? null,
+        weatherInitial: session.weatherInitial ?? WeatherCondition.DRY,
+        weatherRainChance: session.weatherRainChance ?? 35,
+        weatherIntervalSeconds: session.weatherIntervalSeconds ?? 60,
         drivers:
           session.drivers?.map((sd) => ({
             driverId: sd.driverId,
@@ -98,6 +106,11 @@ export default function SessionForm({ session, onClose, onSaved }) {
       // Validation
       if (!formData.trackId) {
         setError(t('form.trackRequired'))
+        return
+      }
+
+      if (!validWeatherConfig(formData) || (formData.weatherSeed !== null && formData.type !== SessionType.RACE)) {
+        setError(t('form.weatherInvalid'))
         return
       }
 
@@ -226,7 +239,11 @@ export default function SessionForm({ session, onClose, onSaved }) {
                 </label>
                 <select
                   value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    type: e.target.value,
+                    weatherSeed: e.target.value === SessionType.RACE ? formData.weatherSeed : null,
+                  })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500"
                 >
                   {STANDARD_SESSION_TYPES.map((type) => (
@@ -290,6 +307,57 @@ export default function SessionForm({ session, onClose, onSaved }) {
                 </select>
               </div>
             </div>
+
+            {formData.type === SessionType.RACE && (
+              <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-3">
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={formData.weatherSeed !== null}
+                    disabled={session?.status && session.status !== SessionStatus.DRAFT}
+                    onChange={(e) => setFormData({ ...formData, weatherSeed: e.target.checked ? 1 : null })}
+                  />
+                  {t('form.weatherEnabled')}
+                </label>
+                {formData.weatherSeed !== null && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="text-sm text-gray-700 dark:text-gray-300">
+                      {t('form.weatherInitial')}
+                      <select
+                        value={formData.weatherInitial}
+                        disabled={session?.status && session.status !== SessionStatus.DRAFT}
+                        onChange={(e) => setFormData({ ...formData, weatherInitial: e.target.value })}
+                        className="w-full px-3 py-2 mt-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg"
+                      >
+                        <option value={WeatherCondition.DRY}>{t('form.weatherDry')}</option>
+                        <option value={WeatherCondition.RAIN}>{t('form.weatherRain')}</option>
+                      </select>
+                    </label>
+                    {[
+                      ['weatherRainChance', 'weatherChance', 0, 100],
+                      ['weatherIntervalSeconds', 'weatherInterval', 10, 3600],
+                      ['weatherSeed', 'weatherSeed', 0, 2147483647],
+                    ].map(([key, label, min, max]) => (
+                      <label key={key} className="text-sm text-gray-700 dark:text-gray-300">
+                        {t(`form.${label}`)}
+                        <input
+                          type="number"
+                          min={min}
+                          max={max}
+                          step="1"
+                          required
+                          disabled={session?.status && session.status !== SessionStatus.DRAFT}
+                          value={formData[key]}
+                          onChange={(e) => setFormData({ ...formData, [key]: Number(e.target.value) })}
+                          className="w-full px-3 py-2 mt-1 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-gray-500 dark:text-gray-400">{t('form.weatherHint')}</p>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>
