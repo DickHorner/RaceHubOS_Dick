@@ -103,8 +103,10 @@ export default function SessionForm({ session, onClose, onSaved }) {
         return
       }
 
-      if (formData.virtualFuelRate != null &&
-          (!Number.isInteger(formData.virtualFuelRate) || formData.virtualFuelRate < 1 || formData.virtualFuelRate > 100)) {
+      if (
+        formData.virtualFuelRate != null &&
+        (!Number.isInteger(formData.virtualFuelRate) || formData.virtualFuelRate < 1 || formData.virtualFuelRate > 100)
+      ) {
         setError(t('form.virtualFuelInvalid'))
         return
       }
@@ -305,10 +307,12 @@ export default function SessionForm({ session, onClose, onSaved }) {
                   type="checkbox"
                   checked={formData.virtualFuelRate != null}
                   disabled={session?.status && session.status !== SessionStatus.DRAFT}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    virtualFuelRate: e.target.checked ? 6 : null,
-                  })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      virtualFuelRate: e.target.checked ? 6 : null,
+                    })
+                  }
                 />
                 {t('form.virtualFuel')}
               </label>
