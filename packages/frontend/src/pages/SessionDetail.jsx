@@ -12,6 +12,7 @@ import SessionLeaderboard from '../components/race/SessionLeaderboard'
 import BalancingChart from '../components/balancing/BalancingChart'
 import Podium from '../components/race/Podium'
 import LapTime from '../components/race/LapTime'
+import SessionLapChart from '../components/race/SessionLapChart'
 import { SessionStatus, SessionType, rankRaceDrivers, PenaltyKind, PenaltyStatus } from '@racehubos/shared'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
@@ -344,6 +345,9 @@ export default function SessionDetail() {
             <CardContent className="py-12 text-center text-muted-foreground">{t('profile.noParticipants')}</CardContent>
           </Card>
         )}
+
+        {/* Persisted lap analysis */}
+        {session.laps?.length > 0 && !isBalancing && <SessionLapChart key={session.id} session={session} />}
 
         {/* Observed pit stops */}
         {session.pitStops?.length > 0 && (
