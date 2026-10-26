@@ -43,7 +43,7 @@ function csvCell(value) {
   // Spreadsheet programs may evaluate untrusted text beginning with a formula token.
   // A real numeric value stays numeric; only strings are escaped.
   if (typeof value === 'string' && /^[\s\uFEFF\u200B]*[=+\-@]/u.test(text)) text = `'${text}`;
-  if (/[",\r\n]/.test(text)) text = `"${text.replace(/"/g, '""')}``;
+  if (/[",\r\n]/.test(text)) text = '"' + text.replace(/"/g, '""') + '"';
   return text;
 }
 
