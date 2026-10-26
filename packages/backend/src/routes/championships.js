@@ -3,8 +3,7 @@ import { createPrismaClient } from '../lib/prisma.js';
 import { withImageUrl } from '../utils/imageUrl.js';
 import { ChampionshipMode, ChampionshipStatus, SessionStatus, SessionType } from '@racehubos/shared';
 import { championshipWorkbook, championshipsWorkbook, idsFromQuery, sendWorkbook } from '../lib/exportQueries.js';
-import { exportFileName } from '../lib/excelExport.js';
-import { sendCsv } from '../lib/csvExport.js';
+import { sendCsv, worksheetTableRows } from '../lib/csvExport.js';
 import { sessionName } from '../lib/sessionNames.js';
 
 const router = express.Router();
@@ -122,30 +121,12 @@ router.get('/export', async (req, res) => {
 router.get('/:id/export', async (req, res) => {
   try {
     if (req.query.format === 'csv') {
-      const championship = await prisma.championship.findUnique({
-        where: { id: req.params.id, deletedAt: null },
-        select: { name: true },
-      });
-      if (!championship) {
+      const result = await championshipWorkbook(prisma, req.params.id);
+      if (!result) {
         return res.status(404).json({ success: false, error: 'Championship not found' });
       }
-
-      // Use the authoritative points calculation, not the XLSX reference sheet's win statistics.
-      const standings = await championshipService.getStandings(req.params.id);
-      const ranked = [...standings].sort(
-        (a, b) => b.totalPoints - a.totalPoints || a.driverId.localeCompare(b.driverId)
-      );
-      const rows = [
-        ['Position', 'Pilote', 'Numéro', 'Points', 'Sessions terminées'],
-        ...ranked.map((entry, index) => [
-          index + 1,
-          entry.driver?.name ?? '',
-          entry.driver?.number ?? '',
-          entry.totalPoints,
-          entry.sessions.length,
-        ]),
-      ];
-      sendCsv(res, exportFileName(championship.name).replace(/\.xlsx$/, '_standings.csv'), rows);
+      const rows = worksheetTableRows(result.workbook.worksheets[1], 'Classement pilotes');
+      sendCsv(res, result.fileName.replace(/\.xlsx$/, '_standings.csv'), rows);
       return;
     }
     if (req.query.format !== undefined && req.query.format !== 'xlsx') {
