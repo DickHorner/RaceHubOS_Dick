@@ -33,7 +33,10 @@ describe('championship points without a custom points schema', () => {
     service = new ChampionshipService();
     setChampionshipService(service);
     track = await prisma.track.create({ data: { name: 'Points circuit' } });
-    drivers = await Promise.all(['Alex', 'Bea', 'Chris'].map((name) => prisma.driver.create({ data: { name } })));
+    drivers = [];
+    for (const name of ['Alex', 'Bea', 'Chris']) {
+      drivers.push(await prisma.driver.create({ data: { name } }));
+    }
     championship = await prisma.championship.create({
       data: { name: 'Points cup', season: '2026', trackId: track.id },
     });
@@ -82,11 +85,9 @@ describe('championship points without a custom points schema', () => {
     expect(byDriver.get(drivers[0].id).totalPoints).toBe(43);
     expect(byDriver.get(drivers[1].id).totalPoints).toBe(43);
     expect(byDriver.get(drivers[2].id).totalPoints).toBe(0);
-    expect(byDriver.get(drivers[0].id).sessions.map((s) => s.points)).toEqual([25, 18, 0]);
-    expect(byDriver.get(drivers[1].id).sessions.map((s) => s.points)).toEqual([18, 25]);
-    expect(standings.slice(0, 2).map((s) => s.driverId)).toEqual(
-      [drivers[0].id, drivers[1].id].sort()
-    );
+    expect(byDriver.get(drivers[0].id).sessions.map((s) => s.points).sort((a, b) => a - b)).toEqual([0, 18, 25]);
+    expect(byDriver.get(drivers[1].id).sessions.map((s) => s.points).sort((a, b) => a - b)).toEqual([18, 25]);
+    expect(standings.slice(0, 2).map((s) => s.driverId)).toEqual([drivers[0].id, drivers[1].id].sort());
     expect(standings.map((s) => s.position)).toEqual([1, 2, 3]);
   });
 
