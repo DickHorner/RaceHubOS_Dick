@@ -212,7 +212,10 @@ export default function FreeSessionPage() {
         data.name !== undefined ||
         data.maxDuration !== undefined ||
         data.maxLaps !== undefined ||
-        data.gracePeriod !== undefined
+        data.gracePeriod !== undefined ||
+        data.damageLapThresholdMs !== undefined ||
+        data.damageRepairSeconds !== undefined ||
+        data.damagePitSeconds !== undefined
       ) {
         await fetch(`${API_URL}/api/sessions/${session.id}`, {
           method: 'PUT',
@@ -222,6 +225,9 @@ export default function FreeSessionPage() {
             maxDuration: data.maxDuration,
             maxLaps: data.maxLaps,
             gracePeriod: data.gracePeriod,
+            damageLapThresholdMs: data.damageLapThresholdMs,
+            damageRepairSeconds: data.damageRepairSeconds,
+            damagePitSeconds: data.damagePitSeconds,
           }),
         })
       }
