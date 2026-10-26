@@ -210,3 +210,211 @@ describe('déroulé de course', () => {
     });
   });
 });
+
+
+describe('VSC speed cap and restoration', () => {
+  let service;
+  let device;
+  let writes;
+  let connected;
+
+  const assignedDriver = (controller, maxSpeed) => ({
+    id: 'assignment-' + controller,
+    controller,
+    carId: 'car-' + controller,
+    car: { id: 'car-' + controller, maxSpeed },
+    totalLaps: 0,
+  });
+
+  beforeEach(() => {
+    writes = [];
+    connected = true;
+    device = {
+      setSpeed: jest.fn(async (controller, level) => {
+        writes.push([controller, level]);
+      }),
+    };
+    service = new SessionService({ emit: jest.fn() });
+    service.activeSessionId = 'race-1';
+    service.currentPhase = SessionType.RACE;
+    service.sessionStatus = SessionStatus.ACTIVE;
+    service.sessionConfig = { maxLaps: null, pauses: [] };
+    service.sessionDrivers = [assignedDriver(0, 70), assignedDriver(2, 100)];
+    service.syncService = {
+      getDevice: jest.fn(() => device),
+      getCuStatus: jest.fn(() => ({ start: 0 })),
+      isConnected: jest.fn(() => connected),
+      stopRace: jest.fn().mockResolvedValue(),
+      reset: jest.fn().mockResolvedValue(),
+    };
+  });
+
+  afterEach(async () => {
+    if (service.vsc?.timer) clearTimeout(service.vsc.timer);
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+    await service.prisma.$disconnect();
+  });
+
+  it('caps assigned cars and restores each saved speed', async () => {
+    expect(await service.startVsc(3)).toMatchObject({ status: 'active', active: true, cap: 3 });
+    expect(writes).toEqual([[0, 3], [2, 3]]);
+
+    expect(await service.endVsc()).toMatchObject({ status: 'inactive', active: false });
+    expect(writes).toEqual([[0, 3], [2, 3], [0, 7], [2, 10]]);
+    expect(service.io.emit).toHaveBeenCalledWith('session:vsc', expect.objectContaining({ active: true }));
+  });
+
+  it('keeps other speed writes capped during VSC', async () => {
+    await service.startVsc(4);
+    await service.writeRaceSpeed(0, 9);
+    await service.endVsc();
+
+    expect(writes).toEqual([[0, 4], [2, 4], [0, 4], [0, 7], [2, 10]]);
+  });
+
+  it('restores automatically when the requested duration expires', async () => {
+    jest.useFakeTimers();
+    await service.startVsc(3, 5);
+    expect(service.getVscState().expiresAt).toBeTruthy();
+
+    await jest.advanceTimersByTimeAsync(5000);
+
+    expect(service.getVscState().status).toBe('inactive');
+    expect(writes).toEqual([[0, 3], [2, 3], [0, 7], [2, 10]]);
+  });
+
+  it('does not repeat CU commands on repeated activation', async () => {
+    await service.startVsc(3);
+    const repeated = await service.startVsc(4);
+
+    expect(repeated.cap).toBe(3);
+    expect(writes).toEqual([[0, 3], [2, 3]]);
+    await service.endVsc();
+  });
+
+  it('serializes overlapping VSC activation and stop', async () => {
+    await Promise.all([service.startVsc(3), service.endVsc()]);
+
+    expect(service.getVscState().status).toBe('inactive');
+    expect(writes).toEqual([[0, 3], [2, 3], [0, 7], [2, 10]]);
+  });
+
+  it.each([
+    [0, 0],
+    [11, 0],
+    [3, 2],
+    [3, 3601],
+    [3, 0.5],
+  ])('rejects invalid cap %s and duration %s', async (cap, duration) => {
+    await expect(service.startVsc(cap, duration)).rejects.toThrow();
+    expect(writes).toEqual([]);
+    expect(service.getVscState().status).toBe('inactive');
+  });
+
+  it('refuses to activate without a connected, running race', async () => {
+    connected = false;
+    await expect(service.startVsc(3)).rejects.toThrow('does not support');
+    connected = true;
+    service.syncService.getCuStatus.mockReturnValue({ start: 1 });
+    await expect(service.startVsc(3)).rejects.toThrow('requires a race');
+    expect(writes).toEqual([]);
+  });
+
+  it('rolls back partial speed programming without reporting VSC active', async () => {
+    let calls = 0;
+    device.setSpeed.mockImplementation(async (controller, level) => {
+      calls++;
+      if (calls === 2) throw new Error('BLE timeout');
+      writes.push([controller, level]);
+    });
+
+    await expect(service.startVsc(3)).rejects.toThrow('BLE timeout');
+
+    expect(service.getVscState().status).toBe('inactive');
+    expect(writes).toEqual([[0, 3], [0, 7], [2, 10]]);
+  });
+
+  it('retains an actionable error when partial rollback also fails', async () => {
+    let calls = 0;
+    device.setSpeed.mockImplementation(async (controller, level) => {
+      calls++;
+      if (calls === 2 || calls === 3) throw new Error('BLE timeout');
+      writes.push([controller, level]);
+    });
+
+    await expect(service.startVsc(3)).rejects.toThrow('BLE timeout');
+
+    expect(service.getVscState().status).toBe('restore_failed');
+    expect(service.io.emit).toHaveBeenCalledWith('session:vsc_error', expect.any(Object));
+    await expect(service.startVsc(3)).rejects.toThrow('restoration is pending');
+    await service.endVsc();
+    expect(service.getVscState().status).toBe('inactive');
+  });
+
+  it('retains the unresolved VSC after CU disconnection and permits a retry', async () => {
+    await service.startVsc(3);
+    connected = false;
+    service.onVscDisconnect();
+
+    expect(service.getVscState().status).toBe('disconnected');
+    await expect(service.endVsc()).rejects.toThrow('disconnected');
+    expect(service.getVscState().status).toBe('restore_failed');
+
+    connected = true;
+    await service.endVsc();
+    expect(service.getVscState().status).toBe('inactive');
+  });
+
+  it('does not restore a speed to a different car on the same controller', async () => {
+    await service.startVsc(3);
+    service.sessionDrivers[0].carId = 'different-car';
+
+    await expect(service.endVsc()).rejects.toThrow('vehicle assignment changed');
+
+    expect(writes).toEqual([[0, 3], [2, 3], [2, 10]]);
+    expect(service.getVscState().status).toBe('restore_failed');
+  });
+
+  it('preserves a driver finish throttle when the VSC ends', async () => {
+    await service.startVsc(3);
+    service.sessionDrivers[0]._throttled = true;
+    await service.endVsc();
+
+    expect(writes).toEqual([[0, 3], [2, 3], [0, 1], [2, 10]]);
+  });
+
+  it('stops the CU before restoring speeds on pause', async () => {
+    const order = [];
+    device.setSpeed.mockImplementation(async (controller, level) => {
+      order.push('speed');
+      writes.push([controller, level]);
+    });
+    service.syncService.stopRace.mockImplementation(async () => { order.push('stop'); });
+    const prisma = service.prisma;
+    service.prisma = {
+      session: { update: jest.fn().mockResolvedValue({}) },
+      $disconnect: () => prisma.$disconnect(),
+    };
+
+    await service.startVsc(3);
+    order.length = 0;
+    await service.pauseSession();
+
+    expect(order).toEqual(['stop', 'speed', 'speed']);
+    expect(service.sessionStatus).toBe(SessionStatus.PAUSED);
+    expect(service.getVscState().status).toBe('inactive');
+  });
+
+  it('keeps failed cleanup visible and refuses another race until restoration', async () => {
+    await service.startVsc(3);
+    connected = false;
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    await service.resetForNewSession();
+
+    expect(service.getVscState().status).toBe('restore_failed');
+    connected = true;
+    await expect(service.startSession('new-race')).rejects.toThrow('VSC speed restoration is unresolved');
+    expect(service.syncService.reset).toHaveBeenCalledTimes(1);
+  });
+});
