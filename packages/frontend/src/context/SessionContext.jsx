@@ -102,6 +102,9 @@ export function SessionProvider({ children }) {
     socket.on('session:vsc_error', (data) => {
       window.dispatchEvent(new CustomEvent('session:vsc_error', { detail: data }))
     })
+    socket.on('session:tyre_changed', (data) => {
+      window.dispatchEvent(new CustomEvent('session:tyre_changed', { detail: data }))
+    })
 
     // Session finishing
     socket.on('session:finishing', (data) => {
@@ -548,11 +551,17 @@ export function SessionProvider({ children }) {
         driver: p.driver,
         car: p.car,
         gridPos: p.gridPos ?? null,
+        tyreType: p.tyreType,
+        pendingTyreType: p.pendingTyreType,
+        simulatedTotalTime: p.simulatedTotalTime,
+        simulatedBestLapTime: p.simulatedBestLapTime,
         stats: {
           laps: p.totalLaps || 0,
           bestLap: p.bestLapTime || null,
           lastLap: p.lastLapTime || null,
           totalTime: p.totalTime || 0,
+          simulatedTotalTime: p.simulatedTotalTime,
+          simulatedBestLapTime: p.simulatedBestLapTime,
           gap: p.gap ?? null,
         },
         position: p.position || 0,
