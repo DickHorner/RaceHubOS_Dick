@@ -118,7 +118,7 @@ export function SessionProvider({ children }) {
       setSession((prev) => {
         if (prev?.id !== data.sessionId) return prev
         const drivers = data.leaderboard?.length > 0 ? data.leaderboard : prev.drivers
-        return { ...prev, status: SessionStatus.FINISHED, drivers }
+        return { ...prev, status: SessionStatus.FINISHED, drivers, weatherCondition: data.weatherCondition ?? prev.weatherCondition }
       })
       setFinishingSession(null)
       // Keep final leaderboard
@@ -200,6 +200,12 @@ export function SessionProvider({ children }) {
       setTotalPauseDuration(data.totalPauseDuration ? Math.floor(data.totalPauseDuration / 1000) : 0)
       setPauses(data.pauses || [])
       if (data.startedAt) setStartedAt(data.startedAt)
+      if (data.weatherCondition !== undefined) {
+        setSession((prev) => {
+          if (!prev || prev.id !== data.sessionId || prev.weatherCondition === data.weatherCondition) return prev
+          return { ...prev, weatherCondition: data.weatherCondition }
+        })
+      }
       // Update leaderboard from heartbeat (ensures data sync on refresh)
       if (data.leaderboard && Array.isArray(data.leaderboard)) {
         setLeaderboard(data.leaderboard)
