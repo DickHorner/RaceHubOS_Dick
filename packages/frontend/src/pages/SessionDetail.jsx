@@ -313,28 +313,35 @@ export default function SessionDetail() {
                 <h3 className="text-sm font-semibold">{t('profile.damageHistory')}</h3>
               </div>
               <ul className="divide-y divide-border">
-                {session.drivers.filter((driver) => driver.damageStatus && driver.damageStatus !== 'none').map((driver) => (
-                  <li key={driver.id} className="flex flex-wrap justify-between gap-2 px-4 py-3 text-sm">
-                    <div>
-                      <p className="font-semibold">{driver.driver?.name || `Ctrl ${driver.controller + 1}`}</p>
-                      <p className="text-muted-foreground">
-                        {t('profile.damageLap', { lap: driver.damageLapNumber })} ·
-                        {' '}{t(`profile.damageStatus.${driver.damageStatus}`)}
-                      </p>
-                      {driver.damageRepairedAt && (
-                        <p className="text-xs text-muted-foreground">
-                          {t(driver.damageRepairSource === 'simulator' ? 'profile.damageSimulator' : 'profile.damageDirector')}
-                          {' · '}{new Date(driver.damageRepairedAt).toLocaleTimeString(i18n.language)}
+                {session.drivers
+                  .filter((driver) => driver.damageStatus && driver.damageStatus !== 'none')
+                  .map((driver) => (
+                    <li key={driver.id} className="flex flex-wrap justify-between gap-2 px-4 py-3 text-sm">
+                      <div>
+                        <p className="font-semibold">{driver.driver?.name || `Ctrl ${driver.controller + 1}`}</p>
+                        <p className="text-muted-foreground">
+                          {t('profile.damageLap', { lap: driver.damageLapNumber })} ·{' '}
+                          {t(`profile.damageStatus.${driver.damageStatus}`)}
                         </p>
+                        {driver.damageRepairedAt && (
+                          <p className="text-xs text-muted-foreground">
+                            {t(
+                              driver.damageRepairSource === 'simulator'
+                                ? 'profile.damageSimulator'
+                                : 'profile.damageDirector'
+                            )}
+                            {' · '}
+                            {new Date(driver.damageRepairedAt).toLocaleTimeString(i18n.language)}
+                          </p>
+                        )}
+                      </div>
+                      {driver.damageTriggeredAt && (
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(driver.damageTriggeredAt).toLocaleTimeString(i18n.language)}
+                        </span>
                       )}
-                    </div>
-                    {driver.damageTriggeredAt && (
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(driver.damageTriggeredAt).toLocaleTimeString(i18n.language)}
-                      </span>
-                    )}
-                  </li>
-                ))}
+                    </li>
+                  ))}
               </ul>
             </CardContent>
           </Card>

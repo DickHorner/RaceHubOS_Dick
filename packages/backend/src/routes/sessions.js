@@ -203,8 +203,20 @@ router.post('/', async (req, res) => {
  */
 router.put('/:id', async (req, res) => {
   try {
-    const { name, type, trackId, championshipId, fuelMode, maxDuration, maxLaps, gracePeriod, order,
-      damageLapThresholdMs, damageRepairSeconds, damagePitSeconds } = req.body;
+    const {
+      name,
+      type,
+      trackId,
+      championshipId,
+      fuelMode,
+      maxDuration,
+      maxLaps,
+      gracePeriod,
+      order,
+      damageLapThresholdMs,
+      damageRepairSeconds,
+      damagePitSeconds,
+    } = req.body;
 
     const updateData = {};
     if (name !== undefined) updateData.name = name;
@@ -221,12 +233,13 @@ router.put('/:id', async (req, res) => {
         return res.status(404).json({ success: false, error: 'Session not found' });
       }
       const next = { ...current, ...Object.fromEntries(damageKeys.map((key) => [key, damageUpdate[key]])) };
-      if (!validDamageConfig(next) ||
-          (next.damageLapThresholdMs !== null && (type ?? current.type) !== SessionType.RACE)) {
+      if (
+        !validDamageConfig(next) ||
+        (next.damageLapThresholdMs !== null && (type ?? current.type) !== SessionType.RACE)
+      ) {
         return res.status(400).json({ success: false, error: 'Invalid race damage configuration' });
       }
-      if (current.status !== SessionStatus.DRAFT &&
-          damageKeys.some((key) => current[key] !== next[key])) {
+      if (current.status !== SessionStatus.DRAFT && damageKeys.some((key) => current[key] !== next[key])) {
         return res.status(409).json({ success: false, error: 'Damage settings cannot change after race start' });
       }
       for (const key of damageKeys) updateData[key] = next[key];

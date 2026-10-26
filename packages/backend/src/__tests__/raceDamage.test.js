@@ -99,7 +99,9 @@ describe('persisted race damage and pit repairs', () => {
   test('valid slow race lap triggers once; measured lap and standings stay unmodified', async () => {
     const { session, assignment } = await fixture();
     await lap(12000);
-    expect((await prisma.sessionDriver.findUnique({ where: { id: assignment.id } })).damageStatus).toBe(DamageStatus.NONE);
+    expect((await prisma.sessionDriver.findUnique({ where: { id: assignment.id } })).damageStatus).toBe(
+      DamageStatus.NONE
+    );
     await lap(13000);
     await lap(15000);
     const driver = await prisma.sessionDriver.findUnique({ where: { id: assignment.id } });
@@ -112,8 +114,9 @@ describe('persisted race damage and pit repairs', () => {
     });
     expect(driver.damageTriggeredAt).toBeTruthy();
     expect(driver.damageDeadlineElapsedMs).toBeGreaterThan(60000);
-    expect((await prisma.lap.findMany({ where: { sessionId: session.id } })).map((row) => row.lapTime))
-      .toEqual([12000, 13000, 15000]);
+    expect((await prisma.lap.findMany({ where: { sessionId: session.id } })).map((row) => row.lapTime)).toEqual([
+      12000, 13000, 15000,
+    ]);
     expect(service.io.emit.mock.calls.filter(([event]) => event === 'session:damage_changed')).toHaveLength(1);
   });
 
@@ -132,7 +135,9 @@ describe('persisted race damage and pit repairs', () => {
     await lap(0);
     await lap(Infinity);
     expect(service.getLeaderboard()[0].damageStatus).toBe(DamageStatus.NONE);
-    expect((await prisma.sessionDriver.findUnique({ where: { id: assignment.id } })).damageStatus).toBe(DamageStatus.NONE);
+    expect((await prisma.sessionDriver.findUnique({ where: { id: assignment.id } })).damageStatus).toBe(
+      DamageStatus.NONE
+    );
 
     service.sessionConfig.startedAt = null;
     await lap(13000);
@@ -167,29 +172,36 @@ describe('persisted race damage and pit repairs', () => {
     await lap();
     const pitStop = await pit({ source: 'cu' });
     expect(service.getLeaderboard()[0].damageStatus).toBe(DamageStatus.ACTIVE);
-    await expect(service.confirmDamageRepair(session.id, assignment.id, 'not-a-pit'))
-      .rejects.toMatchObject({ status: 409 });
+    await expect(service.confirmDamageRepair(session.id, assignment.id, 'not-a-pit')).rejects.toMatchObject({
+      status: 409,
+    });
     const repair = await service.confirmDamageRepair(session.id, assignment.id, pitStop.id);
     expect(repair).toMatchObject({ damageStatus: DamageStatus.REPAIRED, damageRepairSource: 'director' });
-    await expect(service.confirmDamageRepair(session.id, assignment.id, pitStop.id))
-      .rejects.toMatchObject({ status: 409 });
-    expect((await prisma.sessionDriver.findUnique({ where: { id: assignment.id } })).damageRepairPitStopId)
-      .toBe(pitStop.id);
+    await expect(service.confirmDamageRepair(session.id, assignment.id, pitStop.id)).rejects.toMatchObject({
+      status: 409,
+    });
+    expect((await prisma.sessionDriver.findUnique({ where: { id: assignment.id } })).damageRepairPitStopId).toBe(
+      pitStop.id
+    );
   });
 
   test('cross-session, wrong-driver, short and simulator pit evidence are rejected', async () => {
     const { session, assignment } = await fixture();
     await lap();
     const shortPit = await pit({ source: 'cu', duration: 1000 });
-    await expect(service.confirmDamageRepair(session.id, assignment.id, shortPit.id))
-      .rejects.toMatchObject({ status: 409 });
+    await expect(service.confirmDamageRepair(session.id, assignment.id, shortPit.id)).rejects.toMatchObject({
+      status: 409,
+    });
     const simPit = await pit({ source: 'simulator', duration: 1000 });
-    await expect(service.confirmDamageRepair(session.id, assignment.id, simPit.id))
-      .rejects.toMatchObject({ status: 409 });
-    await expect(service.confirmDamageRepair('stale-session', assignment.id, shortPit.id))
-      .rejects.toMatchObject({ status: 409 });
-    await expect(service.confirmDamageRepair(session.id, 'wrong-driver', shortPit.id))
-      .rejects.toMatchObject({ status: 409 });
+    await expect(service.confirmDamageRepair(session.id, assignment.id, simPit.id)).rejects.toMatchObject({
+      status: 409,
+    });
+    await expect(service.confirmDamageRepair('stale-session', assignment.id, shortPit.id)).rejects.toMatchObject({
+      status: 409,
+    });
+    await expect(service.confirmDamageRepair(session.id, 'wrong-driver', shortPit.id)).rejects.toMatchObject({
+      status: 409,
+    });
     expect(service.getLeaderboard()[0].damageStatus).toBe(DamageStatus.ACTIVE);
   });
 
@@ -205,9 +217,11 @@ describe('persisted race damage and pit repairs', () => {
     await lap();
     await service.expireDamage();
     expect(await prisma.lap.count({ where: { sessionId: session.id } })).toBe(1);
-    expect(service.io.emit.mock.calls.filter(([event, data]) =>
-      event === 'session:damage_changed' && data.damageStatus === DamageStatus.DNF
-    )).toHaveLength(1);
+    expect(
+      service.io.emit.mock.calls.filter(
+        ([event, data]) => event === 'session:damage_changed' && data.damageStatus === DamageStatus.DNF
+      )
+    ).toHaveLength(1);
   });
 
   test('open pauses freeze the clock; reloading preserves deadline and damage state', async () => {
@@ -286,28 +300,36 @@ describe('persisted race damage and pit repairs', () => {
 
   test('session create and update validate draft-only race damage settings', async () => {
     const track = await prisma.track.create({ data: { name: 'Config test track' } });
-    await expect(service.createSession({
-      type: SessionType.PRACTICE, trackId: track.id, damageLapThresholdMs: 20000,
-    })).rejects.toThrow('Invalid race damage configuration');
-    await expect(service.createSession({
-      type: SessionType.RACE, trackId: track.id, damageLapThresholdMs: 20000,
-      damageRepairSeconds: 5, damagePitSeconds: 6,
-    })).rejects.toThrow('Invalid race damage configuration');
+    await expect(
+      service.createSession({
+        type: SessionType.PRACTICE,
+        trackId: track.id,
+        damageLapThresholdMs: 20000,
+      })
+    ).rejects.toThrow('Invalid race damage configuration');
+    await expect(
+      service.createSession({
+        type: SessionType.RACE,
+        trackId: track.id,
+        damageLapThresholdMs: 20000,
+        damageRepairSeconds: 5,
+        damagePitSeconds: 6,
+      })
+    ).rejects.toThrow('Invalid race damage configuration');
     const created = await service.createSession({ type: SessionType.RACE, trackId: track.id });
     const app = express();
     setSessionService(service);
     app.use(express.json());
     app.use('/api/sessions', sessionsRouter);
-    await request(app).put(`/api/sessions/${created.id}`)
-      .send({ damageLapThresholdMs: 30000, damageRepairSeconds: 20, damagePitSeconds: 5 }).expect(200);
-    await request(app).put(`/api/sessions/${created.id}`)
-      .send({ damagePitSeconds: 21 }).expect(400);
+    await request(app)
+      .put(`/api/sessions/${created.id}`)
+      .send({ damageLapThresholdMs: 30000, damageRepairSeconds: 20, damagePitSeconds: 5 })
+      .expect(200);
+    await request(app).put(`/api/sessions/${created.id}`).send({ damagePitSeconds: 21 }).expect(400);
     const stored = await prisma.session.findUnique({ where: { id: created.id } });
     expect(stored).toMatchObject({ damageLapThresholdMs: 30000, damageRepairSeconds: 20, damagePitSeconds: 5 });
     await prisma.session.update({ where: { id: created.id }, data: { status: SessionStatus.ACTIVE } });
-    await request(app).put(`/api/sessions/${created.id}`)
-      .send({ damageLapThresholdMs: 25000 }).expect(409);
-    await request(app).put(`/api/sessions/${created.id}`)
-      .send({ damageLapThresholdMs: 30000 }).expect(200);
+    await request(app).put(`/api/sessions/${created.id}`).send({ damageLapThresholdMs: 25000 }).expect(409);
+    await request(app).put(`/api/sessions/${created.id}`).send({ damageLapThresholdMs: 30000 }).expect(200);
   });
 });

@@ -224,7 +224,11 @@ export default function SessionLeaderboard({
                   </span>
                 </div>
                 {entry.damageStatus && entry.damageStatus !== 'none' && (
-                  <p className={entry.damageStatus === 'dnf' ? 'text-xs font-semibold text-red-500' : 'text-xs text-amber-500'}>
+                  <p
+                    className={
+                      entry.damageStatus === 'dnf' ? 'text-xs font-semibold text-red-500' : 'text-xs text-amber-500'
+                    }
+                  >
                     {t(`leaderboard.damageStatus.${entry.damageStatus}`)}
                   </p>
                 )}
