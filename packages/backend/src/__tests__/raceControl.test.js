@@ -383,3 +383,74 @@ describe('VSC director authorization and legacy speed boundary', () => {
     }
   );
 });
+
+describe('driver tyre requests and manual pit confirmation', () => {
+  const previousSecret = process.env.RACE_CONTROL_SECRET;
+
+  beforeEach(() => { process.env.RACE_CONTROL_SECRET = secret; });
+  afterEach(() => {
+    if (previousSecret === undefined) delete process.env.RACE_CONTROL_SECRET;
+    else process.env.RACE_CONTROL_SECRET = previousSecret;
+  });
+
+  function setupTyres() {
+    const { app, session } = setup();
+    session.requestTyreChange = jest.fn().mockResolvedValue({ tyreType: 'dry', pendingTyreType: 'wet' });
+    session.confirmTyreChange = jest.fn().mockResolvedValue({
+      sessionId: 'race-1', sessionDriverId: 'sd-1', fromType: 'dry', toType: 'wet', source: 'director',
+    });
+    return { app, session };
+  }
+
+  test('only the signed driver may request tyres for their current assignment', async () => {
+    const { app, session } = setupTyres();
+    const token = await issueToken(app);
+    await request(app).post('/api/race-control/driver/tyres').send({ tyreType: 'wet' }).expect(403);
+    await request(app).post('/api/race-control/driver/tyres')
+      .set('Authorization', 'Bearer forged').send({ tyreType: 'wet' }).expect(403);
+
+    const result = await request(app).post('/api/race-control/driver/tyres')
+      .set('Authorization', `Bearer ${token}`).send({ tyreType: 'wet' }).expect(200);
+    expect(result.body.data.pendingTyreType).toBe('wet');
+    expect(session.requestTyreChange).toHaveBeenCalledWith('race-1', 'sd-1', 'wet');
+
+    session.prisma.sessionDriver.findMany.mockResolvedValueOnce([{ ...assignment, controller: 1 }]);
+    await request(app).post('/api/race-control/driver/tyres')
+      .set('Authorization', `Bearer ${token}`).send({ tyreType: 'dry' }).expect(403);
+
+    session.activeSessionId = 'another-race';
+    await request(app).post('/api/race-control/driver/tyres')
+      .set('Authorization', `Bearer ${token}`).send({ tyreType: 'wet' }).expect(409);
+    expect(session.requestTyreChange).toHaveBeenCalledTimes(1);
+  });
+
+  test('driver token cannot confirm a physical tyre change; only the director can', async () => {
+    const { app, session } = setupTyres();
+    const token = await issueToken(app);
+    const url = '/api/race-control/director/tyres/confirm';
+    const body = { sessionId: 'race-1', sessionDriverId: 'sd-1' };
+
+    await request(app).post(url).send(body).expect(403);
+    await request(app).post(url).set('Authorization', `Bearer ${token}`).send(body).expect(403);
+    await request(app).post(url).set('Authorization', `Bearer ${secret}`).send({ sessionId: 'race-1' }).expect(400);
+
+    const result = await request(app).post(url).set('Authorization', `Bearer ${secret}`)
+      .send(body).expect(200);
+    expect(result.body.data.source).toBe('director');
+    expect(session.confirmTyreChange).toHaveBeenCalledWith('race-1', 'sd-1');
+  });
+
+  test('a rejected or already completed tyre operation is not reported as success', async () => {
+    const { app, session } = setupTyres();
+    session.confirmTyreChange.mockRejectedValueOnce(Object.assign(new Error('No pending tyre change'), { status: 409 }));
+    await request(app).post('/api/race-control/director/tyres/confirm')
+      .set('Authorization', `Bearer ${secret}`)
+      .send({ sessionId: 'race-1', sessionDriverId: 'sd-1' }).expect(409);
+
+    session.requestTyreChange.mockRejectedValueOnce(Object.assign(new Error('Invalid tyre choice'), { status: 400 }));
+    const token = await issueToken(app);
+    const denied = await request(app).post('/api/race-control/driver/tyres')
+      .set('Authorization', `Bearer ${token}`).send({ tyreType: 'rainbow' }).expect(400);
+    expect(denied.body.success).toBe(false);
+  });
+});
