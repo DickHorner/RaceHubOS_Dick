@@ -196,7 +196,7 @@ export default function DriverDisplay() {
                       type="button"
                       variant="destructive"
                       className="w-full min-h-20 text-2xl font-black"
-                      disabled={chaosPending || session.status !== 'active' || !connected || signalMissing}
+                      disabled={chaosPending || session.status !== SessionStatus.ACTIVE || !connected || signalMissing}
                       onClick={requestChaos}
                     >
                       {t('chaosButton')}
