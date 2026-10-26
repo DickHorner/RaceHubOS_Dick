@@ -124,7 +124,9 @@ export default function FreeSessionPage() {
     const index = widgetOrder.indexOf(id)
     if (index < 0 || index + delta < 0 || index + delta >= widgetOrder.length) return
     const next = [...widgetOrder]
-    ;[next[index], next[index + delta]] = [next[index + delta], next[index]]
+    const moving = next[index]
+    next[index] = next[index + delta]
+    next[index + delta] = moving
     saveWidgetOrder(next)
   }
 
@@ -490,7 +492,7 @@ export default function FreeSessionPage() {
           <legend className="text-sm font-semibold">{t('layout.title')}</legend>
           <p className="text-xs text-muted-foreground">{t('layout.pinned')}</p>
           <div className="flex flex-wrap gap-3">
-            {WIDGETS.map((id) => {
+            {[...widgetOrder, ...WIDGETS.filter((id) => !widgetOrder.includes(id))].map((id) => {
               const index = widgetOrder.indexOf(id)
               const disabled = id === 'standings' && isSessionActive
               return (
