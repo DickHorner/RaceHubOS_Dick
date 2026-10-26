@@ -154,6 +154,7 @@ export default function ChampionshipHeader({
           <Settings className="size-4" />
         </button>
         <ExportButton url={`/api/championships/${championship.id}/export`} />
+        <ExportButton url={`/api/championships/${championship.id}/export?format=csv`} format="csv" label="CSV" />
         {onDelete && <DeleteButton variant="outline" onDelete={onDelete} />}
       </div>
     </div>
