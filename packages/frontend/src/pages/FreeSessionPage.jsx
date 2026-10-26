@@ -269,10 +269,10 @@ export default function FreeSessionPage() {
         }
       }
       await loadSession(session.id)
-        return { success: true }
+      return { success: true }
     } catch (err) {
       console.error('Error saving session config:', err)
-        return { success: false, error: err.message }
+      return { success: false, error: err.message }
     }
   }
 
