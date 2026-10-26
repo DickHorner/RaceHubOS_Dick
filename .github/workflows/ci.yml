@@ -34,7 +34,7 @@ jobs:
       - run: node --test packages/frontend/tests/lapAnalysis.unit.js
       - run: npm run build
       - run: npm run prisma:generate -w @racehubos/backend
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install chromium
         working-directory: packages/frontend
       - run: npm test -- tests/sessionLapChart.spec.js
         working-directory: packages/frontend
