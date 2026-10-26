@@ -6,12 +6,7 @@ import { SessionService } from '../services/SessionService.js';
 import { SyncService } from '../services/SyncService.js';
 import { CarreraSimulator } from '../services/simulator.js';
 import sessionsRouter, { setSessionService } from '../routes/sessions.js';
-import {
-  VIRTUAL_FUEL_FULL,
-  validVirtualFuelRate,
-  virtualFuelBurn,
-  replayVirtualFuel,
-} from '@racehubos/shared';
+import { VIRTUAL_FUEL_FULL, validVirtualFuelRate, virtualFuelBurn, replayVirtualFuel } from '@racehubos/shared';
 
 describe('virtual fuel arithmetic', () => {
   test('a 10-second lap at 6% per minute burns 1% of the virtual tank', () => {
@@ -94,11 +89,15 @@ describe('virtual fuel event persistence', () => {
     await lap(10000);
     expect(service.getLeaderboard()[0].virtualFuelUnits).toBe(9900);
     const events = await prisma.virtualFuelEvent.findMany({
-      where: { sessionId: data.session.id }, orderBy: { id: 'asc' },
+      where: { sessionId: data.session.id },
+      orderBy: { id: 'asc' },
     });
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({
-      kind: 'lap', units: 100, source: 'lap', controller: 0,
+      kind: 'lap',
+      units: 100,
+      source: 'lap',
+      controller: 0,
       sessionDriverId: data.assigned.id,
     });
     expect(events[0].reference).toMatch(/^lap:/);
@@ -116,21 +115,27 @@ describe('virtual fuel event persistence', () => {
 
     const enteredAt = new Date('2026-10-26T08:00:00.000Z');
     await service.recordPitStop({
-      controller: 0, enteredAt, exitedAt: new Date('2026-10-26T08:00:02.000Z'), source: 'cu',
+      controller: 0,
+      enteredAt,
+      exitedAt: new Date('2026-10-26T08:00:02.000Z'),
+      source: 'cu',
     });
     expect(service.getLeaderboard()[0].virtualFuelUnits).toBe(9800);
     expect(await prisma.virtualFuelEvent.count()).toBe(1);
 
     await service.recordPitStop({
-      controller: 0, enteredAt: new Date('2026-10-26T08:00:03.000Z'),
-      exitedAt: new Date('2026-10-26T08:00:05.000Z'), source: 'simulator',
+      controller: 0,
+      enteredAt: new Date('2026-10-26T08:00:03.000Z'),
+      exitedAt: new Date('2026-10-26T08:00:05.000Z'),
+      source: 'simulator',
     });
     expect(service.getLeaderboard()[0].virtualFuelUnits).toBe(VIRTUAL_FUEL_FULL);
     await lap(10000);
     expect(service.getLeaderboard()[0].virtualFuelUnits).toBe(9900);
 
     const events = await prisma.virtualFuelEvent.findMany({
-      where: { sessionId: data.session.id }, orderBy: { id: 'asc' },
+      where: { sessionId: data.session.id },
+      orderBy: { id: 'asc' },
     });
     expect(events.map((row) => row.kind)).toEqual(['lap', 'refuel', 'lap']);
     expect(events.map((row) => row.source)).toEqual(['lap', 'simulator', 'lap']);
@@ -175,7 +180,8 @@ describe('virtual fuel event persistence', () => {
     await lap(10000);
     expect(await prisma.virtualFuelEvent.count()).toBe(1);
     expect(service.getLeaderboard()[0]).toMatchObject({
-      totalLaps: 1, virtualFuelUnits: 9900,
+      totalLaps: 1,
+      virtualFuelUnits: 9900,
     });
     service.sessionStatus = 'finished';
     await lap(10000);
@@ -242,19 +248,24 @@ describe('virtual fuel event persistence', () => {
     app.use('/api/sessions', sessionsRouter);
 
     await request(app).put(`/api/sessions/${data.session.id}`).send({ virtualFuelRate: 150 }).expect(400);
-    const updated = await request(app).put(`/api/sessions/${data.session.id}`)
-      .send({ virtualFuelRate: 8 }).expect(200);
+    const updated = await request(app).put(`/api/sessions/${data.session.id}`).send({ virtualFuelRate: 8 }).expect(200);
     expect(updated.body.data.virtualFuelRate).toBe(8);
     await prisma.session.update({ where: { id: data.session.id }, data: { status: 'active' } });
     await request(app).put(`/api/sessions/${data.session.id}`).send({ virtualFuelRate: 7 }).expect(409);
     const unchanged = await prisma.session.findUnique({ where: { id: data.session.id } });
     expect(unchanged.virtualFuelRate).toBe(8);
 
-    await expect(service.createSession({
-      trackId: data.track.id, type: 'race', virtualFuelRate: -1,
-    })).rejects.toThrow('Virtual fuel rate');
+    await expect(
+      service.createSession({
+        trackId: data.track.id,
+        type: 'race',
+        virtualFuelRate: -1,
+      })
+    ).rejects.toThrow('Virtual fuel rate');
     const created = await service.createSession({
-      trackId: data.track.id, type: 'race', virtualFuelRate: 3,
+      trackId: data.track.id,
+      type: 'race',
+      virtualFuelRate: 3,
     });
     expect(created.virtualFuelRate).toBe(3);
   });
