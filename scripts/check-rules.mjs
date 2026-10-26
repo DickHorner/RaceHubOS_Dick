@@ -372,7 +372,9 @@ rule('code-is-formatted', 'Le code est formaté (Prettier)', () => {
   const base = ci ? git(['merge-base', 'HEAD', 'origin/main']) : null;
   if (ci && !base) return ['impossible de trouver origin/main pour vérifier les fichiers modifiés'];
   const changed = ci
-    ? (git(['diff', '--name-only', base]) ?? '').split('\n').filter((f) => f && exists(f))
+    ? (git(['diff', '--name-only', base]) ?? '')
+        .split('\n')
+        .filter((f) => f && exists(f))
     : ['.'];
   if (ci && !changed.length) return [];
   try {
