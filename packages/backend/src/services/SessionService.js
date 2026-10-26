@@ -1017,8 +1017,8 @@ export class SessionService extends EventEmitter {
 
   getVscState() {
     if (!this.vsc) return { status: 'inactive', active: false };
-    const { sessionId, cap, expiresAt, status, error } = this.vsc;
-    return { sessionId, cap, expiresAt, status, active: status === 'active', error };
+    const { sessionId, cap, expiresAt, status: vscStatus, error } = this.vsc;
+    return { sessionId, cap, expiresAt, status: vscStatus, active: vscStatus === 'active', error };
   }
 
   // A single queue serializes manual activation, timer expiry and cleanup.
