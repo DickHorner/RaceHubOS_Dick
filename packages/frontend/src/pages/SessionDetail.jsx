@@ -255,6 +255,14 @@ export default function SessionDetail() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {session.status === SessionStatus.FINISHED &&
+            [SessionType.RACE, SessionType.QUALIF].includes(session.type) && (
+              <Button variant="outline" size="sm" asChild>
+                <Link to={`/results/${session.id}`}>
+                  <Printer className="size-4" /> {t('printResults.open')}
+                </Link>
+              </Button>
+            )}
           <ExportButton url={`/api/sessions/${session.id}/export`} />
           <ExportButton
             url={`/api/sessions/${session.id}/export?format=csv&table=results`}
