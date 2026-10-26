@@ -473,6 +473,7 @@ export default function ChampionshipDetail() {
           sessions={sessions}
           tracks={tracks}
           drivers={drivers}
+          cars={cars}
           open={showChampionshipConfig}
           onClose={() => setShowChampionshipConfig(false)}
           onSave={(updated) => setChampionship(updated)}
