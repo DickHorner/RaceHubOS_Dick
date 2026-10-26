@@ -542,6 +542,7 @@ export function SessionProvider({ children }) {
         driver: p.driver,
         car: p.car,
         gridPos: p.gridPos ?? null,
+        virtualFuelUnits: p.virtualFuelUnits ?? null,
         stats: {
           laps: p.totalLaps || 0,
           bestLap: p.bestLapTime || null,
