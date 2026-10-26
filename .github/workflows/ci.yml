@@ -22,6 +22,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: ./node_modules/.bin/prettier scripts/check-rules.mjs | diff -u scripts/check-rules.mjs - || true
       - run: npm run check -- --ci
       - run: npm run build
       - run: npm run prisma:generate -w @racehubos/backend
