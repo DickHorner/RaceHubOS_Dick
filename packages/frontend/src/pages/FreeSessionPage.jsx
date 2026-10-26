@@ -1,6 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, PanelRightClose, PanelRightOpen, FlaskConical, Clock, Flag, SlidersHorizontal, ArrowUp, ArrowDown } from 'lucide-react'
+import {
+  Plus,
+  PanelRightClose,
+  PanelRightOpen,
+  FlaskConical,
+  Clock,
+  Flag,
+  SlidersHorizontal,
+  ArrowUp,
+  ArrowDown,
+} from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useDevice } from '../context/DeviceContext'
 import { useSession } from '../context/SessionContext'
@@ -61,9 +71,7 @@ export default function FreeSessionPage() {
   const [practiceSortBy, setPracticeSortBy] = useState('laps')
   const [drivers, setDrivers] = useState([])
   const [cars, setCars] = useState([])
-  const [widgetOrder, setWidgetOrder] = useState(() =>
-    legacyShowStandings ? [...WIDGETS] : ['leaderboard']
-  )
+  const [widgetOrder, setWidgetOrder] = useState(() => (legacyShowStandings ? [...WIDGETS] : ['leaderboard']))
   const [layoutLoaded, setLayoutLoaded] = useState(false)
   const [layoutBusy, setLayoutBusy] = useState(false)
   const [layoutOpen, setLayoutOpen] = useState(false)
@@ -115,9 +123,7 @@ export default function FreeSessionPage() {
   }
 
   function toggleWidget(id) {
-    saveWidgetOrder(
-      widgetOrder.includes(id) ? widgetOrder.filter((widget) => widget !== id) : [...widgetOrder, id]
-    )
+    saveWidgetOrder(widgetOrder.includes(id) ? widgetOrder.filter((widget) => widget !== id) : [...widgetOrder, id])
   }
 
   function moveWidget(id, delta) {
@@ -375,8 +381,9 @@ export default function FreeSessionPage() {
   const visibleWidgets = isSessionActive ? widgetOrder.filter((id) => id !== 'standings') : widgetOrder
   const showSecondWidget = visibleWidgets.length > 1
   const widgetViews = {
-    leaderboard: session && (
-      maxLapsCompleted === 0 && session.status !== SessionStatus.FINISHED ? (
+    leaderboard:
+      session &&
+      (maxLapsCompleted === 0 && session.status !== SessionStatus.FINISHED ? (
         <StartingGrid entries={entries} />
       ) : (
         <SessionLeaderboard
@@ -393,17 +400,11 @@ export default function FreeSessionPage() {
           sessionType={session.type}
           sessionStatus={session.status}
         />
-      )
-    ),
+      )),
     standings: (
       <>
         <h2 className="text-sm font-semibold mb-3">{t('standings.title')}</h2>
-        <StandingsTabs
-          standings={standings}
-          drivers={drivers}
-          activeTab={selectedType}
-          onTabChange={setSelectedType}
-        />
+        <StandingsTabs standings={standings} drivers={drivers} activeTab={selectedType} onTabChange={setSelectedType} />
       </>
     ),
   }
@@ -488,7 +489,11 @@ export default function FreeSessionPage() {
       </div>
 
       {layoutOpen && (
-        <fieldset id="free-widget-layout" className="border-b px-4 py-3 space-y-2" disabled={!layoutLoaded || layoutBusy}>
+        <fieldset
+          id="free-widget-layout"
+          className="border-b px-4 py-3 space-y-2"
+          disabled={!layoutLoaded || layoutBusy}
+        >
           <legend className="text-sm font-semibold">{t('layout.title')}</legend>
           <p className="text-xs text-muted-foreground">{t('layout.pinned')}</p>
           <div className="flex flex-wrap gap-3">
@@ -536,7 +541,9 @@ export default function FreeSessionPage() {
         </fieldset>
       )}
       {layoutError && (
-        <p role="alert" className="px-4 py-2 text-sm text-destructive">{t(`layout.${layoutError}`)}</p>
+        <p role="alert" className="px-4 py-2 text-sm text-destructive">
+          {t(`layout.${layoutError}`)}
+        </p>
       )}
 
       {/* Main content */}
@@ -565,17 +572,13 @@ export default function FreeSessionPage() {
                   onReset={handleResetSession}
                 />
                 {visibleWidgets[0] && (
-                  <section data-testid={`free-widget-${visibleWidgets[0]}`}>
-                    {widgetViews[visibleWidgets[0]]}
-                  </section>
+                  <section data-testid={`free-widget-${visibleWidgets[0]}`}>{widgetViews[visibleWidgets[0]]}</section>
                 )}
               </>
             )}
           </div>
           {visibleWidgets[1] && (
-            <section data-testid={`free-widget-${visibleWidgets[1]}`}>
-              {widgetViews[visibleWidgets[1]]}
-            </section>
+            <section data-testid={`free-widget-${visibleWidgets[1]}`}>{widgetViews[visibleWidgets[1]]}</section>
           )}
         </div>
       </div>
