@@ -1,5 +1,5 @@
 @echo off
-:: INSTALLER_VERSION 2
+:: INSTALLER_VERSION 3
 :: A incrementer a CHAQUE modification de ce fichier : c'est ce numero, et non le
 :: contenu, qui declenche la mise a jour automatique ci-dessous. Comparer les
 :: contenus ne marcherait pas -- Git for Windows convertit les fins de ligne au
@@ -252,10 +252,22 @@ if not exist "!TARGET_DIR!\packages\backend\.env" (
 
 cd /d "!TARGET_DIR!\packages\backend"
 call npx prisma generate
+if errorlevel 1 (
+    echo  ERREUR: generation Prisma echouee - installation interrompue.
+    exit /b 1
+)
 :: Dated backup in prisma\db-old\ before touching the schema
 call node scripts\backup-db.js install
+if errorlevel 1 (
+    echo  ERREUR: sauvegarde de la base echouee - migration annulee.
+    exit /b 1
+)
 :: Applique les migrations, en baselinant une base anterieure aux migrations
 call node scripts\migrate.js
+if errorlevel 1 (
+    echo  ERREUR: migration de la base echouee - installation interrompue.
+    exit /b 1
+)
 echo  OK
 echo.
 
