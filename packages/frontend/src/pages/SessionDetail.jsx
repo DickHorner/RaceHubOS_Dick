@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Flag, MapPin, Trash2, Trophy, Users2, Clock, Timer, Pause, Scale } from 'lucide-react'
+import { ArrowLeft, Flag, MapPin, Trash2, Trophy, Users2, Clock, Timer, Pause, Scale, Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import DeleteButton from '../components/ui/DeleteButton'
 import ExportButton from '../components/ui/ExportButton'
