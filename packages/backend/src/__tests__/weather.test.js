@@ -48,8 +48,9 @@ describe('deterministic race weather', () => {
     const openPause = { start: start + 4000, end: null };
     const frozen = { ...config, startedAt: new Date(start), pauses: [openPause] };
     expect(weatherForSession(frozen, start + 20000)).toBe(WeatherCondition.DRY);
-    expect(weatherForSession({ ...frozen, weatherAdvanceDuringPause: true }, start + 20000))
-      .toBe(WeatherCondition.RAIN);
+    expect(weatherForSession({ ...frozen, weatherAdvanceDuringPause: true }, start + 20000)).toBe(
+      WeatherCondition.RAIN
+    );
 
     const finished = {
       ...frozen,
@@ -57,8 +58,9 @@ describe('deterministic race weather', () => {
       finishedAt: new Date(start + 28000),
     };
     expect(weatherForSession(finished, start + 999999)).toBe(WeatherCondition.DRY);
-    expect(weatherForSession({ ...finished, weatherAdvanceDuringPause: true }, start + 999999))
-      .toBe(WeatherCondition.RAIN);
+    expect(weatherForSession({ ...finished, weatherAdvanceDuringPause: true }, start + 999999)).toBe(
+      WeatherCondition.RAIN
+    );
   });
 
   test('weather validation rejects non-integral or out-of-range configuration', () => {
@@ -127,16 +129,15 @@ describe('persisted session weather and heartbeat', () => {
     setSessionService(service);
     app.use('/api/sessions', sessionsRouter);
 
-    await request(app).put(`/api/sessions/${created.id}`)
-      .send({ weatherSeed: 9, weatherRainChance: 70, weatherAdvanceDuringPause: true }).expect(200);
-    await request(app).put(`/api/sessions/${created.id}`)
-      .send({ weatherRainChance: 101 }).expect(400);
-    await request(app).put(`/api/sessions/${created.id}`)
-      .send({ weatherAdvanceDuringPause: 'yes' }).expect(400);
+    await request(app)
+      .put(`/api/sessions/${created.id}`)
+      .send({ weatherSeed: 9, weatherRainChance: 70, weatherAdvanceDuringPause: true })
+      .expect(200);
+    await request(app).put(`/api/sessions/${created.id}`).send({ weatherRainChance: 101 }).expect(400);
+    await request(app).put(`/api/sessions/${created.id}`).send({ weatherAdvanceDuringPause: 'yes' }).expect(400);
 
     await prisma.session.update({ where: { id: created.id }, data: { status: 'active' } });
-    await request(app).put(`/api/sessions/${created.id}`)
-      .send({ weatherRainChance: 50 }).expect(409);
+    await request(app).put(`/api/sessions/${created.id}`).send({ weatherRainChance: 50 }).expect(409);
     const unchanged = await prisma.session.findUnique({ where: { id: created.id } });
     expect(unchanged).toMatchObject({ weatherSeed: 9, weatherRainChance: 70, weatherAdvanceDuringPause: true });
   });
@@ -146,8 +147,9 @@ describe('persisted session weather and heartbeat', () => {
     const oldRace = await service.createSession({ type: 'race', trackId: track.id });
     await service.loadSession(oldRace.id);
     expect(service.getState().weatherCondition).toBeNull();
-    await expect(service.createSession({ type: 'practice', trackId: track.id, ...config }))
-      .rejects.toThrow('only supported');
+    await expect(service.createSession({ type: 'practice', trackId: track.id, ...config })).rejects.toThrow(
+      'only supported'
+    );
   });
 
   test('heartbeat freezes rain when paused unless the configured weather clock continues', async () => {
