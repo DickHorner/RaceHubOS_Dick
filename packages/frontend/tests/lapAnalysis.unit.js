@@ -58,22 +58,33 @@ test('shuffled crossings produce only observed highest-lap leader changes', () =
       [0, 3, 'change'],
     ]
   )
-  assert.deepEqual(result.chartData.map((row) => row.lap), [1, 2, 3])
+  assert.deepEqual(
+    result.chartData.map((row) => row.lap),
+    [1, 2, 3]
+  )
   assert.equal(result.chartData[1].c1, 8)
-  assert.deepEqual(result.series.map((entry) => entry.bestLapNumber), [3, 2])
+  assert.deepEqual(
+    result.series.map((entry) => entry.bestLapNumber),
+    [3, 2]
+  )
 })
 
 test('equal timestamps, skipped laps and duplicate laps suppress inferred lead changes', () => {
   const baseLaps = [lap(0, 1, 10), lap(1, 1, 11), lap(0, 2, 20), lap(1, 2, 21)]
 
-  const tied = analyzeSessionLaps(race([baseLaps[0], { ...baseLaps[1], timestamp: baseLaps[0].timestamp }, ...baseLaps.slice(2)]))
+  const tied = analyzeSessionLaps(
+    race([baseLaps[0], { ...baseLaps[1], timestamp: baseLaps[0].timestamp }, ...baseLaps.slice(2)])
+  )
   assert.equal(tied.incomplete, true)
   assert.deepEqual(tied.leaders, [])
 
   const skipped = analyzeSessionLaps(race([lap(0, 1, 10), lap(1, 1, 11), lap(1, 3, 22)]))
   assert.equal(skipped.incomplete, true)
   assert.deepEqual(skipped.leaders, [])
-  assert.deepEqual(skipped.chartData.map((row) => row.lap), [1, 3])
+  assert.deepEqual(
+    skipped.chartData.map((row) => row.lap),
+    [1, 3]
+  )
 
   const duplicated = analyzeSessionLaps(race([...baseLaps, lap(0, 2, 22, 9999)]))
   assert.equal(duplicated.incomplete, true)
@@ -114,6 +125,12 @@ test('large lap histories use bounded chart samples but retain all personal best
   assert.equal(plotted.at(-1), 5000)
   assert.ok(plotted.includes(4999))
   assert.ok(plotted.includes(4877))
-  assert.deepEqual(result.series.map((entry) => entry.bestLapNumber), [4999, 4877])
-  assert.deepEqual(result.leaders.map((event) => event.type), ['first'])
+  assert.deepEqual(
+    result.series.map((entry) => entry.bestLapNumber),
+    [4999, 4877]
+  )
+  assert.deepEqual(
+    result.leaders.map((event) => event.type),
+    ['first']
+  )
 })
