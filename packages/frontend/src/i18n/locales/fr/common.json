@@ -77,6 +77,9 @@
   },
   "edit": "Modifier",
   "exportExcel": "Exporter en Excel",
+  "exportCsv": "Exporter en CSV",
+  "csvResults": "Résultats (CSV)",
+  "csvLaps": "Tours (CSV)",
   "exportSelection": "Exporter ({{count}})",
   "items_one": "élément",
   "items_other": "éléments"
