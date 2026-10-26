@@ -383,3 +383,53 @@ describe('VSC director authorization and legacy speed boundary', () => {
     }
   );
 });
+
+describe('director-only damage repair confirmation', () => {
+  const previousSecret = process.env.RACE_CONTROL_SECRET;
+
+  beforeEach(() => { process.env.RACE_CONTROL_SECRET = secret; });
+  afterEach(() => {
+    if (previousSecret === undefined) delete process.env.RACE_CONTROL_SECRET;
+    else process.env.RACE_CONTROL_SECRET = previousSecret;
+  });
+
+  function setupDamage() {
+    const { app, session } = setup();
+    session.confirmDamageRepair = jest.fn().mockResolvedValue({
+      damageStatus: 'repaired',
+      damageRepairSource: 'director',
+      damageRepairPitStopId: 'pit-1',
+    });
+    return { app, session };
+  }
+
+  test('only the director may confirm a recorded pit repair', async () => {
+    const { app, session } = setupDamage();
+    const token = await issueToken(app);
+    const path = '/api/race-control/director/damage/repair';
+    const data = { sessionId: 'race-1', sessionDriverId: 'sd-1', pitStopId: 'pit-1' };
+
+    await request(app).post(path).send(data).expect(403);
+    await request(app).post(path).set('Authorization', `Bearer ${token}`).send(data).expect(403);
+    await request(app).post(path).set('Authorization', 'Bearer forged').send(data).expect(403);
+    await request(app).post(path).set('Authorization', `Bearer ${secret}`)
+      .send({ sessionId: 'race-1', sessionDriverId: 'sd-1' }).expect(400);
+    expect(session.confirmDamageRepair).not.toHaveBeenCalled();
+
+    const result = await request(app).post(path).set('Authorization', `Bearer ${secret}`)
+      .send(data).expect(200);
+    expect(result.body.data.damageStatus).toBe('repaired');
+    expect(session.confirmDamageRepair).toHaveBeenCalledWith('race-1', 'sd-1', 'pit-1');
+  });
+
+  test('stale, invalid or repeated repair confirmation returns an error', async () => {
+    const { app, session } = setupDamage();
+    session.confirmDamageRepair.mockRejectedValueOnce(
+      Object.assign(new Error('No eligible observed pit interval'), { status: 409 })
+    );
+    const response = await request(app).post('/api/race-control/director/damage/repair')
+      .set('Authorization', `Bearer ${secret}`)
+      .send({ sessionId: 'race-1', sessionDriverId: 'sd-1', pitStopId: 'wrong-pit' }).expect(409);
+    expect(response.body.success).toBe(false);
+  });
+});
