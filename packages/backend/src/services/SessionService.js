@@ -1,6 +1,6 @@
 import { createPrismaClient } from '../lib/prisma.js';
 import EventEmitter from 'events';
-import { SESSION_TYPES, SessionStatus, SessionType, isSessionType, toLevel } from '@racehubos/shared';
+import { SESSION_TYPES, SessionStatus, SessionType, DamageStatus, isSessionType, toLevel, validDamageConfig } from '@racehubos/shared';
 import { sessionName } from '../lib/sessionNames.js';
 
 const DEFAULT_GRACE_PERIOD_MS = 30000;
@@ -32,6 +32,7 @@ export class SessionService extends EventEmitter {
 
     // Driver states
     this.sessionDrivers = [];
+    this.damageOperation = Promise.resolve();
     this.firstCrossingProgrammed = new Set();
     this.speedWrites = Promise.resolve();
     this.vscOperation = Promise.resolve();
@@ -72,6 +73,7 @@ export class SessionService extends EventEmitter {
     if (sector !== 1) return;
 
     const driver = this.getDriverByController(controller);
+    if (driver?.damageStatus === DamageStatus.ACTIVE) await this.expireDamage();
     if (!driver || this.hasDriverFinished(driver)) return;
 
     // The first finish-line crossing often has lapTime=0; reapply before discarding it.
@@ -104,7 +106,7 @@ export class SessionService extends EventEmitter {
     }
 
     // Only record laps with a valid measured time.
-    if (lapTime <= 0) return;
+    if (!Number.isFinite(lapTime) || lapTime <= 0) return;
 
     // Track crossings - first crossing is start, doesn't count as lap
     // const isFirstCrossing = driver.crossings === 0; // DISABLED: count first lap
@@ -168,6 +170,7 @@ export class SessionService extends EventEmitter {
     // 3. Save to DB
     await this.saveLap(driver, lapTime);
     await this.updateSessionDriver(driver);
+    await this.triggerDamage(driver, lapTime);
 
     // 4. Emit leaderboard
     this.emitLeaderboard();
@@ -185,6 +188,7 @@ export class SessionService extends EventEmitter {
    * - Time-based race: one final lap has been completed after the checkered flag.
    */
   hasDriverFinished(driver) {
+    if (driver.damageStatus === DamageStatus.DNF) return true;
     const maxLaps = this.sessionConfig?.maxLaps;
 
     if (maxLaps) {
@@ -266,6 +270,9 @@ export class SessionService extends EventEmitter {
       gracePeriod: session.gracePeriod || DEFAULT_GRACE_PERIOD_MS,
       startedAt: session.startedAt,
       championshipId: session.championshipId,
+      damageLapThresholdMs: session.damageLapThresholdMs,
+      damageRepairSeconds: session.damageRepairSeconds,
+      damagePitSeconds: session.damagePitSeconds,
       pauses: session.pauses ? JSON.parse(session.pauses) : [],
     };
     this.sessionStatus = session.status;
@@ -284,6 +291,14 @@ export class SessionService extends EventEmitter {
       totalTime: sd.totalTime || 0,
       bestLapTime: sd.bestLapTime || null,
       lastLapTime: sd.lastLapTime || null,
+      isDNF: sd.isDNF,
+      damageStatus: sd.damageStatus,
+      damageLapNumber: sd.damageLapNumber,
+      damageTriggeredAt: sd.damageTriggeredAt,
+      damageDeadlineElapsedMs: sd.damageDeadlineElapsedMs,
+      damageRepairedAt: sd.damageRepairedAt,
+      damageRepairPitStopId: sd.damageRepairPitStopId,
+      damageRepairSource: sd.damageRepairSource,
       lapsAtFinishing: sd.lapsAtFinishing ?? null, // For checkered flag logic
       gap: null,
       crossings: sd.totalLaps || 0, // Track line crossings (first doesn't count as lap)
@@ -310,6 +325,9 @@ export class SessionService extends EventEmitter {
     this.raceFinishTime = null;
     this.recalculatePositions();
     this.emitLeaderboard();
+    if (session.startedAt && [SessionStatus.ACTIVE, SessionStatus.PAUSED, SessionStatus.FINISHING].includes(session.status)) {
+      this.startHeartbeat();
+    }
 
     // If session is in finishing state, recreate grace period timer
     if (session.status === SessionStatus.FINISHING && session.finishingAt) {
@@ -448,6 +466,7 @@ export class SessionService extends EventEmitter {
    */
   async resetForNewSession() {
     this.stopHeartbeat();
+    await this.damageOperation;
     if (this.vsc) {
       try {
         await this.syncService?.stopRace();
@@ -909,7 +928,8 @@ export class SessionService extends EventEmitter {
     const previousStatus = this.sessionStatus;
     const championshipId = this.sessionConfig?.championshipId;
 
-    // Calculate DNF
+    // An unrepaired car at race end is DNF even if its deadline has not elapsed.
+    await this.expireDamage(true);
     await this.calculateDNF();
 
     // Save final positions
@@ -1230,10 +1250,17 @@ export class SessionService extends EventEmitter {
       order,
       gridFromQualifying,
       status: initialStatus,
+      damageLapThresholdMs = null,
+      damageRepairSeconds = 60,
+      damagePitSeconds = 5,
     } = params;
 
     if (!isSessionType(type)) {
       throw new Error(`Invalid session type. Must be one of: ${SESSION_TYPES.join(', ')}`);
+    }
+    if (!validDamageConfig({ damageLapThresholdMs, damageRepairSeconds, damagePitSeconds }) ||
+        (damageLapThresholdMs !== null && type !== SessionType.RACE)) {
+      throw new Error('Invalid race damage configuration');
     }
 
     // Resolve trackId from championship if needed
@@ -1260,6 +1287,9 @@ export class SessionService extends EventEmitter {
         championshipId: championshipId || null,
         maxDuration: maxDuration || null,
         maxLaps: maxLaps || null,
+        damageLapThresholdMs,
+        damageRepairSeconds,
+        damagePitSeconds,
         order: order ?? 0,
       },
     });
@@ -1354,6 +1384,13 @@ export class SessionService extends EventEmitter {
         bestLapTime: null,
         lastLapTime: null,
         isDNF: false,
+        damageStatus: DamageStatus.NONE,
+        damageLapNumber: null,
+        damageTriggeredAt: null,
+        damageDeadlineElapsedMs: null,
+        damageRepairedAt: null,
+        damageRepairPitStopId: null,
+        damageRepairSource: null,
         lapsAtFinishing: null,
       },
     });
