@@ -5,6 +5,20 @@
     "showStandings": "Show standings",
     "hideStandings": "Hide standings"
   },
+  "layout": {
+    "configure": "Layout",
+    "title": "Live widgets",
+    "pinned": "Race controls, clock and soundboard always remain visible.",
+    "widgets": {
+      "leaderboard": "Live leaderboard",
+      "standings": "Overall standings"
+    },
+    "moveUp": "Move {{widget}} up",
+    "moveDown": "Move {{widget}} down",
+    "autoHidden": "Overall standings are automatically hidden during a live session.",
+    "loadError": "Could not load the saved layout. The previous view stays active.",
+    "saveError": "Layout not saved. Please try again."
+  },
   "standings": {
     "title": "Overall Standings"
   }
