@@ -223,6 +223,11 @@ export default function SessionLeaderboard({
                     {car.brand} {car.model || car.name || ''}
                   </span>
                 </div>
+                {Number.isInteger(entry.virtualFuelUnits) && (
+                  <div className="text-xs font-semibold text-sky-600 dark:text-sky-400">
+                    {t('leaderboard.virtualFuel', { percent: Math.round(entry.virtualFuelUnits / 100) })}
+                  </div>
+                )}
               </div>
 
               {/* Stats */}
