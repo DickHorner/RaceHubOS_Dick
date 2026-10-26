@@ -122,6 +122,8 @@ describe('persisted race damage and pit repairs', () => {
 
   test('disabled, paused, finishing, no-GO, non-race and invalid laps cannot trigger damage', async () => {
     const { assignment } = await fixture({ threshold: null });
+    // Check damage eligibility without actually completing the single-driver finishing phase.
+    service.checkSessionComplete = jest.fn();
     await lap(300000);
     expect(service.getLeaderboard()[0].damageStatus).toBe(DamageStatus.NONE);
 
@@ -256,7 +258,7 @@ describe('persisted race damage and pit repairs', () => {
 
     service.sessionConfig.pauses[0].end = later;
     service.sessionStatus = SessionStatus.ACTIVE;
-    jest.spyOn(Date, 'now').mockReturnValue(later + 28000);
+    jest.spyOn(Date, 'now').mockReturnValue(later + saved.damageDeadlineElapsedMs - 7000 + 1);
     await service.expireDamage();
     expect(service.getLeaderboard()[0].damageStatus).toBe(DamageStatus.DNF);
   });
