@@ -129,6 +129,7 @@ model Session {
   trackId        String
   championshipId String?
   fuelMode       String          @default("OFF") // OFF | ON — @racehubos/shared
+  virtualFuelRate Int?            // Virtual fuel burn: % per racing minute; null disables
   status         String          @default("draft") // draft | ready | active | paused | finishing | finished — @racehubos/shared
   maxDuration    Int?            // Session max duration in ms
   maxLaps        Int?
@@ -155,6 +156,7 @@ model Session {
   drivers        SessionDriver[]
   trackRecords   TrackRecord[]
   pitStops       PitStop[]
+  virtualFuelEvents VirtualFuelEvent[]
 }
 
 model SessionDriver {
@@ -177,6 +179,7 @@ model SessionDriver {
   driver          Driver?  @relation(fields: [driverId], references: [id])
   session         Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   pitStops        PitStop[]
+  virtualFuelEvents VirtualFuelEvent[]
 
   @@unique([sessionId, controller])
 }
@@ -195,6 +198,23 @@ model PitStop {
 
   @@index([sessionId, enteredAt])
   @@index([sessionDriverId])
+}
+
+model VirtualFuelEvent {
+  id              Int           @id @default(autoincrement())
+  sessionId       String
+  sessionDriverId String
+  controller      Int
+  kind            String        // lap | refuel
+  units           Int           // basis points burned per lap; 0 for refuel
+  source          String        // lap | simulator
+  reference       String        // lap:<id> | pit:<id>, unique per session
+  createdAt       DateTime      @default(now())
+  session         Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionDriver   SessionDriver @relation(fields: [sessionDriverId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, reference])
+  @@index([sessionId, id])
 }
 
 model Lap {
