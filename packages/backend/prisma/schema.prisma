@@ -129,6 +129,10 @@ model Session {
   trackId        String
   championshipId String?
   fuelMode       String          @default("OFF") // OFF | ON — @racehubos/shared
+  weatherSeed    Int?            // Null = weather disabled; fixed seed reproduces each race
+  weatherInitial String          @default("dry") // dry | rain — @racehubos/shared
+  weatherRainChance Int          @default(35)  // Probability per interval, 0-100 %
+  weatherIntervalSeconds Int     @default(60)  // Each interval samples the seeded forecast
   status         String          @default("draft") // draft | ready | active | paused | finishing | finished — @racehubos/shared
   maxDuration    Int?            // Session max duration in ms
   maxLaps        Int?
