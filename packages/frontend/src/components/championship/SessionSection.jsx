@@ -53,6 +53,7 @@ export default function SessionSection({
   const { t } = useTranslation('championships')
   const { cuStatus, socketConnected, connected: deviceConnected } = useDevice()
   const {
+    session: liveSession,
     elapsed: elapsedTime,
     maxLapsCompleted,
     gracePeriodRemaining,
@@ -420,7 +421,7 @@ export default function SessionSection({
           </span>
           {session.type === SessionType.RACE && session.weatherSeed != null && (
             <span role="status" className="rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-semibold text-blue-600 dark:text-blue-400">
-              {t(`sessionSection.weather.${session.weatherCondition || session.weatherInitial}`)}
+              {t(`sessionSection.weather.${(liveSession?.id === session.id ? liveSession.weatherCondition : session.weatherCondition) || session.weatherInitial}`)}
             </span>
           )}
         </div>
