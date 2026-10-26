@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { X, Plus, Trash2 } from 'lucide-react'
-import { FuelMode, STANDARD_SESSION_TYPES, SessionType, sessionTypeFullKey } from '@racehubos/shared'
+import { FuelMode, STANDARD_SESSION_TYPES, SessionType, sessionTypeFullKey, validDamageConfig } from '@racehubos/shared'
 
 const API_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -15,6 +15,9 @@ export default function SessionForm({ session, onClose, onSaved }) {
     duration: null,
     maxLaps: null,
     fuelMode: FuelMode.OFF,
+    damageLapThresholdMs: null,
+    damageRepairSeconds: 60,
+    damagePitSeconds: 5,
     drivers: [],
   })
 
@@ -40,6 +43,9 @@ export default function SessionForm({ session, onClose, onSaved }) {
         duration: session.duration || null,
         maxLaps: session.maxLaps || null,
         fuelMode: session.fuelMode || 'OFF',
+        damageLapThresholdMs: session.damageLapThresholdMs ?? null,
+        damageRepairSeconds: session.damageRepairSeconds ?? 60,
+        damagePitSeconds: session.damagePitSeconds ?? 5,
         drivers:
           session.drivers?.map((sd) => ({
             driverId: sd.driverId,
@@ -98,6 +104,12 @@ export default function SessionForm({ session, onClose, onSaved }) {
       // Validation
       if (!formData.trackId) {
         setError(t('form.trackRequired'))
+        return
+      }
+
+      if (!validDamageConfig(formData) ||
+          (formData.damageLapThresholdMs !== null && formData.type !== SessionType.RACE)) {
+        setError(t('form.damageInvalid'))
         return
       }
 
@@ -226,7 +238,7 @@ export default function SessionForm({ session, onClose, onSaved }) {
                 </label>
                 <select
                   value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value, damageLapThresholdMs: e.target.value === SessionType.RACE ? formData.damageLapThresholdMs : null })}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-indigo-500"
                 >
                   {STANDARD_SESSION_TYPES.map((type) => (
@@ -323,6 +335,43 @@ export default function SessionForm({ session, onClose, onSaved }) {
               </div>
             </div>
           </div>
+
+            {formData.type === SessionType.RACE && (
+              <fieldset className="space-y-3 rounded-lg border border-gray-300 dark:border-gray-700 p-3">
+                <legend className="font-medium text-sm text-gray-700 dark:text-gray-300">{t('form.damageTitle')}</legend>
+                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <input type="checkbox" checked={formData.damageLapThresholdMs !== null}
+                    onChange={(e) => setFormData({ ...formData, damageLapThresholdMs: e.target.checked ? 30000 : null })} />
+                  {t('form.damageEnabled')}
+                </label>
+                {formData.damageLapThresholdMs !== null && (
+                  <div className="grid grid-cols-3 gap-3">
+                    <label className="text-xs text-gray-700 dark:text-gray-300">
+                      {t('form.damageThreshold')}
+                      <input type="number" min="1" max="600" step="1"
+                        value={formData.damageLapThresholdMs / 1000}
+                        onChange={(e) => setFormData({ ...formData, damageLapThresholdMs: Number(e.target.value) * 1000 })}
+                        className="w-full mt-1 px-2 py-2 border rounded-md dark:bg-gray-700" />
+                    </label>
+                    <label className="text-xs text-gray-700 dark:text-gray-300">
+                      {t('form.damageDeadline')}
+                      <input type="number" min="5" max="3600" step="1"
+                        value={formData.damageRepairSeconds}
+                        onChange={(e) => setFormData({ ...formData, damageRepairSeconds: Number(e.target.value) })}
+                        className="w-full mt-1 px-2 py-2 border rounded-md dark:bg-gray-700" />
+                    </label>
+                    <label className="text-xs text-gray-700 dark:text-gray-300">
+                      {t('form.damagePitMinimum')}
+                      <input type="number" min="1" max="300" step="1"
+                        value={formData.damagePitSeconds}
+                        onChange={(e) => setFormData({ ...formData, damagePitSeconds: Number(e.target.value) })}
+                        className="w-full mt-1 px-2 py-2 border rounded-md dark:bg-gray-700" />
+                    </label>
+                  </div>
+                )}
+                <p className="text-xs text-gray-500 dark:text-gray-400">{t('form.damageHint')}</p>
+              </fieldset>
+            )}
 
           {/* Drivers */}
           <div className="space-y-4">
