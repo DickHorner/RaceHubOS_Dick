@@ -15,13 +15,7 @@ import { SessionStatus, SessionType } from '@racehubos/shared'
  * @param {string} sortBy - 'laps' | 'bestLap' | 'race'
  * @param {string} sessionType - 'practice' | 'qualif' | 'race'
  */
-export default function SessionLeaderboard({
-  entries = [],
-  sortBy = 'laps',
-  sessionType = SessionType.RACE,
-  sessionStatus,
-  expanded = false,
-}) {
+export default function SessionLeaderboard({ entries = [], sortBy = 'laps', sessionStatus, expanded = false }) {
   const { isDark } = useApp()
   const { t } = useTranslation('race')
   const gradientEnd = 'var(--card)'
@@ -32,18 +26,19 @@ export default function SessionLeaderboard({
     const statsB = b.stats || {}
 
     switch (sortBy) {
-      case 'bestLap':
+      case 'bestLap': {
         // Best lap ascending (fastest first), null/0 last
         const bestA = statsA.bestLap || Infinity
         const bestB = statsB.bestLap || Infinity
         return bestA - bestB
+      }
 
       case 'race':
         // Laps descending, then total time ascending
         if ((statsB.laps || 0) !== (statsA.laps || 0)) {
           return (statsB.laps || 0) - (statsA.laps || 0)
         }
-        return (statsA.totalTime || Infinity) - (statsB.totalTime || Infinity)
+        return (statsA.rankTime || statsA.totalTime || Infinity) - (statsB.rankTime || statsB.totalTime || Infinity)
 
       case 'laps':
       default:

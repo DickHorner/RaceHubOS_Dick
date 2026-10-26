@@ -86,12 +86,14 @@ export default function DriverDisplay() {
   const live = assignment && entries.find((row) => row.id === assignment.id && row.controller === assignment.controller)
   const driver = assignment?.driver || live?.driver
   const car = assignment?.car || live?.car
-  const stats = live?.stats || (assignment && {
-    laps: assignment.totalLaps || 0,
-    bestLap: assignment.bestLapTime,
-    lastLap: assignment.lastLapTime,
-    totalTime: assignment.totalTime || 0,
-  })
+  const stats =
+    live?.stats ||
+    (assignment && {
+      laps: assignment.totalLaps || 0,
+      bestLap: assignment.bestLapTime,
+      lastLap: assignment.lastLapTime,
+      totalTime: assignment.totalTime || 0,
+    })
   const position = live?.position || (session?.status === SessionStatus.FINISHED ? assignment?.finalPos : null)
   const leader = entries.find((row) => row.position === 1)
 
@@ -99,17 +101,19 @@ export default function DriverDisplay() {
   if (live && leader && position > 1) {
     if (session.type === SessionType.RACE) {
       const lapDiff = (leader.stats?.laps || 0) - (live.stats?.laps || 0)
-      gap = lapDiff > 0
-        ? { type: 'laps', value: lapDiff }
-        : { type: 'time', value: (live.stats?.totalTime || 0) - (leader.stats?.totalTime || 0) }
+      gap =
+        lapDiff > 0
+          ? { type: 'laps', value: lapDiff }
+          : { type: 'time', value: (live.stats?.totalTime || 0) - (leader.stats?.totalTime || 0) }
     } else if (leader.stats?.bestLap && live.stats?.bestLap) {
       gap = { type: 'time', value: live.stats.bestLap - leader.stats.bestLap }
     }
   }
 
-  const fuel = racing && assignment && connected && !signalMissing && (cuStatus?.mode & 0x1) !== 0
-    ? cuStatus?.fuel?.[assignment.controller]
-    : null
+  const fuel =
+    racing && assignment && connected && !signalMissing && (cuStatus?.mode & 0x1) !== 0
+      ? cuStatus?.fuel?.[assignment.controller]
+      : null
   const fuelLevel = Number.isInteger(fuel) && fuel >= 0 && fuel <= 15 ? fuel : null
   const virtualFuelUnits = live?.virtualFuelUnits ?? assignment?.virtualFuelUnits ?? null
 
@@ -160,12 +164,19 @@ export default function DriverDisplay() {
       <div className="mx-auto max-w-xl space-y-5">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
           <h1 className="text-xl font-black">RaceHubOS · {t('title')}</h1>
-          <span role="status" className={`text-xs font-semibold ${signalMissing ? 'text-amber-500' : 'text-green-500'}`}>
+          <span
+            role="status"
+            className={`text-xs font-semibold ${signalMissing ? 'text-amber-500' : 'text-green-500'}`}
+          >
             {signalMissing ? t('noSignal') : t('connected')}
           </span>
         </header>
 
-        {loadError && <p role="alert" className="rounded-lg border border-amber-500/40 p-3 text-amber-500">{t('loadError')}</p>}
+        {loadError && (
+          <p role="alert" className="rounded-lg border border-amber-500/40 p-3 text-amber-500">
+            {t('loadError')}
+          </p>
+        )}
         {!session ? (
           <p className="rounded-xl border border-border bg-card p-8 text-center text-muted-foreground">
             {loading ? t('loading') : t('noSession')}
@@ -173,7 +184,9 @@ export default function DriverDisplay() {
         ) : (
           <>
             <section className="rounded-xl border border-border bg-card p-4 space-y-2">
-              <p className="text-sm text-muted-foreground">{t(sessionTypeFullKey(session.type), { defaultValue: session.type })}</p>
+              <p className="text-sm text-muted-foreground">
+                {t(sessionTypeFullKey(session.type), { defaultValue: session.type })}
+              </p>
               <h2 className="text-xl font-bold break-words">{session.name || t('untitled')}</h2>
               <span className="inline-block rounded-md bg-muted px-3 py-1 text-sm font-semibold">
                 {t(`glossary:sessionStatus.${session.status}`, { defaultValue: session.status })}
@@ -181,15 +194,20 @@ export default function DriverDisplay() {
             </section>
 
             {assigned.length > 1 ? (
-              <p role="alert" className="rounded-xl border border-amber-500/40 p-5 text-amber-500">{t('ambiguous')}</p>
+              <p role="alert" className="rounded-xl border border-amber-500/40 p-5 text-amber-500">
+                {t('ambiguous')}
+              </p>
             ) : !assignment ? (
-              <p className="rounded-xl border border-border bg-card p-6 text-center text-muted-foreground">{t('notAssigned')}</p>
+              <p className="rounded-xl border border-border bg-card p-6 text-center text-muted-foreground">
+                {t('notAssigned')}
+              </p>
             ) : (
               <>
                 <section className="rounded-xl border border-border bg-card p-5 space-y-3">
                   {driver && <DriverBadge driver={driver} size="xl" />}
                   <p className="text-sm text-muted-foreground">
-                    {car ? `${car.brand} ${car.model}` : t('noCar')} · {t('controller', { number: assignment.controller + 1 })}
+                    {car ? `${car.brand} ${car.model}` : t('noCar')} ·{' '}
+                    {t('controller', { number: assignment.controller + 1 })}
                   </p>
                 </section>
                 <section aria-label={t('statistics')} className="grid grid-cols-2 gap-3">
@@ -199,7 +217,10 @@ export default function DriverDisplay() {
                   </div>
                   <div className="rounded-xl bg-card border border-border p-5">
                     <p className="text-sm text-muted-foreground">{t('laps')}</p>
-                    <p className="text-5xl font-black tabular-nums">{stats?.laps ?? '–'}{session.maxLaps ? ` / ${session.maxLaps}` : ''}</p>
+                    <p className="text-5xl font-black tabular-nums">
+                      {stats?.laps ?? '–'}
+                      {session.maxLaps ? ` / ${session.maxLaps}` : ''}
+                    </p>
                   </div>
                   <div className="rounded-xl bg-card border border-border p-5">
                     <p className="text-sm text-muted-foreground">{t('bestLap')}</p>
@@ -215,12 +236,16 @@ export default function DriverDisplay() {
                   </div>
                   <div className="rounded-xl bg-card border border-border p-5">
                     <p className="text-sm text-muted-foreground">{t('hardwareFuel')}</p>
-                    <p className="text-2xl font-bold tabular-nums">{fuelLevel === null ? t('unavailable') : `${fuelLevel} / 15`}</p>
+                    <p className="text-2xl font-bold tabular-nums">
+                      {fuelLevel === null ? t('unavailable') : `${fuelLevel} / 15`}
+                    </p>
                     {session.virtualFuelRate != null && (
                       <div className="mt-3 border-t border-border pt-3">
                         <p className="text-sm text-muted-foreground">{t('virtualFuel')}</p>
                         <p className="text-2xl font-bold tabular-nums">
-                          {Number.isInteger(virtualFuelUnits) ? `${Math.round(virtualFuelUnits / 100)} %` : t('unavailable')}
+                          {Number.isInteger(virtualFuelUnits)
+                            ? `${Math.round(virtualFuelUnits / 100)} %`
+                            : t('unavailable')}
                         </p>
                         <p className="text-xs text-muted-foreground">{t('virtualFuelNote')}</p>
                       </div>
@@ -230,10 +255,16 @@ export default function DriverDisplay() {
                 {session.type === SessionType.RACE && session.weatherSeed != null && (
                   <section className="rounded-xl border border-border bg-card p-5 space-y-3">
                     <h2 className="font-semibold">{t('tyreTitle')}</h2>
-                    <p className="text-sm">{t('tyreCurrent')}: {t((live?.tyreType || assignment.tyreType) === TyreType.WET ? 'tyreWet' : 'tyreDry')}</p>
+                    <p className="text-sm">
+                      {t('tyreCurrent')}:{' '}
+                      {t((live?.tyreType || assignment.tyreType) === TyreType.WET ? 'tyreWet' : 'tyreDry')}
+                    </p>
                     {(live?.pendingTyreType || assignment.pendingTyreType) && (
                       <p role="status" className="text-sm text-amber-600">
-                        {t('tyrePending')}: {t((live?.pendingTyreType || assignment.pendingTyreType) === TyreType.WET ? 'tyreWet' : 'tyreDry')}
+                        {t('tyrePending')}:{' '}
+                        {t(
+                          (live?.pendingTyreType || assignment.pendingTyreType) === TyreType.WET ? 'tyreWet' : 'tyreDry'
+                        )}
                       </p>
                     )}
                     {Number.isInteger(live?.simulatedBestLapTime ?? assignment.simulatedBestLapTime) && (
@@ -245,15 +276,35 @@ export default function DriverDisplay() {
                     <p className="text-xs text-muted-foreground">{t('tyreHint')}</p>
                     {accessToken && [SessionStatus.ACTIVE, SessionStatus.PAUSED].includes(session.status) && (
                       <div className="grid grid-cols-2 gap-2">
-                        <Button type="button" variant="outline" disabled={tyrePending}
-                          onClick={() => requestTyres(TyreType.DRY)}>{t('tyreDry')}</Button>
-                        <Button type="button" variant="outline" disabled={tyrePending}
-                          onClick={() => requestTyres(TyreType.WET)}>{t('tyreWet')}</Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={tyrePending}
+                          onClick={() => requestTyres(TyreType.DRY)}
+                        >
+                          {t('tyreDry')}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={tyrePending}
+                          onClick={() => requestTyres(TyreType.WET)}
+                        >
+                          {t('tyreWet')}
+                        </Button>
                       </div>
                     )}
                     {!accessToken && <p className="text-xs text-amber-500">{t('tyreTokenRequired')}</p>}
-                    {tyreMessage && <p role="status" className="text-sm text-green-500">{tyreMessage}</p>}
-                    {tyreError && <p role="alert" className="text-sm text-red-500">{tyreError}</p>}
+                    {tyreMessage && (
+                      <p role="status" className="text-sm text-green-500">
+                        {tyreMessage}
+                      </p>
+                    )}
+                    {tyreError && (
+                      <p role="alert" className="text-sm text-red-500">
+                        {tyreError}
+                      </p>
+                    )}
                   </section>
                 )}
                 {accessToken && ['active', 'paused'].includes(session.status) && (
@@ -268,8 +319,16 @@ export default function DriverDisplay() {
                       {t('chaosButton')}
                     </Button>
                     <p className="text-sm text-muted-foreground">{t('chaosDescription')}</p>
-                    {chaosMessage && <p role="status" className="text-sm text-green-500">{chaosMessage}</p>}
-                    {chaosError && <p role="alert" className="text-sm text-red-500">{chaosError}</p>}
+                    {chaosMessage && (
+                      <p role="status" className="text-sm text-green-500">
+                        {chaosMessage}
+                      </p>
+                    )}
+                    {chaosError && (
+                      <p role="alert" className="text-sm text-red-500">
+                        {chaosError}
+                      </p>
+                    )}
                   </section>
                 )}
               </>

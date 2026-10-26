@@ -10,9 +10,15 @@ describe('CU vehicle configuration', () => {
   beforeEach(() => {
     writes = [];
     device = {
-      setSpeed: jest.fn(async (address, value) => { writes.push(['speed', address, value]); }),
-      setBrake: jest.fn(async (address, value) => { writes.push(['brake', address, value]); }),
-      setFuel: jest.fn(async (address, value) => { writes.push(['fuel', address, value]); }),
+      setSpeed: jest.fn(async (address, value) => {
+        writes.push(['speed', address, value]);
+      }),
+      setBrake: jest.fn(async (address, value) => {
+        writes.push(['brake', address, value]);
+      }),
+      setFuel: jest.fn(async (address, value) => {
+        writes.push(['fuel', address, value]);
+      }),
     };
     service = new SessionService({ emit: jest.fn() });
     const prisma = service.prisma;
@@ -34,21 +40,23 @@ describe('CU vehicle configuration', () => {
   });
 
   const driver = (controller, carId, maxSpeed, brakeForce, fuelCapacity) => ({
-    controller, carId,
+    controller,
+    carId,
     car: { id: carId, maxSpeed, brakeForce, fuelCapacity },
   });
 
   test('sends independent speed/brake/fuel for assigned cars only', async () => {
-    service.sessionDrivers = [
-      driver(0, 'a', 30, 90, 70),
-      driver(1, 'b', 100, 20, 40),
-    ];
+    service.sessionDrivers = [driver(0, 'a', 30, 90, 70), driver(1, 'b', 100, 20, 40)];
 
     await service.applyCarConfigs();
 
     expect(writes).toEqual([
-      ['speed', 0, 3], ['brake', 0, 9], ['fuel', 0, 7],
-      ['speed', 1, 10], ['brake', 1, 2], ['fuel', 1, 4],
+      ['speed', 0, 3],
+      ['brake', 0, 9],
+      ['fuel', 0, 7],
+      ['speed', 1, 10],
+      ['brake', 1, 2],
+      ['fuel', 1, 4],
     ]);
   });
 
@@ -58,7 +66,9 @@ describe('CU vehicle configuration', () => {
     await service.applyCarConfigs();
 
     expect(writes).toEqual([
-      ['speed', 2, 6], ['brake', 2, 4], ['fuel', 2, 5],
+      ['speed', 2, 6],
+      ['brake', 2, 4],
+      ['fuel', 2, 5],
     ]);
   });
 
@@ -72,8 +82,12 @@ describe('CU vehicle configuration', () => {
     b.controller = 0;
     await service.applyCarConfigs();
     expect(writes.slice(0, 6)).toEqual([
-      ['speed', 0, 10], ['brake', 0, 2], ['fuel', 0, 4],
-      ['speed', 1, 3], ['brake', 1, 9], ['fuel', 1, 7],
+      ['speed', 0, 10],
+      ['brake', 0, 2],
+      ['fuel', 0, 4],
+      ['speed', 1, 3],
+      ['brake', 1, 9],
+      ['fuel', 1, 7],
     ]);
   });
 
@@ -94,15 +108,23 @@ describe('CU vehicle configuration', () => {
 
   test('programs before start lights and marks session active only after both succeed', async () => {
     const steps = [];
-    service.syncService.reset.mockImplementation(async () => { steps.push('reset'); });
+    service.syncService.reset.mockImplementation(async () => {
+      steps.push('reset');
+    });
     service.loadSession = jest.fn(async () => {
       steps.push('load');
       service.sessionDrivers = [driver(0, 'a', 30, 90, 70)];
       service.sessionStatus = SessionStatus.DRAFT;
     });
-    service.applyCarConfigs = jest.fn(async () => { steps.push('program'); });
-    service.syncService.prepareRace.mockImplementation(async () => { steps.push('lights'); });
-    service.prisma.session.update = jest.fn(async () => { steps.push('active'); });
+    service.applyCarConfigs = jest.fn(async () => {
+      steps.push('program');
+    });
+    service.syncService.prepareRace.mockImplementation(async () => {
+      steps.push('lights');
+    });
+    service.prisma.session.update = jest.fn(async () => {
+      steps.push('active');
+    });
     service.startHeartbeat = jest.fn();
     service.emitStatusChanged = jest.fn();
 
@@ -142,10 +164,7 @@ describe('CU vehicle configuration', () => {
     beforeEach(() => {
       service.activeSessionId = 'session-1';
       service.sessionStatus = SessionStatus.ACTIVE;
-      service.sessionDrivers = [
-        driver(0, 'a', 30, 90, 70),
-        driver(2, 'b', 100, 20, 40),
-      ];
+      service.sessionDrivers = [driver(0, 'a', 30, 90, 70), driver(2, 'b', 100, 20, 40)];
     });
 
     test('reapplies speed and brake on the first crossing even when lapTime is zero', async () => {
@@ -156,7 +175,10 @@ describe('CU vehicle configuration', () => {
       await service.handleLap({ controller: 0, timestamp: 1000, lapTime: 0, sector: 1 });
       await service.handleLap({ controller: 0, timestamp: 2000, lapTime: 0, sector: 1 });
 
-      expect(writes).toEqual([['speed', 0, 3], ['brake', 0, 9]]);
+      expect(writes).toEqual([
+        ['speed', 0, 3],
+        ['brake', 0, 9],
+      ]);
       expect(device.setFuel).not.toHaveBeenCalled();
       expect(service.firstCrossingProgrammed.has(0)).toBe(true);
     });
@@ -164,7 +186,10 @@ describe('CU vehicle configuration', () => {
     test('does not interrupt ordinary lap counting after reapplying on a measured lap', async () => {
       const activeDriver = service.sessionDrivers[0];
       Object.assign(activeDriver, {
-        totalLaps: 0, crossings: 0, totalTime: 0, bestLapTime: null,
+        totalLaps: 0,
+        crossings: 0,
+        totalTime: 0,
+        bestLapTime: null,
       });
       service.sessionDrivers[1].totalLaps = 0;
       service.recalculatePositions = jest.fn();
@@ -177,7 +202,10 @@ describe('CU vehicle configuration', () => {
 
       await service.handleLap({ controller: 0, timestamp: 12000, lapTime: 12000, sector: 1 });
 
-      expect(writes).toEqual([['speed', 0, 3], ['brake', 0, 9]]);
+      expect(writes).toEqual([
+        ['speed', 0, 3],
+        ['brake', 0, 9],
+      ]);
       expect(activeDriver.totalLaps).toBe(1);
       expect(service.saveLap).toHaveBeenCalledWith(activeDriver, 12000, null, null);
     });
@@ -189,14 +217,21 @@ describe('CU vehicle configuration', () => {
       await service.handleLap({ controller: 2, timestamp: 2500, lapTime: 0, sector: 1 });
 
       expect(writes).toEqual([
-        ['speed', 2, 10], ['brake', 2, 2],
-        ['speed', 0, 3], ['brake', 0, 9],
+        ['speed', 2, 10],
+        ['brake', 2, 2],
+        ['speed', 0, 3],
+        ['brake', 0, 9],
       ]);
     });
 
     test('duplicate notifications while writes are pending do not duplicate commands', async () => {
       let finishSpeed;
-      device.setSpeed.mockImplementationOnce(() => new Promise((resolve) => { finishSpeed = resolve; }));
+      device.setSpeed.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishSpeed = resolve;
+          })
+      );
       const first = service.handleLap({ controller: 0, timestamp: 1000, lapTime: 0, sector: 1 });
       const duplicate = service.handleLap({ controller: 0, timestamp: 1000, lapTime: 0, sector: 1 });
 

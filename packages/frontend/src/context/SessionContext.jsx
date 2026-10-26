@@ -125,7 +125,12 @@ export function SessionProvider({ children }) {
       setSession((prev) => {
         if (prev?.id !== data.sessionId) return prev
         const drivers = data.leaderboard?.length > 0 ? data.leaderboard : prev.drivers
-        return { ...prev, status: SessionStatus.FINISHED, drivers, weatherCondition: data.weatherCondition ?? prev.weatherCondition }
+        return {
+          ...prev,
+          status: SessionStatus.FINISHED,
+          drivers,
+          weatherCondition: data.weatherCondition ?? prev.weatherCondition,
+        }
       })
       setFinishingSession(null)
       // Keep final leaderboard
@@ -539,13 +544,17 @@ export function SessionProvider({ children }) {
   // Falls back to session drivers if leaderboard is empty
   const entries = useMemo(() => {
     // A finished scoreboard must keep its own saved results, not a newer session's live leaderboard.
-    const source = session?.status === SessionStatus.FINISHED && session.drivers?.length > 0
-      ? session.drivers
-      : leaderboard.length > 0 ? leaderboard : session?.drivers || []
+    const source =
+      session?.status === SessionStatus.FINISHED && session.drivers?.length > 0
+        ? session.drivers
+        : leaderboard.length > 0
+          ? leaderboard
+          : session?.drivers || []
     if (source.length === 0) return []
-    const rankedSource = session?.status === SessionStatus.FINISHED && session?.type === SessionType.RACE
-      ? rankRaceDrivers(source, session.penalties || [])
-      : source
+    const rankedSource =
+      session?.status === SessionStatus.FINISHED && session?.type === SessionType.RACE
+        ? rankRaceDrivers(source, session.penalties || [])
+        : source
 
     // Find fastest lap
     const allBestLaps = source.map((p) => p.bestLapTime).filter((t) => t && t > 0)
@@ -568,6 +577,7 @@ export function SessionProvider({ children }) {
           bestLap: p.bestLapTime || null,
           lastLap: p.lastLapTime || null,
           totalTime: p.classifiedTime ?? p.totalTime ?? 0,
+          rankTime: p.classifiedSimulatedTime,
           simulatedTotalTime: p.simulatedTotalTime,
           simulatedBestLapTime: p.simulatedBestLapTime,
           gap: p.gap ?? null,

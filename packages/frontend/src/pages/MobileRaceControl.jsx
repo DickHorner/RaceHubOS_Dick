@@ -38,7 +38,12 @@ export default function MobileRaceControl() {
     if (updating.current) return
     updating.current = true
     try {
-      const params = new URLSearchParams({ status: 'active,paused,finishing,draft,finished', limit: '50', sortBy: 'updatedAt', sortOrder: 'desc' })
+      const params = new URLSearchParams({
+        status: 'active,paused,finishing,draft,finished',
+        limit: '50',
+        sortBy: 'updatedAt',
+        sortOrder: 'desc',
+      })
       const response = await fetch(`${API_URL}/api/sessions?${params}`)
       if (!response.ok) throw new Error(t('loadError'))
       const result = await response.json()
@@ -85,7 +90,9 @@ export default function MobileRaceControl() {
   useEffect(() => {
     refresh()
     const interval = setInterval(refresh, 10000)
-    const onVisible = () => { if (!document.hidden) refresh() }
+    const onVisible = () => {
+      if (!document.hidden) refresh()
+    }
     window.addEventListener('session:status_changed', refresh)
     window.addEventListener('session:finished', refresh)
     window.addEventListener('session:vsc', refresh)
@@ -227,18 +234,22 @@ export default function MobileRaceControl() {
     setError('')
     setBusy(true)
     try {
-      const endpoint = action === 'issue'
-        ? '/api/race-control/director/penalties'
-        : `/api/race-control/director/penalties/${encodeURIComponent(penaltyId)}/revoke`
-      const details = action === 'issue'
-        ? {
-            sessionDriverId: selectedPenaltyDriverId,
-            kind: penaltyKind,
-            amount: penaltyKind === PenaltyKind.TIME ? penaltyValue * 1000 : penaltyValue,
-            reason: penaltyReason.trim(),
-            requestId: Array.from(window.crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, '0')).join(''),
-          }
-        : {}
+      const endpoint =
+        action === 'issue'
+          ? '/api/race-control/director/penalties'
+          : `/api/race-control/director/penalties/${encodeURIComponent(penaltyId)}/revoke`
+      const details =
+        action === 'issue'
+          ? {
+              sessionDriverId: selectedPenaltyDriverId,
+              kind: penaltyKind,
+              amount: penaltyKind === PenaltyKind.TIME ? penaltyValue * 1000 : penaltyValue,
+              reason: penaltyReason.trim(),
+              requestId: Array.from(window.crypto.getRandomValues(new Uint8Array(16)), (byte) =>
+                byte.toString(16).padStart(2, '0')
+              ).join(''),
+            }
+          : {}
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${directorKey}` },
@@ -287,7 +298,9 @@ export default function MobileRaceControl() {
   const selectedPenaltyDriverId = assigned.some((row) => row.id === penaltyDriverId)
     ? penaltyDriverId
     : assigned[0]?.id || ''
-  const validPenaltyAmount = Number.isInteger(penaltyValue) && penaltyValue >= 1 &&
+  const validPenaltyAmount =
+    Number.isInteger(penaltyValue) &&
+    penaltyValue >= 1 &&
     penaltyValue <= (penaltyKind === PenaltyKind.TIME ? 3600 : 100)
 
   return (
@@ -298,26 +311,38 @@ export default function MobileRaceControl() {
           <p className="text-xs text-muted-foreground mt-2">{t('trustedLan')}</p>
         </header>
 
-        {error && <p role="alert" className="rounded-lg border border-red-500/40 text-red-500 p-3">{error}</p>}
+        {error && (
+          <p role="alert" className="rounded-lg border border-red-500/40 text-red-500 p-3">
+            {error}
+          </p>
+        )}
         {configured === false && (
           <section className="rounded-lg border border-amber-500/40 bg-card p-4 space-y-3">
-            <p role="status" className="text-sm">{t('notConfigured')}</p>
+            <p role="status" className="text-sm">
+              {t('notConfigured')}
+            </p>
             {setupAvailable ? (
               <>
                 <p className="text-sm text-muted-foreground">{t('setupHere')}</p>
-                <Button type="button" disabled={busy} onClick={setupRaceControl}>{t('setupButton')}</Button>
+                <Button type="button" disabled={busy} onClick={setupRaceControl}>
+                  {t('setupButton')}
+                </Button>
               </>
             ) : (
               <>
                 <p className="text-sm text-muted-foreground">{t('setupOnRacePc')}</p>
-                <Button type="button" variant="outline" onClick={() => window.location.reload()}>{t('retryStatus')}</Button>
+                <Button type="button" variant="outline" onClick={() => window.location.reload()}>
+                  {t('retryStatus')}
+                </Button>
               </>
             )}
           </section>
         )}
         {generatedSecret && (
           <section className="rounded-lg border border-border bg-card p-4 space-y-3">
-            <label className="block text-sm font-medium" htmlFor="generated-director-key">{t('setupSecretLabel')}</label>
+            <label className="block text-sm font-medium" htmlFor="generated-director-key">
+              {t('setupSecretLabel')}
+            </label>
             <input
               id="generated-director-key"
               readOnly
@@ -326,13 +351,21 @@ export default function MobileRaceControl() {
               className="w-full rounded-md border border-border bg-background px-3 py-2 font-mono text-sm"
             />
             <p className="text-sm text-muted-foreground">{t('setupSecretHint')}</p>
-            <Button type="button" variant="outline" onClick={copyGeneratedSecret}>{t('copySecret')}</Button>
-            {secretCopied && <p role="status" className="text-sm text-green-600">{t('setupSecretCopied')}</p>}
+            <Button type="button" variant="outline" onClick={copyGeneratedSecret}>
+              {t('copySecret')}
+            </Button>
+            {secretCopied && (
+              <p role="status" className="text-sm text-green-600">
+                {t('setupSecretCopied')}
+              </p>
+            )}
           </section>
         )}
         {configured && !directorKey && (
           <form onSubmit={authorize} className="rounded-xl border border-border bg-card p-5 space-y-3">
-            <label className="block text-sm font-medium" htmlFor="director-credential">{t('credential')}</label>
+            <label className="block text-sm font-medium" htmlFor="director-credential">
+              {t('credential')}
+            </label>
             <input
               id="director-credential"
               type="password"
@@ -342,40 +375,74 @@ export default function MobileRaceControl() {
               onChange={(event) => setSecretInput(event.target.value)}
               className="w-full rounded-md border border-border bg-background px-3 py-2"
             />
-            <Button disabled={busy || !secretInput} type="submit">{t('unlock')}</Button>
+            <Button disabled={busy || !secretInput} type="submit">
+              {t('unlock')}
+            </Button>
           </form>
         )}
 
         {directorKey && (
           <>
             <div className="flex items-center justify-between gap-3">
-              <span role="status" className="text-sm text-green-500">{t('authorized')}</span>
-              <Button variant="outline" size="sm" onClick={() => { setDirectorKey(''); setIssuedLink(''); setGeneratedSecret('') }}>
+              <span role="status" className="text-sm text-green-500">
+                {t('authorized')}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setDirectorKey('')
+                  setIssuedLink('')
+                  setGeneratedSecret('')
+                }}
+              >
                 {t('lock')}
               </Button>
             </div>
             <section className="rounded-xl border border-border bg-card p-5 space-y-3">
-              <label className="text-sm font-medium block" htmlFor="race-select">{t('session')}</label>
+              <label className="text-sm font-medium block" htmlFor="race-select">
+                {t('session')}
+              </label>
               <select
                 id="race-select"
                 value={selectedId}
-                onChange={(event) => { setSelectedId(event.target.value); setIssuedLink('') }}
+                onChange={(event) => {
+                  setSelectedId(event.target.value)
+                  setIssuedLink('')
+                }}
                 className="w-full rounded-md border border-border bg-background px-3 py-2"
               >
                 {!sessions.length && <option value="">{loading ? t('loading') : t('noSession')}</option>}
-                {sessions.map((row) => <option key={row.id} value={row.id}>{row.name || row.type} · {row.status}</option>)}
+                {sessions.map((row) => (
+                  <option key={row.id} value={row.id}>
+                    {row.name || row.type} · {row.status}
+                  </option>
+                ))}
               </select>
               {session?.id === selectedId && (
                 <>
-                  <p className="text-sm">{t('state')}: {t(`glossary:sessionStatus.${session.status}`, { defaultValue: session.status })}</p>
+                  <p className="text-sm">
+                    {t('state')}: {t(`glossary:sessionStatus.${session.status}`, { defaultValue: session.status })}
+                  </p>
                   <div className="flex flex-wrap gap-2">
-                    <Button disabled={busy || !connected || session.status !== SessionStatus.ACTIVE} onClick={() => control('pause')} variant="outline">
+                    <Button
+                      disabled={busy || !connected || session.status !== SessionStatus.ACTIVE}
+                      onClick={() => control('pause')}
+                      variant="outline"
+                    >
                       {t('pause')}
                     </Button>
-                    <Button disabled={busy || !connected || session.status !== SessionStatus.PAUSED} onClick={() => control('resume')}>
+                    <Button
+                      disabled={busy || !connected || session.status !== SessionStatus.PAUSED}
+                      onClick={() => control('resume')}
+                    >
                       {t('resume')}
                     </Button>
-                    <Button disabled={busy || !connected || !['active', 'paused', 'finishing'].includes(session.status)} onClick={() => control('stop')} variant="destructive">
+                    <Button
+                      disabled={busy || !connected || !['active', 'paused', 'finishing'].includes(session.status)}
+                      onClick={() => control('stop')}
+                      variant="destructive"
+                    >
                       {t('stop')}
                     </Button>
                   </div>
@@ -385,30 +452,60 @@ export default function MobileRaceControl() {
             {((session?.id === selectedId && session.type === SessionType.RACE) || vsc.status !== 'inactive') && (
               <section className="rounded-xl border border-border bg-card p-5 space-y-3">
                 <h2 className="font-bold">{t('vscTitle')}</h2>
-                <p role="status" className="text-sm">{t('vscState')}: {t(`vscStatus.${vsc.status}`)}</p>
+                <p role="status" className="text-sm">
+                  {t('vscState')}: {t(`vscStatus.${vsc.status}`)}
+                </p>
                 {vsc.expiresAt && now > 0 && vsc.active && (
                   <p className="font-mono text-lg tabular-nums">
                     {t('vscRemaining', { seconds: Math.max(0, Math.ceil((Date.parse(vsc.expiresAt) - now) / 1000)) })}
                   </p>
                 )}
-                {vsc.error && <p role="alert" className="text-sm text-red-500">{vsc.error}</p>}
+                {vsc.error && (
+                  <p role="alert" className="text-sm text-red-500">
+                    {vsc.error}
+                  </p>
+                )}
                 {vsc.status === 'inactive' && (
                   <div className="grid grid-cols-2 gap-3">
-                    <label className="text-sm">{t('vscCap')}
-                      <input type="number" min="1" max="10" value={vscCap}
+                    <label className="text-sm">
+                      {t('vscCap')}
+                      <input
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={vscCap}
                         onChange={(event) => setVscCap(Number(event.target.value))}
-                        className="w-full rounded-md border border-border bg-background px-3 py-2 mt-1" />
+                        className="w-full rounded-md border border-border bg-background px-3 py-2 mt-1"
+                      />
                     </label>
-                    <label className="text-sm">{t('vscDuration')}
-                      <input type="number" min="0" max="3600" value={vscDuration}
+                    <label className="text-sm">
+                      {t('vscDuration')}
+                      <input
+                        type="number"
+                        min="0"
+                        max="3600"
+                        value={vscDuration}
                         onChange={(event) => setVscDuration(Number(event.target.value))}
-                        className="w-full rounded-md border border-border bg-background px-3 py-2 mt-1" />
+                        className="w-full rounded-md border border-border bg-background px-3 py-2 mt-1"
+                      />
                     </label>
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">{t('vscWarning')}</p>
                 {vsc.status === 'inactive' ? (
-                  <Button onClick={() => controlVsc('start')} disabled={busy || !connected || session.status !== SessionStatus.ACTIVE || vscCap < 1 || vscCap > 10 || vscDuration < 0 || vscDuration > 3600 || (vscDuration > 0 && vscDuration < 5)}>
+                  <Button
+                    onClick={() => controlVsc('start')}
+                    disabled={
+                      busy ||
+                      !connected ||
+                      session.status !== SessionStatus.ACTIVE ||
+                      vscCap < 1 ||
+                      vscCap > 10 ||
+                      vscDuration < 0 ||
+                      vscDuration > 3600 ||
+                      (vscDuration > 0 && vscDuration < 5)
+                    }
+                  >
                     {t('vscStart')}
                   </Button>
                 ) : (
@@ -418,86 +515,148 @@ export default function MobileRaceControl() {
                 )}
               </section>
             )}
-            {session?.id === selectedId && session.type === SessionType.RACE &&
+            {session?.id === selectedId &&
+              session.type === SessionType.RACE &&
               assigned.some((row) => row.pendingTyreType) && (
                 <section className="rounded-xl border border-border bg-card p-5 space-y-3">
                   <h2 className="font-bold">{t('tyreConfirmTitle')}</h2>
                   <p className="text-xs text-muted-foreground">{t('tyreConfirmWarning')}</p>
-                  {assigned.filter((row) => row.pendingTyreType).map((row) => (
-                    <div key={row.id} className="flex items-center justify-between gap-3 border-t border-border pt-3">
-                      <div className="text-sm">
-                        <p className="font-semibold">{row.driver?.name || `${t('controller')} ${row.controller + 1}`}</p>
-                        <p>{t(row.tyreType === TyreType.WET ? 'tyreWet' : 'tyreDry')} → {t(row.pendingTyreType === TyreType.WET ? 'tyreWet' : 'tyreDry')}</p>
+                  {assigned
+                    .filter((row) => row.pendingTyreType)
+                    .map((row) => (
+                      <div key={row.id} className="flex items-center justify-between gap-3 border-t border-border pt-3">
+                        <div className="text-sm">
+                          <p className="font-semibold">
+                            {row.driver?.name || `${t('controller')} ${row.controller + 1}`}
+                          </p>
+                          <p>
+                            {t(row.tyreType === TyreType.WET ? 'tyreWet' : 'tyreDry')} →{' '}
+                            {t(row.pendingTyreType === TyreType.WET ? 'tyreWet' : 'tyreDry')}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={busy || ![SessionStatus.ACTIVE, SessionStatus.PAUSED].includes(session.status)}
+                          onClick={() => confirmTyres(row.id)}
+                        >
+                          {t('tyreConfirm')}
+                        </Button>
                       </div>
-                      <Button type="button" variant="outline" size="sm"
-                        disabled={busy || ![SessionStatus.ACTIVE, SessionStatus.PAUSED].includes(session.status)}
-                        onClick={() => confirmTyres(row.id)}>{t('tyreConfirm')}</Button>
-                    </div>
-                  ))}
+                    ))}
                 </section>
               )}
             {session?.id === selectedId && session.type === SessionType.RACE && (
               <section className="rounded-xl border border-border bg-card p-5 space-y-3">
                 <h2 className="font-bold">{t('penaltiesTitle')}</h2>
                 <p className="text-xs text-muted-foreground">{t('penaltyHelp')}</p>
-                {assigned.length > 0 && [SessionStatus.ACTIVE, SessionStatus.PAUSED, SessionStatus.FINISHING, SessionStatus.FINISHED].includes(session.status) && (
-                  <>
-                    <label className="block text-sm" htmlFor="penalty-driver">{t('penaltyDriver')}
-                      <select id="penalty-driver" value={selectedPenaltyDriverId}
-                        onChange={(event) => setPenaltyDriverId(event.target.value)}
-                        className="w-full rounded-md border border-border bg-background px-3 py-2 mt-1">
-                        {assigned.map((row) => (
-                          <option key={row.id} value={row.id}>{row.driver?.name || `${t('controller')} ${row.controller + 1}`}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <label className="text-sm" htmlFor="penalty-kind">{t('penaltyKind')}
-                        <select id="penalty-kind" value={penaltyKind}
-                          onChange={(event) => setPenaltyKind(event.target.value)}
-                          className="w-full rounded-md border border-border bg-background px-3 py-2 mt-1">
-                          <option value={PenaltyKind.TIME}>{t('penaltyTime')}</option>
-                          <option value={PenaltyKind.LAP}>{t('penaltyLap')}</option>
+                {assigned.length > 0 &&
+                  [
+                    SessionStatus.ACTIVE,
+                    SessionStatus.PAUSED,
+                    SessionStatus.FINISHING,
+                    SessionStatus.FINISHED,
+                  ].includes(session.status) && (
+                    <>
+                      <label className="block text-sm" htmlFor="penalty-driver">
+                        {t('penaltyDriver')}
+                        <select
+                          id="penalty-driver"
+                          value={selectedPenaltyDriverId}
+                          onChange={(event) => setPenaltyDriverId(event.target.value)}
+                          className="w-full rounded-md border border-border bg-background px-3 py-2 mt-1"
+                        >
+                          {assigned.map((row) => (
+                            <option key={row.id} value={row.id}>
+                              {row.driver?.name || `${t('controller')} ${row.controller + 1}`}
+                            </option>
+                          ))}
                         </select>
                       </label>
-                      <label className="text-sm" htmlFor="penalty-amount">
-                        {t(penaltyKind === PenaltyKind.TIME ? 'penaltySeconds' : 'penaltyLaps')}
-                        <input id="penalty-amount" type="number" min="1"
-                          max={penaltyKind === PenaltyKind.TIME ? 3600 : 100} step="1"
-                          value={penaltyValue} onChange={(event) => setPenaltyValue(Number(event.target.value))}
-                          className="w-full rounded-md border border-border bg-background px-3 py-2 mt-1" />
+                      <div className="grid grid-cols-2 gap-3">
+                        <label className="text-sm" htmlFor="penalty-kind">
+                          {t('penaltyKind')}
+                          <select
+                            id="penalty-kind"
+                            value={penaltyKind}
+                            onChange={(event) => setPenaltyKind(event.target.value)}
+                            className="w-full rounded-md border border-border bg-background px-3 py-2 mt-1"
+                          >
+                            <option value={PenaltyKind.TIME}>{t('penaltyTime')}</option>
+                            <option value={PenaltyKind.LAP}>{t('penaltyLap')}</option>
+                          </select>
+                        </label>
+                        <label className="text-sm" htmlFor="penalty-amount">
+                          {t(penaltyKind === PenaltyKind.TIME ? 'penaltySeconds' : 'penaltyLaps')}
+                          <input
+                            id="penalty-amount"
+                            type="number"
+                            min="1"
+                            max={penaltyKind === PenaltyKind.TIME ? 3600 : 100}
+                            step="1"
+                            value={penaltyValue}
+                            onChange={(event) => setPenaltyValue(Number(event.target.value))}
+                            className="w-full rounded-md border border-border bg-background px-3 py-2 mt-1"
+                          />
+                        </label>
+                      </div>
+                      <label className="block text-sm" htmlFor="penalty-reason">
+                        {t('penaltyReason')}
+                        <input
+                          id="penalty-reason"
+                          type="text"
+                          maxLength={200}
+                          value={penaltyReason}
+                          onChange={(event) => setPenaltyReason(event.target.value)}
+                          className="w-full rounded-md border border-border bg-background px-3 py-2 mt-1"
+                        />
                       </label>
-                    </div>
-                    <label className="block text-sm" htmlFor="penalty-reason">{t('penaltyReason')}
-                      <input id="penalty-reason" type="text" maxLength={200}
-                        value={penaltyReason} onChange={(event) => setPenaltyReason(event.target.value)}
-                        className="w-full rounded-md border border-border bg-background px-3 py-2 mt-1" />
-                    </label>
-                    <Button type="button" disabled={busy || !selectedPenaltyDriverId || !validPenaltyAmount || penaltyReason.trim().length < 3}
-                      onClick={() => changePenalty('issue')}>{t('penaltyIssue')}</Button>
-                  </>
-                )}
+                      <Button
+                        type="button"
+                        disabled={
+                          busy || !selectedPenaltyDriverId || !validPenaltyAmount || penaltyReason.trim().length < 3
+                        }
+                        onClick={() => changePenalty('issue')}
+                      >
+                        {t('penaltyIssue')}
+                      </Button>
+                    </>
+                  )}
                 {session.penalties?.length > 0 && (
                   <div className="space-y-2">
                     <h3 className="text-sm font-semibold">{t('penaltyHistory')}</h3>
                     {session.penalties.map((penalty) => {
                       const row = assigned.find((driver) => driver.id === penalty.sessionDriverId)
                       return (
-                        <div key={penalty.id} className="flex items-center justify-between gap-3 border-t border-border pt-2">
+                        <div
+                          key={penalty.id}
+                          className="flex items-center justify-between gap-3 border-t border-border pt-2"
+                        >
                           <div className="min-w-0 text-sm">
-                            <p className="font-medium">{row?.driver?.name || `${t('controller')} ${penalty.controller + 1}`}</p>
+                            <p className="font-medium">
+                              {row?.driver?.name || `${t('controller')} ${penalty.controller + 1}`}
+                            </p>
                             <p className="text-xs text-muted-foreground">
                               {penalty.kind === PenaltyKind.TIME
                                 ? `+${penalty.amount / 1000} s`
-                                : `−${penalty.amount} ${t('penaltyLaps')}`} · {penalty.reason}
+                                : `−${penalty.amount} ${t('penaltyLaps')}`}{' '}
+                              · {penalty.reason}
                             </p>
                             <p className="text-xs text-muted-foreground">
                               {t(penalty.status === PenaltyStatus.ACTIVE ? 'penaltyActive' : 'penaltyRevoked')}
                             </p>
                           </div>
                           {penalty.status === PenaltyStatus.ACTIVE && (
-                            <Button type="button" variant="outline" size="sm" disabled={busy}
-                              onClick={() => changePenalty('revoke', penalty.id)}>{t('penaltyRevoke')}</Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={busy}
+                              onClick={() => changePenalty('revoke', penalty.id)}
+                            >
+                              {t('penaltyRevoke')}
+                            </Button>
                           )}
                         </div>
                       )
@@ -512,15 +671,29 @@ export default function MobileRaceControl() {
                 <p className="text-xs text-muted-foreground">{t('linkWarning')}</p>
                 <div className="flex flex-wrap gap-2">
                   {assigned.map((row) => (
-                    <Button key={row.id} type="button" variant="outline" disabled={busy} onClick={() => issueLink(row.driverId)}>
+                    <Button
+                      key={row.id}
+                      type="button"
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => issueLink(row.driverId)}
+                    >
                       {row.driver?.name || `${t('controller')} ${row.controller + 1}`}
                     </Button>
                   ))}
                 </div>
                 {issuedLink && (
                   <div className="space-y-2">
-                    <label className="block text-sm" htmlFor="issued-driver-link">{t('copyLink')}</label>
-                    <input id="issued-driver-link" readOnly value={issuedLink} onFocus={(event) => event.target.select()} className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs" />
+                    <label className="block text-sm" htmlFor="issued-driver-link">
+                      {t('copyLink')}
+                    </label>
+                    <input
+                      id="issued-driver-link"
+                      readOnly
+                      value={issuedLink}
+                      onFocus={(event) => event.target.select()}
+                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs"
+                    />
                   </div>
                 )}
               </section>

@@ -9,8 +9,13 @@ const session = {
   track: { name: 'Circuit E2E' },
   drivers: [
     {
-      id: 'sd-a', controller: 0, position: 1, totalLaps: 7, totalTime: 90000,
-      bestLapTime: 12000, lastLapTime: 13000,
+      id: 'sd-a',
+      controller: 0,
+      position: 1,
+      totalLaps: 7,
+      totalTime: 90000,
+      bestLapTime: 12000,
+      lastLapTime: 13000,
       driver: { name: 'Pilote Un', color: '#ff0000' },
       car: { brand: 'BMW', model: 'M4' },
     },

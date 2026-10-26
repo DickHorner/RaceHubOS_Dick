@@ -120,6 +120,7 @@ export default function SessionDetail() {
           bestLap: sd.bestLapTime || null,
           lastLap: sd.lastLapTime || null,
           totalTime: sd.classifiedTime ?? sd.totalTime ?? 0,
+          rankTime: sd.classifiedSimulatedTime,
           simulatedTotalTime: sd.simulatedTotalTime,
           simulatedBestLapTime: sd.simulatedBestLapTime,
           gap,

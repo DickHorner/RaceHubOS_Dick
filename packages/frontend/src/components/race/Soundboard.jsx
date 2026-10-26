@@ -9,10 +9,18 @@ const PREF_KEY = 'soundboard:presets'
 const AUDIO_URL = /^\/api\/upload\/sounds\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.(mp3|ogg|wav)$/
 
 function validPreset(preset) {
-  return preset && typeof preset.id === 'string' && typeof preset.label === 'string' &&
-    preset.label.length > 0 && preset.label.length <= 60 &&
-    ((preset.kind === 'speech' && typeof preset.text === 'string' && preset.text.length > 0 && preset.text.length <= 300) ||
+  return (
+    preset &&
+    typeof preset.id === 'string' &&
+    typeof preset.label === 'string' &&
+    preset.label.length > 0 &&
+    preset.label.length <= 60 &&
+    ((preset.kind === 'speech' &&
+      typeof preset.text === 'string' &&
+      preset.text.length > 0 &&
+      preset.text.length <= 300) ||
       (preset.kind === 'clip' && typeof preset.url === 'string' && AUDIO_URL.test(preset.url)))
+  )
 }
 
 export default function Soundboard() {
@@ -76,7 +84,9 @@ export default function Soundboard() {
       if (preset.kind === 'speech') {
         const utterance = speak(preset.text, { force: true, volume })
         if (!utterance) throw new Error(t('playError'))
-        utterance.onend = () => { if (playTokenRef.current === token) setPlayingId(null) }
+        utterance.onend = () => {
+          if (playTokenRef.current === token) setPlayingId(null)
+        }
         utterance.onerror = () => {
           if (playTokenRef.current !== token) return
           setPlayingId(null)
@@ -86,7 +96,9 @@ export default function Soundboard() {
         const audio = new Audio(`${API_URL}${preset.url}`)
         audioRef.current = audio
         audio.volume = volume
-        audio.onended = () => { if (playTokenRef.current === token) setPlayingId(null) }
+        audio.onended = () => {
+          if (playTokenRef.current === token) setPlayingId(null)
+        }
         audio.onerror = () => {
           if (playTokenRef.current !== token) return
           setPlayingId(null)
@@ -177,7 +189,9 @@ export default function Soundboard() {
         kind,
         ...(kind === 'speech' ? { text: speechText.trim() } : { url }),
       }
-      await persist(previous ? presets.map((entry) => entry.id === previous.id ? preset : entry) : [...presets, preset])
+      await persist(
+        previous ? presets.map((entry) => (entry.id === previous.id ? preset : entry)) : [...presets, preset]
+      )
       saved = true
       setFormOpen(false)
       if (previous?.kind === 'clip' && previous.url !== preset.url) await removeAudio(previous.url)
@@ -225,19 +239,34 @@ export default function Soundboard() {
     <section className="rounded-lg border bg-card mb-4" aria-label={t('title')}>
       <div className="flex flex-wrap items-center gap-2 p-3">
         <Button variant="outline" size="sm" onClick={() => setOpen((value) => !value)}>
-          <Volume2 className="size-4" /> {t('title')} {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+          <Volume2 className="size-4" /> {t('title')}{' '}
+          {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
         </Button>
         <Button variant="outline" size="sm" onClick={stopPlayback} disabled={!playingId}>
           <Square className="size-3" /> {t('stop')}
         </Button>
-        <Button variant="ghost" size="sm" onClick={() => { if (!muted) stopPlayback(); setMuted(!muted) }}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            if (!muted) stopPlayback()
+            setMuted(!muted)
+          }}
+        >
           {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />} {t(muted ? 'unmute' : 'mute')}
         </Button>
         {open && (
           <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
             {t('volume')}
-            <input aria-label={t('volume')} type="range" min="0" max="1" step="0.1" value={volume}
-              onChange={(event) => setVolume(Number(event.target.value))} />
+            <input
+              aria-label={t('volume')}
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={volume}
+              onChange={(event) => setVolume(Number(event.target.value))}
+            />
           </label>
         )}
       </div>
@@ -246,18 +275,51 @@ export default function Soundboard() {
           <div className="flex flex-wrap gap-2">
             {presets.map((preset, index) => (
               <div key={preset.id} className="flex items-center rounded-md border bg-background">
-                <Button variant={playingId === preset.id ? 'default' : 'ghost'} size="sm" disabled={muted || busy}
-                  onClick={() => playPreset(preset)} title={t('play')}>
+                <Button
+                  variant={playingId === preset.id ? 'default' : 'ghost'}
+                  size="sm"
+                  disabled={muted || busy}
+                  onClick={() => playPreset(preset)}
+                  title={t('play')}
+                >
                   <Play className="size-3" /> {preset.label}
                 </Button>
-                <Button variant="ghost" size="icon-sm" disabled={busy} onClick={() => editPreset(preset)}
-                  aria-label={`${t('edit')}: ${preset.label}`}><Pencil className="size-3" /></Button>
-                <Button variant="ghost" size="icon-sm" disabled={busy || index === 0} onClick={() => movePreset(index, -1)}
-                  aria-label={`${t('up')}: ${preset.label}`}><ChevronUp className="size-3" /></Button>
-                <Button variant="ghost" size="icon-sm" disabled={busy || index === presets.length - 1} onClick={() => movePreset(index, 1)}
-                  aria-label={`${t('down')}: ${preset.label}`}><ChevronDown className="size-3" /></Button>
-                <Button variant="ghost" size="icon-sm" disabled={busy} onClick={() => deletePreset(preset)}
-                  aria-label={`${t('delete')}: ${preset.label}`}><Trash2 className="size-3" /></Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={busy}
+                  onClick={() => editPreset(preset)}
+                  aria-label={`${t('edit')}: ${preset.label}`}
+                >
+                  <Pencil className="size-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={busy || index === 0}
+                  onClick={() => movePreset(index, -1)}
+                  aria-label={`${t('up')}: ${preset.label}`}
+                >
+                  <ChevronUp className="size-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={busy || index === presets.length - 1}
+                  onClick={() => movePreset(index, 1)}
+                  aria-label={`${t('down')}: ${preset.label}`}
+                >
+                  <ChevronDown className="size-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={busy}
+                  onClick={() => deletePreset(preset)}
+                  aria-label={`${t('delete')}: ${preset.label}`}
+                >
+                  <Trash2 className="size-3" />
+                </Button>
               </div>
             ))}
           </div>
@@ -270,37 +332,63 @@ export default function Soundboard() {
           {formOpen && (
             <form className="flex flex-col gap-2 max-w-xl" onSubmit={savePreset}>
               <label className="text-sm font-medium">{t('name')}</label>
-              <input className="rounded-md border bg-background p-2 text-sm" maxLength={60} value={label}
-                onChange={(event) => setLabel(event.target.value)} required />
+              <input
+                className="rounded-md border bg-background p-2 text-sm"
+                maxLength={60}
+                value={label}
+                onChange={(event) => setLabel(event.target.value)}
+                required
+              />
               <label className="text-sm font-medium">{t('type')}</label>
-              <select className="rounded-md border bg-background p-2 text-sm" value={kind}
-                onChange={(event) => { setKind(event.target.value); setFile(null) }}>
+              <select
+                className="rounded-md border bg-background p-2 text-sm"
+                value={kind}
+                onChange={(event) => {
+                  setKind(event.target.value)
+                  setFile(null)
+                }}
+              >
                 <option value="speech">{t('speech')}</option>
                 <option value="clip">{t('clip')}</option>
               </select>
               {kind === 'speech' ? (
                 <>
                   <label className="text-sm font-medium">{t('announcement')}</label>
-                  <textarea className="rounded-md border bg-background p-2 text-sm" rows={2} maxLength={300}
-                    value={speechText} onChange={(event) => setSpeechText(event.target.value)} required />
+                  <textarea
+                    className="rounded-md border bg-background p-2 text-sm"
+                    rows={2}
+                    maxLength={300}
+                    value={speechText}
+                    onChange={(event) => setSpeechText(event.target.value)}
+                    required
+                  />
                 </>
               ) : (
                 <>
                   <label className="text-sm font-medium">{t('audioFile')}</label>
-                  <input type="file" accept=".mp3,.ogg,.wav,audio/mpeg,audio/ogg,audio/wav"
-                    onChange={(event) => setFile(event.target.files?.[0] || null)} />
+                  <input
+                    type="file"
+                    accept=".mp3,.ogg,.wav,audio/mpeg,audio/ogg,audio/wav"
+                    onChange={(event) => setFile(event.target.files?.[0] || null)}
+                  />
                   {editingId && <p className="text-xs text-muted-foreground">{t('optionalReplacement')}</p>}
                 </>
               )}
               <div className="flex gap-2">
-                <Button type="submit" size="sm" disabled={busy}>{t(busy ? 'saving' : 'save')}</Button>
+                <Button type="submit" size="sm" disabled={busy}>
+                  {t(busy ? 'saving' : 'save')}
+                </Button>
                 <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => setFormOpen(false)}>
                   {t('cancel')}
                 </Button>
               </div>
             </form>
           )}
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
         </div>
       )}
     </section>
