@@ -50,7 +50,10 @@
     "weatherSeed": "Graine (reproductible)",
     "weatherAdvanceDuringPause": "La météo continue pendant les pauses",
     "weatherHint": "La même graine et le même temps météo reproduisent les mêmes conditions. Aucun effet sur la CU ou la vitesse.",
-    "weatherInvalid": "Météo invalide : probabilité 0–100 %, intervalle 10–3600 s, graine 0–2147483647."
+    "weatherInvalid": "Météo invalide : probabilité 0–100 %, intervalle 10–3600 s, graine 0–2147483647.",
+    "tyreMismatchPercent": "Pénalité de temps avec mauvais pneus (%)",
+    "tyreHint": "Facteur optionnel pour les tours simulés. Pneus secs sous la pluie ou pneus pluie sur piste sèche ajoutent du temps. Les mesures et la vitesse CU restent inchangées.",
+    "tyreInvalid": "Pénalité de pneus : 0–30 % et météo activée requise."
   },
   "profile": {
     "notFound": "Session introuvable",
@@ -63,6 +66,14 @@
     "pitDriver": "Pilote",
     "pitEntered": "Entrée (observée)",
     "pitDuration": "Durée (env.)",
-    "weatherFinal": "Météo de course : {{condition}}"
+    "weatherFinal": "Météo de course : {{condition}}",
+    "tyreHistory": "Changements de pneus",
+    "tyreDry": "Secs",
+    "tyreWet": "Pluie",
+    "tyreSimulator": "Arrêt simulateur",
+    "tyreDirector": "Confirmé manuellement par le directeur",
+    "simulatedTime": "Temps simulé",
+    "weatherDry": "sec",
+    "weatherRain": "pluie"
   }
 }

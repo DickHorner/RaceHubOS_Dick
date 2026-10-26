@@ -50,7 +50,10 @@
     "weatherSeed": "Seed (reproducible)",
     "weatherAdvanceDuringPause": "Weather continues during race pauses",
     "weatherHint": "The same seed and weather time produce the same weather. CU settings and vehicle speed are unaffected.",
-    "weatherInvalid": "Invalid weather: chance 0–100%, interval 10–3600 s, seed 0–2147483647."
+    "weatherInvalid": "Invalid weather: chance 0–100%, interval 10–3600 s, seed 0–2147483647.",
+    "tyreMismatchPercent": "Time penalty for wrong tyres (%)",
+    "tyreHint": "Optional virtual lap-time factor. Dry tyres in rain or wet tyres on a dry track add time; measured laps and CU vehicle speed remain unchanged.",
+    "tyreInvalid": "Tyre penalty must be 0–30% and requires enabled weather."
   },
   "profile": {
     "notFound": "Session not found",
@@ -63,6 +66,14 @@
     "pitDriver": "Driver",
     "pitEntered": "Entry (observed)",
     "pitDuration": "Duration (approx.)",
-    "weatherFinal": "Race weather: {{condition}}"
+    "weatherFinal": "Race weather: {{condition}}",
+    "tyreHistory": "Tyre changes",
+    "tyreDry": "Dry",
+    "tyreWet": "Wet",
+    "tyreSimulator": "Simulator pit stop",
+    "tyreDirector": "Manually confirmed by race director",
+    "simulatedTime": "Simulated time",
+    "weatherDry": "dry",
+    "weatherRain": "rain"
   }
 }

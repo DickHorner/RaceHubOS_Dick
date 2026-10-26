@@ -36,7 +36,12 @@
     "best": "Meilleur",
     "last": "Dernier",
     "gap": "Écart",
-    "total": "Total"
+    "total": "Total",
+    "tyreDry": "Pneus secs",
+    "tyreWet": "Pneus pluie",
+    "tyrePending": "Changement demandé",
+    "simulatedBest": "Sim.",
+    "simulatedTotal": "Temps total simulé"
   },
   "resultsModal": {
     "title": "Résultats",

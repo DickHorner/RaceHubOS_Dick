@@ -86,7 +86,9 @@
       "seed": "Graine",
       "advanceDuringPause": "La météo continue pendant les pauses",
       "displayOnly": "Affichage déterministe uniquement ; aucun effet sur la CU ni les véhicules.",
-      "invalid": "Météo invalide : probabilité 0–100 %, intervalle 10–3600 s, graine 0–2147483647."
+      "invalid": "Météo invalide : probabilité 0–100 %, intervalle 10–3600 s, graine 0–2147483647.",
+      "tyreMismatchPercent": "Pénalité avec mauvais pneus (%)",
+      "tyreHint": "Temps simulés seulement, aucune modification de vitesse CU. 0 % désactive l'effet."
     }
   },
   "bracket": {

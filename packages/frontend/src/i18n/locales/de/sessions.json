@@ -50,7 +50,10 @@
     "weatherSeed": "Seed (Wiederholbarkeit)",
     "weatherAdvanceDuringPause": "Wetter läuft während Rennpausen weiter",
     "weatherHint": "Der gleiche Seed und dieselbe Wetterzeit ergeben denselben Verlauf. Keine Auswirkungen auf die CU oder das Fahrzeugtempo.",
-    "weatherInvalid": "Ungültiges Wetter: Wahrscheinlichkeit 0–100 %, Intervall 10–3600 s, Seed 0–2147483647."
+    "weatherInvalid": "Ungültiges Wetter: Wahrscheinlichkeit 0–100 %, Intervall 10–3600 s, Seed 0–2147483647.",
+    "tyreMismatchPercent": "Zeitmalus bei falscher Bereifung (%)",
+    "tyreHint": "Optionaler virtueller Rundenzeitfaktor. Bei Regen auf Slicks oder bei Trockenheit auf Regenreifen entsteht ein Zeitaufschlag. Messwerte und CU-Fahrverhalten bleiben unverändert.",
+    "tyreInvalid": "Reifenmalus muss 0–30 % betragen und erfordert aktiviertes Wetter."
   },
   "profile": {
     "notFound": "Sitzung nicht gefunden",
@@ -63,6 +66,14 @@
     "pitDriver": "Fahrer",
     "pitEntered": "Einfahrt (erkannt)",
     "pitDuration": "Dauer (ca.)",
-    "weatherFinal": "Rennwetter: {{condition}}"
+    "weatherFinal": "Rennwetter: {{condition}}",
+    "tyreHistory": "Reifenwechsel",
+    "tyreDry": "Trocken",
+    "tyreWet": "Regen",
+    "tyreSimulator": "Simulator-Boxenstopp",
+    "tyreDirector": "Manuell von der Rennleitung bestätigt",
+    "simulatedTime": "Simulierte Zeit",
+    "weatherDry": "trocken",
+    "weatherRain": "Regen"
   }
 }

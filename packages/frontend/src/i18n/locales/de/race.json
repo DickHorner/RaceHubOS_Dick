@@ -36,7 +36,12 @@
     "best": "Bestzeit",
     "last": "Letzte Runde",
     "gap": "Abstand",
-    "total": "Gesamt"
+    "total": "Gesamt",
+    "tyreDry": "Trockenreifen",
+    "tyreWet": "Regenreifen",
+    "tyrePending": "Wechsel vorgemerkt",
+    "simulatedBest": "Sim.",
+    "simulatedTotal": "Simulierte Gesamtzeit"
   },
   "resultsModal": {
     "title": "Ergebnisse",

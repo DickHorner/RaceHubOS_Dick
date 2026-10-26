@@ -36,7 +36,12 @@
     "best": "Best",
     "last": "Last",
     "gap": "Gap",
-    "total": "Total"
+    "total": "Total",
+    "tyreDry": "Dry tyres",
+    "tyreWet": "Wet tyres",
+    "tyrePending": "Change requested",
+    "simulatedBest": "Sim.",
+    "simulatedTotal": "Simulated total time"
   },
   "resultsModal": {
     "title": "Results",

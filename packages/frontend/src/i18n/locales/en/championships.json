@@ -86,7 +86,9 @@
       "seed": "Seed",
       "advanceDuringPause": "Weather continues during race pauses",
       "displayOnly": "Deterministic display only; no effect on the CU or vehicle handling.",
-      "invalid": "Invalid weather: chance 0–100%, interval 10–3600 s, seed 0–2147483647."
+      "invalid": "Invalid weather: chance 0–100%, interval 10–3600 s, seed 0–2147483647.",
+      "tyreMismatchPercent": "Time penalty for wrong tyres (%)",
+      "tyreHint": "Virtual lap times only; no CU speed changes. 0% disables the effect."
     }
   },
   "bracket": {

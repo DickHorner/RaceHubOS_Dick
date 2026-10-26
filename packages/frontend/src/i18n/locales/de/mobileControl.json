@@ -47,5 +47,11 @@
     "restoring": "Geschwindigkeit wird zurückgestellt",
     "restore_failed": "Rückstellung fehlgeschlagen",
     "disconnected": "CU-Verbindung unterbrochen"
-  }
+  },
+  "tyreConfirmTitle": "Reifenwechsel an der Box",
+  "tyreConfirmWarning": "CU-Boxensignale sind nicht hardwareverifiziert. Nur nach eigener Sichtprüfung eines tatsächlichen Boxenstopps bestätigen; diese Aktion ändert ausschließlich die virtuelle Bereifung.",
+  "tyreDry": "Trocken",
+  "tyreWet": "Regen",
+  "tyreConfirm": "Wechsel bestätigen",
+  "tyreConfirmError": "Reifenwechsel konnte nicht bestätigt werden."
 }
