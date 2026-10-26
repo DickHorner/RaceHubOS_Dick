@@ -1,6 +1,13 @@
 import { createPrismaClient } from '../lib/prisma.js';
 import { EventEmitter } from 'events';
 
+function parseHumanController(controller) {
+  if (!/^[0-5]$/.test(String(controller))) {
+    throw Object.assign(new Error('Invalid controller (0-5)'), { status: 400 });
+  }
+  return Number(controller);
+}
+
 export class ConfigService extends EventEmitter {
   constructor(io) {
     super();
@@ -68,7 +75,7 @@ export class ConfigService extends EventEmitter {
    * Update configuration for a controller slot
    */
   async updateConfig(controller, trackId, driverId, carId) {
-    const controllerInt = Number(controller);
+    const controllerInt = parseHumanController(controller);
     const config = await this.prisma.controllerConfig.upsert({
       where: {
         trackId_controller: { trackId, controller: controllerInt },
@@ -99,6 +106,7 @@ export class ConfigService extends EventEmitter {
    * Update multiple controllers at once
    */
   async updateBulk(trackId, configs) {
+    for (const config of configs) parseHumanController(config?.controller);
     const results = [];
 
     for (const { controller, driverId, carId } of configs) {
