@@ -121,9 +121,8 @@ export default function DriverDisplay() {
 
   const damageStatus = live?.damageStatus ?? assignment?.damageStatus ?? DamageStatus.NONE
   const damageDeadline = live?.damageDeadlineElapsedMs ?? assignment?.damageDeadlineElapsedMs
-  const damageRemaining = !signalMissing && Number.isInteger(damageDeadline)
-    ? Math.max(0, Math.ceil(damageDeadline / 1000 - elapsed))
-    : null
+  const damageRemaining =
+    !signalMissing && Number.isInteger(damageDeadline) ? Math.max(0, Math.ceil(damageDeadline / 1000 - elapsed)) : null
 
   async function requestTyres(tyreType) {
     if (!accessToken || tyrePending || !session?.id || !assignment) return
@@ -318,12 +317,17 @@ export default function DriverDisplay() {
                 {session.type === SessionType.RACE && damageStatus !== DamageStatus.NONE && (
                   <section className="rounded-xl border border-amber-500/40 bg-card p-5 space-y-2">
                     <h2 className="font-semibold">{t('damageTitle')}</h2>
-                    <p role="status" className={damageStatus === DamageStatus.DNF ? 'font-bold text-red-500' : 'text-amber-500'}>
+                    <p
+                      role="status"
+                      className={damageStatus === DamageStatus.DNF ? 'font-bold text-red-500' : 'text-amber-500'}
+                    >
                       {t(`damageStatus.${damageStatus}`)}
                     </p>
                     {damageStatus === DamageStatus.ACTIVE && (
                       <p className="font-mono tabular-nums">
-                        {damageRemaining === null ? t('damageTimeUnavailable') : t('damageRemaining', { seconds: damageRemaining })}
+                        {damageRemaining === null
+                          ? t('damageTimeUnavailable')
+                          : t('damageRemaining', { seconds: damageRemaining })}
                       </p>
                     )}
                     <p className="text-xs text-muted-foreground">{t('damageRepairHint')}</p>

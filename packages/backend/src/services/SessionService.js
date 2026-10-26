@@ -396,7 +396,10 @@ export class SessionService extends EventEmitter {
     this.raceFinishTime = null;
     this.recalculatePositions();
     this.emitLeaderboard();
-    if (session.startedAt && [SessionStatus.ACTIVE, SessionStatus.PAUSED, SessionStatus.FINISHING].includes(session.status)) {
+    if (
+      session.startedAt &&
+      [SessionStatus.ACTIVE, SessionStatus.PAUSED, SessionStatus.FINISHING].includes(session.status)
+    ) {
       this.startHeartbeat();
     }
 
@@ -651,96 +654,101 @@ export class SessionService extends EventEmitter {
 
     const sessionId = this.activeSessionId;
     const data = { sessionId, sessionDriverId: driver.id, controller, enteredAt, exitedAt, durationMs, source };
-    return this.queueTyre(() => this.queueDamage(async () => {
-      if (this.activeSessionId !== sessionId || this.sessionStatus !== SessionStatus.ACTIVE) return;
+    return this.queueTyre(() =>
+      this.queueDamage(async () => {
+        if (this.activeSessionId !== sessionId || this.sessionStatus !== SessionStatus.ACTIVE) return;
 
-      const applyTyres =
-        source === 'simulator' && validTyreType(driver.pendingTyreType) && driver.pendingTyreType !== driver.tyreType;
-      const refuel = this.sessionConfig?.virtualFuelRate != null && source === 'simulator';
-      const repair =
-        source === 'simulator' &&
-        driver.damageStatus === DamageStatus.ACTIVE &&
-        durationMs >= this.sessionConfig.damagePitSeconds * 1000 &&
-        enteredAt.getTime() >= new Date(driver.damageTriggeredAt).getTime() &&
-        this.raceClock(exitedAt.getTime()).elapsedTime < driver.damageDeadlineElapsedMs &&
-        this.raceClock().elapsedTime < driver.damageDeadlineElapsedMs;
-      let pitStop;
-      if (applyTyres || refuel || repair) {
-        const result = await this.prisma.$transaction(async (tx) => {
-          const pit = await tx.pitStop.create({ data });
-          let change = null;
-          let event = null;
-          let repaired = false;
-          if (applyTyres) {
-            change = await tx.tyreChange.create({
-              data: {
-                sessionId,
-                sessionDriverId: driver.id,
-                controller,
-                fromType: driver.tyreType,
-                toType: driver.pendingTyreType,
-                source: 'simulator',
-                pitStopId: pit.id,
-              },
-            });
-            await tx.sessionDriver.update({
-              where: { id: driver.id },
-              data: { tyreType: change.toType, pendingTyreType: null },
-            });
-          }
-          if (refuel) {
-            event = await tx.virtualFuelEvent.create({
-              data: {
-                sessionId,
-                sessionDriverId: driver.id,
-                controller,
-                kind: 'refuel',
-                units: 0,
-                source: 'simulator',
-                reference: `pit:${pit.id}`,
-              },
-            });
-          }
-          if (repair) {
-            await tx.sessionDriver.update({
-              where: { id: driver.id },
-              data: {
-                damageStatus: DamageStatus.REPAIRED,
-                damageRepairedAt: exitedAt,
-                damageRepairPitStopId: pit.id,
-                damageRepairSource: 'simulator',
-              },
-            });
-            repaired = true;
-          }
-          return { pit, change, event, repaired };
-        });
-        pitStop = result.pit;
-        if (result.change) {
-          driver.tyreType = result.change.toType;
-          driver.pendingTyreType = null;
-          this.emit('session:tyre_changed', { sessionId, sessionDriverId: driver.id, change: result.change });
-        }
-        if (result.event) {
-          driver.virtualFuelUnits = virtualFuelAfter(driver.virtualFuelUnits ?? VIRTUAL_FUEL_FULL, result.event);
-        }
-        if (result.repaired) {
-          driver.damageStatus = DamageStatus.REPAIRED;
-          driver.damageRepairedAt = exitedAt;
-          driver.damageRepairPitStopId = pitStop.id;
-          driver.damageRepairSource = 'simulator';
-          this.emit('session:damage_changed', {
-            sessionId, sessionDriverId: driver.id, controller, damageStatus: DamageStatus.REPAIRED,
+        const applyTyres =
+          source === 'simulator' && validTyreType(driver.pendingTyreType) && driver.pendingTyreType !== driver.tyreType;
+        const refuel = this.sessionConfig?.virtualFuelRate != null && source === 'simulator';
+        const repair =
+          source === 'simulator' &&
+          driver.damageStatus === DamageStatus.ACTIVE &&
+          durationMs >= this.sessionConfig.damagePitSeconds * 1000 &&
+          enteredAt.getTime() >= new Date(driver.damageTriggeredAt).getTime() &&
+          this.raceClock(exitedAt.getTime()).elapsedTime < driver.damageDeadlineElapsedMs &&
+          this.raceClock().elapsedTime < driver.damageDeadlineElapsedMs;
+        let pitStop;
+        if (applyTyres || refuel || repair) {
+          const result = await this.prisma.$transaction(async (tx) => {
+            const pit = await tx.pitStop.create({ data });
+            let change = null;
+            let event = null;
+            let repaired = false;
+            if (applyTyres) {
+              change = await tx.tyreChange.create({
+                data: {
+                  sessionId,
+                  sessionDriverId: driver.id,
+                  controller,
+                  fromType: driver.tyreType,
+                  toType: driver.pendingTyreType,
+                  source: 'simulator',
+                  pitStopId: pit.id,
+                },
+              });
+              await tx.sessionDriver.update({
+                where: { id: driver.id },
+                data: { tyreType: change.toType, pendingTyreType: null },
+              });
+            }
+            if (refuel) {
+              event = await tx.virtualFuelEvent.create({
+                data: {
+                  sessionId,
+                  sessionDriverId: driver.id,
+                  controller,
+                  kind: 'refuel',
+                  units: 0,
+                  source: 'simulator',
+                  reference: `pit:${pit.id}`,
+                },
+              });
+            }
+            if (repair) {
+              await tx.sessionDriver.update({
+                where: { id: driver.id },
+                data: {
+                  damageStatus: DamageStatus.REPAIRED,
+                  damageRepairedAt: exitedAt,
+                  damageRepairPitStopId: pit.id,
+                  damageRepairSource: 'simulator',
+                },
+              });
+              repaired = true;
+            }
+            return { pit, change, event, repaired };
           });
+          pitStop = result.pit;
+          if (result.change) {
+            driver.tyreType = result.change.toType;
+            driver.pendingTyreType = null;
+            this.emit('session:tyre_changed', { sessionId, sessionDriverId: driver.id, change: result.change });
+          }
+          if (result.event) {
+            driver.virtualFuelUnits = virtualFuelAfter(driver.virtualFuelUnits ?? VIRTUAL_FUEL_FULL, result.event);
+          }
+          if (result.repaired) {
+            driver.damageStatus = DamageStatus.REPAIRED;
+            driver.damageRepairedAt = exitedAt;
+            driver.damageRepairPitStopId = pitStop.id;
+            driver.damageRepairSource = 'simulator';
+            this.emit('session:damage_changed', {
+              sessionId,
+              sessionDriverId: driver.id,
+              controller,
+              damageStatus: DamageStatus.REPAIRED,
+            });
+          }
+          this.emitLeaderboard();
+        } else {
+          // Physical CU pit telemetry is not validated: record the stop, never infer a refuel or tyre change.
+          pitStop = await this.prisma.pitStop.create({ data });
         }
-        this.emitLeaderboard();
-      } else {
-        // Physical CU pit telemetry is not validated: record the stop, never infer a refuel or tyre change.
-        pitStop = await this.prisma.pitStop.create({ data });
-      }
-      this.emit('session:pit_stop', pitStop);
-      return pitStop;
-    }));
+        this.emit('session:pit_stop', pitStop);
+        return pitStop;
+      })
+    );
   }
 
   // Matches the existing queueVsc pattern; requests and pit exits execute in order.
@@ -940,22 +948,30 @@ export class SessionService extends EventEmitter {
       if (pause.end === null && now >= pause.start) currentPauseDuration = duration;
     }
     const startedAt = this.sessionConfig?.startedAt;
-    const elapsedTime = startedAt
-      ? Math.max(0, now - new Date(startedAt).getTime() - totalPauseDuration)
-      : 0;
+    const elapsedTime = startedAt ? Math.max(0, now - new Date(startedAt).getTime() - totalPauseDuration) : 0;
     return { pauses, totalPauseDuration, currentPauseDuration, elapsedTime };
   }
 
   async triggerDamage(driver, lapTime) {
     const threshold = this.sessionConfig?.damageLapThresholdMs;
-    if (this.currentPhase !== SessionType.RACE || this.sessionStatus !== SessionStatus.ACTIVE ||
-        !this.sessionConfig?.startedAt || threshold == null || lapTime <= threshold ||
-        (driver.damageStatus && driver.damageStatus !== DamageStatus.NONE)) return;
+    if (
+      this.currentPhase !== SessionType.RACE ||
+      this.sessionStatus !== SessionStatus.ACTIVE ||
+      !this.sessionConfig?.startedAt ||
+      threshold == null ||
+      lapTime <= threshold ||
+      (driver.damageStatus && driver.damageStatus !== DamageStatus.NONE)
+    )
+      return;
 
     const sessionId = this.activeSessionId;
     return this.queueDamage(async () => {
-      if (sessionId !== this.activeSessionId || this.sessionStatus !== SessionStatus.ACTIVE ||
-          (driver.damageStatus && driver.damageStatus !== DamageStatus.NONE)) return;
+      if (
+        sessionId !== this.activeSessionId ||
+        this.sessionStatus !== SessionStatus.ACTIVE ||
+        (driver.damageStatus && driver.damageStatus !== DamageStatus.NONE)
+      )
+        return;
 
       const now = Date.now();
       const data = {
@@ -967,21 +983,28 @@ export class SessionService extends EventEmitter {
       await this.prisma.sessionDriver.update({ where: { id: driver.id }, data });
       Object.assign(driver, data);
       this.emit('session:damage_changed', {
-        sessionId, sessionDriverId: driver.id, controller: driver.controller, ...data,
+        sessionId,
+        sessionDriverId: driver.id,
+        controller: driver.controller,
+        ...data,
       });
     });
   }
 
   async expireDamage(force = false) {
-    if (!this.activeSessionId || this.currentPhase !== SessionType.RACE ||
-        (!force && ![SessionStatus.ACTIVE, SessionStatus.FINISHING].includes(this.sessionStatus))) return;
+    if (
+      !this.activeSessionId ||
+      this.currentPhase !== SessionType.RACE ||
+      (!force && ![SessionStatus.ACTIVE, SessionStatus.FINISHING].includes(this.sessionStatus))
+    )
+      return;
 
     return this.queueDamage(async () => {
       const elapsed = this.raceClock().elapsedTime;
       let changed = false;
       for (const driver of this.sessionDrivers) {
-        if (driver.damageStatus !== DamageStatus.ACTIVE ||
-            (!force && elapsed < driver.damageDeadlineElapsedMs)) continue;
+        if (driver.damageStatus !== DamageStatus.ACTIVE || (!force && elapsed < driver.damageDeadlineElapsedMs))
+          continue;
 
         await this.prisma.sessionDriver.update({
           where: { id: driver.id },
@@ -991,8 +1014,10 @@ export class SessionService extends EventEmitter {
         driver.isDNF = true;
         changed = true;
         this.emit('session:damage_changed', {
-          sessionId: this.activeSessionId, sessionDriverId: driver.id,
-          controller: driver.controller, damageStatus: DamageStatus.DNF,
+          sessionId: this.activeSessionId,
+          sessionDriverId: driver.id,
+          controller: driver.controller,
+          damageStatus: DamageStatus.DNF,
         });
       }
       if (changed) this.emitLeaderboard();
@@ -1001,8 +1026,11 @@ export class SessionService extends EventEmitter {
 
   confirmDamageRepair(sessionId, sessionDriverId, pitStopId) {
     return this.queueDamage(async () => {
-      if (sessionId !== this.activeSessionId || this.currentPhase !== SessionType.RACE ||
-          ![SessionStatus.ACTIVE, SessionStatus.PAUSED, SessionStatus.FINISHING].includes(this.sessionStatus)) {
+      if (
+        sessionId !== this.activeSessionId ||
+        this.currentPhase !== SessionType.RACE ||
+        ![SessionStatus.ACTIVE, SessionStatus.PAUSED, SessionStatus.FINISHING].includes(this.sessionStatus)
+      ) {
         throw Object.assign(new Error('Race is not available for repair confirmation'), { status: 409 });
       }
       const driver = this.sessionDrivers.find((row) => row.id === sessionDriverId);
@@ -1013,11 +1041,16 @@ export class SessionService extends EventEmitter {
         throw Object.assign(new Error('Repair deadline has passed'), { status: 409 });
       }
       const pitStop = await this.prisma.pitStop.findUnique({ where: { id: pitStopId } });
-      if (!pitStop || pitStop.sessionId !== sessionId || pitStop.sessionDriverId !== driver.id ||
-          pitStop.controller !== driver.controller || pitStop.source !== 'cu' ||
-          pitStop.durationMs < this.sessionConfig.damagePitSeconds * 1000 ||
-          new Date(pitStop.enteredAt).getTime() < new Date(driver.damageTriggeredAt).getTime() ||
-          this.raceClock(new Date(pitStop.exitedAt).getTime()).elapsedTime >= driver.damageDeadlineElapsedMs) {
+      if (
+        !pitStop ||
+        pitStop.sessionId !== sessionId ||
+        pitStop.sessionDriverId !== driver.id ||
+        pitStop.controller !== driver.controller ||
+        pitStop.source !== 'cu' ||
+        pitStop.durationMs < this.sessionConfig.damagePitSeconds * 1000 ||
+        new Date(pitStop.enteredAt).getTime() < new Date(driver.damageTriggeredAt).getTime() ||
+        this.raceClock(new Date(pitStop.exitedAt).getTime()).elapsedTime >= driver.damageDeadlineElapsedMs
+      ) {
         throw Object.assign(new Error('No eligible observed pit interval for this repair'), { status: 409 });
       }
 
@@ -1030,7 +1063,10 @@ export class SessionService extends EventEmitter {
       await this.prisma.sessionDriver.update({ where: { id: driver.id }, data });
       Object.assign(driver, data);
       this.emit('session:damage_changed', {
-        sessionId, sessionDriverId, controller: driver.controller, ...data,
+        sessionId,
+        sessionDriverId,
+        controller: driver.controller,
+        ...data,
       });
       this.emitLeaderboard();
       return data;
@@ -1786,8 +1822,10 @@ export class SessionService extends EventEmitter {
     if (!isSessionType(type)) {
       throw new Error(`Invalid session type. Must be one of: ${SESSION_TYPES.join(', ')}`);
     }
-    if (!validDamageConfig({ damageLapThresholdMs, damageRepairSeconds, damagePitSeconds }) ||
-        (damageLapThresholdMs !== null && type !== SessionType.RACE)) {
+    if (
+      !validDamageConfig({ damageLapThresholdMs, damageRepairSeconds, damagePitSeconds }) ||
+      (damageLapThresholdMs !== null && type !== SessionType.RACE)
+    ) {
       throw new Error('Invalid race damage configuration');
     }
 

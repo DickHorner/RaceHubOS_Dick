@@ -689,40 +689,60 @@ export default function MobileRaceControl() {
                 )}
               </section>
             )}
-            {session?.id === selectedId && session.type === SessionType.RACE &&
+            {session?.id === selectedId &&
+              session.type === SessionType.RACE &&
               assigned.some((row) => row.damageStatus === DamageStatus.ACTIVE) && (
                 <section className="rounded-xl border border-amber-500/40 bg-card p-5 space-y-3">
                   <h2 className="font-bold">{t('damageRepairTitle')}</h2>
                   <p className="text-xs text-muted-foreground">{t('damageRepairWarning')}</p>
-                  {assigned.filter((row) => row.damageStatus === DamageStatus.ACTIVE).map((row) => {
-                    const eligible = (session.pitStops || []).filter((stop) =>
-                      stop.sessionDriverId === row.id && stop.source === 'cu' &&
-                      stop.durationMs >= session.damagePitSeconds * 1000 &&
-                      new Date(stop.enteredAt).getTime() >= new Date(row.damageTriggeredAt).getTime()
-                    )
-                    return (
-                      <div key={row.id} className="border-t border-border pt-3 space-y-2">
-                        <p className="font-semibold">
-                          {row.driver?.name || `${t('controller')} ${row.controller + 1}`}
-                          {' · '}{t('damageRemaining', {
-                            seconds: Math.max(0, Math.ceil(row.damageDeadlineElapsedMs / 1000 - elapsed)),
-                          })}
-                        </p>
-                        {eligible.length === 0 ? (
-                          <p className="text-xs text-amber-600">{t('damageNoPit')}</p>
-                        ) : eligible.slice(-3).map((stop) => (
-                          <div key={stop.id} className="flex items-center justify-between gap-3">
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(stop.exitedAt).toLocaleTimeString()} · ~{(stop.durationMs / 1000).toFixed(1)} s
-                            </p>
-                            <Button type="button" variant="outline" size="sm"
-                              disabled={busy || ![SessionStatus.ACTIVE, SessionStatus.PAUSED, SessionStatus.FINISHING].includes(session.status)}
-                              onClick={() => confirmRepair(row.id, stop.id)}>{t('damageConfirm')}</Button>
-                          </div>
-                        ))}
-                      </div>
-                    )
-                  })}
+                  {assigned
+                    .filter((row) => row.damageStatus === DamageStatus.ACTIVE)
+                    .map((row) => {
+                      const eligible = (session.pitStops || []).filter(
+                        (stop) =>
+                          stop.sessionDriverId === row.id &&
+                          stop.source === 'cu' &&
+                          stop.durationMs >= session.damagePitSeconds * 1000 &&
+                          new Date(stop.enteredAt).getTime() >= new Date(row.damageTriggeredAt).getTime()
+                      )
+                      return (
+                        <div key={row.id} className="border-t border-border pt-3 space-y-2">
+                          <p className="font-semibold">
+                            {row.driver?.name || `${t('controller')} ${row.controller + 1}`}
+                            {' · '}
+                            {t('damageRemaining', {
+                              seconds: Math.max(0, Math.ceil(row.damageDeadlineElapsedMs / 1000 - elapsed)),
+                            })}
+                          </p>
+                          {eligible.length === 0 ? (
+                            <p className="text-xs text-amber-600">{t('damageNoPit')}</p>
+                          ) : (
+                            eligible.slice(-3).map((stop) => (
+                              <div key={stop.id} className="flex items-center justify-between gap-3">
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(stop.exitedAt).toLocaleTimeString()} · ~
+                                  {(stop.durationMs / 1000).toFixed(1)} s
+                                </p>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={
+                                    busy ||
+                                    ![SessionStatus.ACTIVE, SessionStatus.PAUSED, SessionStatus.FINISHING].includes(
+                                      session.status
+                                    )
+                                  }
+                                  onClick={() => confirmRepair(row.id, stop.id)}
+                                >
+                                  {t('damageConfirm')}
+                                </Button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )
+                    })}
                 </section>
               )}
             {session?.id === selectedId && assigned.length > 0 && (

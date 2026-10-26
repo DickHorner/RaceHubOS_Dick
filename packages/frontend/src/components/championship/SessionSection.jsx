@@ -697,12 +697,13 @@ export default function SessionSection({
           )}
           {session.type === SessionType.RACE && (
             <fieldset className="mt-3 space-y-2 rounded-lg border border-border p-3">
-              <legend className="text-xs font-semibold text-muted-foreground">
-                {t('sessionSection.damageTitle')}
-              </legend>
+              <legend className="text-xs font-semibold text-muted-foreground">{t('sessionSection.damageTitle')}</legend>
               <label className="flex items-center gap-2 text-xs">
-                <input type="checkbox" checked={session.damageLapThresholdMs != null}
-                  onChange={(event) => onSaveConfig({ damageLapThresholdMs: event.target.checked ? 30000 : null })} />
+                <input
+                  type="checkbox"
+                  checked={session.damageLapThresholdMs != null}
+                  onChange={(event) => onSaveConfig({ damageLapThresholdMs: event.target.checked ? 30000 : null })}
+                />
                 {t('sessionSection.damageEnabled')}
               </label>
               {session.damageLapThresholdMs != null && (
@@ -714,7 +715,11 @@ export default function SessionSection({
                   ].map(([key, label, min, max]) => (
                     <label key={key} className="text-xs text-muted-foreground">
                       {t(`sessionSection.${label}`)}
-                      <Input type="number" min={min} max={max} step="1"
+                      <Input
+                        type="number"
+                        min={min}
+                        max={max}
+                        step="1"
                         key={`${session.id}-${key}-${session[key]}`}
                         defaultValue={key === 'damageLapThresholdMs' ? session[key] / 1000 : session[key]}
                         onBlur={(event) => {
@@ -735,7 +740,11 @@ export default function SessionSection({
                 </div>
               )}
               <p className="text-xs text-muted-foreground">{t('sessionSection.damageHint')}</p>
-              {damageError && <p role="alert" className="text-xs text-destructive">{damageError}</p>}
+              {damageError && (
+                <p role="alert" className="text-xs text-destructive">
+                  {damageError}
+                </p>
+              )}
             </fieldset>
           )}
           {session.type !== SessionType.PRACTICE && (

@@ -152,8 +152,10 @@ export default function SessionForm({ session, onClose, onSaved }) {
         return
       }
 
-      if (!validDamageConfig(formData) ||
-          (formData.damageLapThresholdMs !== null && formData.type !== SessionType.RACE)) {
+      if (
+        !validDamageConfig(formData) ||
+        (formData.damageLapThresholdMs !== null && formData.type !== SessionType.RACE)
+      ) {
         setError(t('form.damageInvalid'))
         return
       }

@@ -655,7 +655,9 @@ describe('director penalty permissions', () => {
 describe('director-only damage repair confirmation', () => {
   const previousSecret = process.env.RACE_CONTROL_SECRET;
 
-  beforeEach(() => { process.env.RACE_CONTROL_SECRET = secret; });
+  beforeEach(() => {
+    process.env.RACE_CONTROL_SECRET = secret;
+  });
   afterEach(() => {
     if (previousSecret === undefined) delete process.env.RACE_CONTROL_SECRET;
     else process.env.RACE_CONTROL_SECRET = previousSecret;
@@ -680,12 +682,14 @@ describe('director-only damage repair confirmation', () => {
     await request(app).post(path).send(data).expect(403);
     await request(app).post(path).set('Authorization', `Bearer ${token}`).send(data).expect(403);
     await request(app).post(path).set('Authorization', 'Bearer forged').send(data).expect(403);
-    await request(app).post(path).set('Authorization', `Bearer ${secret}`)
-      .send({ sessionId: 'race-1', sessionDriverId: 'sd-1' }).expect(400);
+    await request(app)
+      .post(path)
+      .set('Authorization', `Bearer ${secret}`)
+      .send({ sessionId: 'race-1', sessionDriverId: 'sd-1' })
+      .expect(400);
     expect(session.confirmDamageRepair).not.toHaveBeenCalled();
 
-    const result = await request(app).post(path).set('Authorization', `Bearer ${secret}`)
-      .send(data).expect(200);
+    const result = await request(app).post(path).set('Authorization', `Bearer ${secret}`).send(data).expect(200);
     expect(result.body.data.damageStatus).toBe('repaired');
     expect(session.confirmDamageRepair).toHaveBeenCalledWith('race-1', 'sd-1', 'pit-1');
   });
@@ -695,9 +699,11 @@ describe('director-only damage repair confirmation', () => {
     session.confirmDamageRepair.mockRejectedValueOnce(
       Object.assign(new Error('No eligible observed pit interval'), { status: 409 })
     );
-    const response = await request(app).post('/api/race-control/director/damage/repair')
+    const response = await request(app)
+      .post('/api/race-control/director/damage/repair')
       .set('Authorization', `Bearer ${secret}`)
-      .send({ sessionId: 'race-1', sessionDriverId: 'sd-1', pitStopId: 'wrong-pit' }).expect(409);
+      .send({ sessionId: 'race-1', sessionDriverId: 'sd-1', pitStopId: 'wrong-pit' })
+      .expect(409);
     expect(response.body.success).toBe(false);
   });
 });
