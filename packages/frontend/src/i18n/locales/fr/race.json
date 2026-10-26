@@ -38,6 +38,8 @@
     "gap": "Écart",
     "total": "Total",
     "virtualFuel": "Carburant virtuel : {{percent}} %"
+    "penaltyLaps": "−{{count}} tours de pénalité",
+    "penaltyTime": "+{{seconds}} s de pénalité"
   },
   "resultsModal": {
     "title": "Résultats",

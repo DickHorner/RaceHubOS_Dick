@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, us
 import { io } from 'socket.io-client'
 import { useApp } from './AppContext'
 import { useVoice } from './VoiceContext'
-import { SessionStatus, SessionType } from '@racehubos/shared'
+import { SessionStatus, SessionType, rankRaceDrivers } from '@racehubos/shared'
 import i18n from '../i18n'
 import { sessionNames } from '../lib/sessionNames'
 
@@ -88,6 +88,10 @@ export function SessionProvider({ children }) {
     })
 
     // Session status changes
+    socket.on('session:penalties_changed', (data) => {
+      window.dispatchEvent(new CustomEvent('session:penalties_changed', { detail: data }))
+    })
+
     socket.on('session:status_changed', (data) => {
       if (data.sessionId && data.status) {
         setSession((prev) => (prev?.id === data.sessionId ? { ...prev, status: data.status } : prev))
@@ -530,13 +534,16 @@ export function SessionProvider({ children }) {
       ? session.drivers
       : leaderboard.length > 0 ? leaderboard : session?.drivers || []
     if (source.length === 0) return []
+    const rankedSource = session?.status === SessionStatus.FINISHED && session?.type === SessionType.RACE
+      ? rankRaceDrivers(source, session.penalties || [])
+      : source
 
     // Find fastest lap
     const allBestLaps = source.map((p) => p.bestLapTime).filter((t) => t && t > 0)
     const fastestLapTime = allBestLaps.length > 0 ? Math.min(...allBestLaps) : null
 
-    return source
-      .map((p) => ({
+    return rankedSource
+      .map((p, index) => ({
         id: p.id,
         controller: p.controller,
         driver: p.driver,
@@ -544,13 +551,15 @@ export function SessionProvider({ children }) {
         gridPos: p.gridPos ?? null,
         virtualFuelUnits: p.virtualFuelUnits ?? null,
         stats: {
-          laps: p.totalLaps || 0,
+          laps: p.classifiedLaps ?? p.totalLaps ?? 0,
           bestLap: p.bestLapTime || null,
           lastLap: p.lastLapTime || null,
-          totalTime: p.totalTime || 0,
+          totalTime: p.classifiedTime ?? p.totalTime ?? 0,
           gap: p.gap ?? null,
         },
-        position: p.position || 0,
+        penaltyLaps: p.penaltyLaps || 0,
+        penaltyTimeMs: p.penaltyTimeMs || 0,
+        position: rankedSource !== source ? index + 1 : p.position || 0,
         positionDelta: p.positionDelta || 0, // From backend
         hasFastestLap: fastestLapTime && p.bestLapTime === fastestLapTime,
         isDNF: p.isDNF || false,

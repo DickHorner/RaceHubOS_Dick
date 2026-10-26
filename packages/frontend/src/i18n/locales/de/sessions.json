@@ -56,6 +56,14 @@
     "pitHistory": "Boxenstopps ({{count}})",
     "pitDriver": "Fahrer",
     "pitEntered": "Einfahrt (erkannt)",
-    "pitDuration": "Dauer (ca.)"
+    "pitDuration": "Dauer (ca.)",
+    "penalties": "Strafen ({{count}})",
+    "penaltyAmount": "Abzug",
+    "penaltyReason": "Begründung",
+    "penaltyStatus": "Status",
+    "penaltyLaps": "−{{count}} Runden",
+    "penaltyTime": "+{{seconds}} s",
+    "penaltyActive": "Aktiv",
+    "penaltyRevoked": "Widerrufen"
   }
 }

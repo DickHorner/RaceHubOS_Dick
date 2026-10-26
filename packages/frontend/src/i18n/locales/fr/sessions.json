@@ -56,6 +56,14 @@
     "pitHistory": "Arrêts aux stands ({{count}})",
     "pitDriver": "Pilote",
     "pitEntered": "Entrée (observée)",
-    "pitDuration": "Durée (env.)"
+    "pitDuration": "Durée (env.)",
+    "penalties": "Pénalités ({{count}})",
+    "penaltyAmount": "Déduction",
+    "penaltyReason": "Motif",
+    "penaltyStatus": "État",
+    "penaltyLaps": "−{{count}} tours",
+    "penaltyTime": "+{{seconds}} s",
+    "penaltyActive": "Active",
+    "penaltyRevoked": "Annulée"
   }
 }

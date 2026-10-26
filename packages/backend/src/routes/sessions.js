@@ -159,6 +159,7 @@ router.get('/:id', async (req, res) => {
           orderBy: { enteredAt: 'asc' },
         },
         virtualFuelEvents: { orderBy: { id: 'asc' } },
+        penalties: { orderBy: { issuedAt: 'asc' } },
       },
     });
 
@@ -631,6 +632,7 @@ router.get('/:id/leaderboard', async (req, res) => {
         drivers: { include: { driver: true, car: true } },
         virtualFuelEvents: { orderBy: { id: 'asc' } },
       },
+      include: { drivers: { include: { driver: true, car: true } }, penalties: true },
     });
 
     if (!session) {
@@ -646,9 +648,11 @@ router.get('/:id/leaderboard', async (req, res) => {
       });
 
       const entry = {
+        id: sd.id,
         controller: sd.controller,
         driverId: sd.driverId,
         virtualFuelUnits: fuelLevels ? (fuelLevels.get(sd.id) ?? VIRTUAL_FUEL_FULL) : null,
+        isDNF: sd.isDNF,
         driver: sd.driver,
         car: sd.car,
         gridPos: sd.gridPos,
@@ -671,7 +675,7 @@ router.get('/:id/leaderboard', async (req, res) => {
     }
 
     // Calculate gaps and positions
-    const sortedEntries = SessionService.calculateDriverGaps(entries, session.type);
+    const sortedEntries = SessionService.calculateDriverGaps(entries, session.type, session.penalties);
 
     res.json({ success: true, data: sortedEntries });
   } catch (error) {

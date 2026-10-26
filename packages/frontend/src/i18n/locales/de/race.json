@@ -38,6 +38,8 @@
     "gap": "Abstand",
     "total": "Gesamt",
     "virtualFuel": "Virtueller Tank: {{percent}} %"
+    "penaltyLaps": "−{{count}} Runden Strafe",
+    "penaltyTime": "+{{seconds}} s Strafe"
   },
   "resultsModal": {
     "title": "Ergebnisse",

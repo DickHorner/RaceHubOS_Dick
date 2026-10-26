@@ -38,6 +38,8 @@
     "gap": "Gap",
     "total": "Total",
     "virtualFuel": "Virtual fuel: {{percent}}%"
+    "penaltyLaps": "−{{count}} lap penalty",
+    "penaltyTime": "+{{seconds}} s penalty"
   },
   "resultsModal": {
     "title": "Results",

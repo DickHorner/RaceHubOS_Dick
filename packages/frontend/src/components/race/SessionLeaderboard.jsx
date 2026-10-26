@@ -226,6 +226,12 @@ export default function SessionLeaderboard({
                 {Number.isInteger(entry.virtualFuelUnits) && (
                   <div className="text-xs font-semibold text-sky-600 dark:text-sky-400">
                     {t('leaderboard.virtualFuel', { percent: Math.round(entry.virtualFuelUnits / 100) })}
+                {(entry.penaltyLaps > 0 || entry.penaltyTimeMs > 0) && (
+                  <div className="flex gap-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                    {entry.penaltyLaps > 0 && <span>{t('leaderboard.penaltyLaps', { count: entry.penaltyLaps })}</span>}
+                    {entry.penaltyTimeMs > 0 && (
+                      <span>{t('leaderboard.penaltyTime', { seconds: entry.penaltyTimeMs / 1000 })}</span>
+                    )}
                   </div>
                 )}
               </div>
