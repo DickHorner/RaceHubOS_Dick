@@ -1,12 +1,22 @@
 /** Software-only weather. The persisted seed and race clock are the source of truth. */
 export const WeatherCondition = Object.freeze({ DRY: 'dry', RAIN: 'rain' });
 
-export function validWeatherConfig({ weatherSeed, weatherInitial, weatherRainChance, weatherIntervalSeconds, weatherAdvanceDuringPause }) {
+export function validWeatherConfig({
+  weatherSeed,
+  weatherInitial,
+  weatherRainChance,
+  weatherIntervalSeconds,
+  weatherAdvanceDuringPause,
+}) {
   return (
     (weatherSeed === null || (Number.isInteger(weatherSeed) && weatherSeed >= 0 && weatherSeed <= 2147483647)) &&
     Object.values(WeatherCondition).includes(weatherInitial) &&
-    Number.isInteger(weatherRainChance) && weatherRainChance >= 0 && weatherRainChance <= 100 &&
-    Number.isInteger(weatherIntervalSeconds) && weatherIntervalSeconds >= 10 && weatherIntervalSeconds <= 3600 &&
+    Number.isInteger(weatherRainChance) &&
+    weatherRainChance >= 0 &&
+    weatherRainChance <= 100 &&
+    Number.isInteger(weatherIntervalSeconds) &&
+    weatherIntervalSeconds >= 10 &&
+    weatherIntervalSeconds <= 3600 &&
     typeof weatherAdvanceDuringPause === 'boolean'
   );
 }
@@ -24,9 +34,7 @@ export function weatherAtElapsed(config, elapsedMs) {
   hash ^= hash >>> 15;
   hash = Math.imul(hash, 0x846ca68b) >>> 0;
   hash ^= hash >>> 16;
-  return (hash / 4294967296) * 100 < config.weatherRainChance
-    ? WeatherCondition.RAIN
-    : WeatherCondition.DRY;
+  return (hash / 4294967296) * 100 < config.weatherRainChance ? WeatherCondition.RAIN : WeatherCondition.DRY;
 }
 
 /** Replay from persisted GO time; only subtract pauses when the race config requests it. */
