@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { X, Plus, Trash2 } from 'lucide-react'
-import { FuelMode, STANDARD_SESSION_TYPES, SessionType, sessionTypeFullKey } from '@racehubos/shared'
+import { FuelMode, STANDARD_SESSION_TYPES, SessionType, SessionStatus, sessionTypeFullKey } from '@racehubos/shared'
 
 const API_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -304,7 +304,7 @@ export default function SessionForm({ session, onClose, onSaved }) {
                 <input
                   type="checkbox"
                   checked={formData.virtualFuelRate != null}
-                  disabled={session?.status && session.status !== 'draft'}
+                  disabled={session?.status && session.status !== SessionStatus.DRAFT}
                   onChange={(e) => setFormData({
                     ...formData,
                     virtualFuelRate: e.target.checked ? 6 : null,
@@ -321,7 +321,7 @@ export default function SessionForm({ session, onClose, onSaved }) {
                     max="100"
                     step="1"
                     required
-                    disabled={session?.status && session.status !== 'draft'}
+                    disabled={session?.status && session.status !== SessionStatus.DRAFT}
                     value={formData.virtualFuelRate}
                     onChange={(e) => setFormData({ ...formData, virtualFuelRate: Number(e.target.value) })}
                     className="w-full mt-1 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg"
