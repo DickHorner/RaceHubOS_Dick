@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useDevice } from '../context/DeviceContext'
 import { useSession } from '../context/SessionContext'
 import { Button } from '@/components/ui/button'
-import { SessionStatus, SessionType } from '@racehubos/shared'
+import { SessionStatus, SessionType, PenaltyKind, PenaltyStatus } from '@racehubos/shared'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -27,13 +27,18 @@ export default function MobileRaceControl() {
   const [vscCap, setVscCap] = useState(3)
   const [vscDuration, setVscDuration] = useState(0)
   const [now, setNow] = useState(0)
+  const [penaltyDriverId, setPenaltyDriverId] = useState('')
+  const [penaltyKind, setPenaltyKind] = useState(PenaltyKind.TIME)
+  const [penaltyValue, setPenaltyValue] = useState(5)
+  const [penaltyReason, setPenaltyReason] = useState('')
   const updating = useRef(false)
+  const penaltyPending = useRef(false)
 
   const refresh = useCallback(async () => {
     if (updating.current) return
     updating.current = true
     try {
-      const params = new URLSearchParams({ status: 'active,paused,finishing,draft', limit: '50', sortBy: 'updatedAt', sortOrder: 'desc' })
+      const params = new URLSearchParams({ status: 'active,paused,finishing,draft,finished', limit: '50', sortBy: 'updatedAt', sortOrder: 'desc' })
       const response = await fetch(`${API_URL}/api/sessions?${params}`)
       if (!response.ok) throw new Error(t('loadError'))
       const result = await response.json()
@@ -85,6 +90,7 @@ export default function MobileRaceControl() {
     window.addEventListener('session:finished', refresh)
     window.addEventListener('session:vsc', refresh)
     window.addEventListener('session:vsc_error', refresh)
+    window.addEventListener('session:penalties_changed', refresh)
     document.addEventListener('visibilitychange', onVisible)
     return () => {
       clearInterval(interval)
@@ -92,6 +98,7 @@ export default function MobileRaceControl() {
       window.removeEventListener('session:finished', refresh)
       window.removeEventListener('session:vsc', refresh)
       window.removeEventListener('session:vsc_error', refresh)
+      window.removeEventListener('session:penalties_changed', refresh)
       document.removeEventListener('visibilitychange', onVisible)
     }
   }, [refresh])
@@ -192,6 +199,41 @@ export default function MobileRaceControl() {
     }
   }
 
+  async function changePenalty(action, penaltyId = null) {
+    if (!session?.id || !directorKey || busy || penaltyPending.current) return
+    penaltyPending.current = true
+    setError('')
+    setBusy(true)
+    try {
+      const endpoint = action === 'issue'
+        ? '/api/race-control/director/penalties'
+        : `/api/race-control/director/penalties/${encodeURIComponent(penaltyId)}/revoke`
+      const details = action === 'issue'
+        ? {
+            sessionDriverId: selectedPenaltyDriverId,
+            kind: penaltyKind,
+            amount: penaltyKind === PenaltyKind.TIME ? penaltyValue * 1000 : penaltyValue,
+            reason: penaltyReason.trim(),
+            requestId: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`,
+          }
+        : {}
+      const response = await fetch(`${API_URL}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${directorKey}` },
+        body: JSON.stringify({ sessionId: session.id, ...details }),
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error(result.error || t('penaltyError'))
+      if (action === 'issue') setPenaltyReason('')
+      await fetchSession(session.id)
+    } catch (cause) {
+      setError(cause.message)
+    } finally {
+      penaltyPending.current = false
+      setBusy(false)
+    }
+  }
+
   async function issueLink(driverId) {
     if (!session?.id || !directorKey || busy) return
     setError('')
@@ -220,6 +262,11 @@ export default function MobileRaceControl() {
   }
 
   const assigned = (session?.drivers || []).filter((row) => row.driverId && !row.deletedAt)
+  const selectedPenaltyDriverId = assigned.some((row) => row.id === penaltyDriverId)
+    ? penaltyDriverId
+    : assigned[0]?.id || ''
+  const validPenaltyAmount = Number.isInteger(penaltyValue) && penaltyValue >= 1 &&
+    penaltyValue <= (penaltyKind === PenaltyKind.TIME ? 3600 : 100)
 
   return (
     <main className="min-h-dvh bg-background text-foreground p-4 sm:p-8">
@@ -346,6 +393,76 @@ export default function MobileRaceControl() {
                   <Button variant="outline" disabled={busy || !connected} onClick={() => controlVsc('end')}>
                     {t('vscEnd')}
                   </Button>
+                )}
+              </section>
+            )}
+            {session?.id === selectedId && session.type === SessionType.RACE && (
+              <section className="rounded-xl border border-border bg-card p-5 space-y-3">
+                <h2 className="font-bold">{t('penaltiesTitle')}</h2>
+                <p className="text-xs text-muted-foreground">{t('penaltyHelp')}</p>
+                {assigned.length > 0 && [SessionStatus.ACTIVE, SessionStatus.PAUSED, SessionStatus.FINISHING, SessionStatus.FINISHED].includes(session.status) && (
+                  <>
+                    <label className="block text-sm" htmlFor="penalty-driver">{t('penaltyDriver')}
+                      <select id="penalty-driver" value={selectedPenaltyDriverId}
+                        onChange={(event) => setPenaltyDriverId(event.target.value)}
+                        className="w-full rounded-md border border-border bg-background px-3 py-2 mt-1">
+                        {assigned.map((row) => (
+                          <option key={row.id} value={row.id}>{row.driver?.name || `${t('controller')} ${row.controller + 1}`}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="text-sm" htmlFor="penalty-kind">{t('penaltyKind')}
+                        <select id="penalty-kind" value={penaltyKind}
+                          onChange={(event) => setPenaltyKind(event.target.value)}
+                          className="w-full rounded-md border border-border bg-background px-3 py-2 mt-1">
+                          <option value={PenaltyKind.TIME}>{t('penaltyTime')}</option>
+                          <option value={PenaltyKind.LAP}>{t('penaltyLap')}</option>
+                        </select>
+                      </label>
+                      <label className="text-sm" htmlFor="penalty-amount">
+                        {t(penaltyKind === PenaltyKind.TIME ? 'penaltySeconds' : 'penaltyLaps')}
+                        <input id="penalty-amount" type="number" min="1"
+                          max={penaltyKind === PenaltyKind.TIME ? 3600 : 100} step="1"
+                          value={penaltyValue} onChange={(event) => setPenaltyValue(Number(event.target.value))}
+                          className="w-full rounded-md border border-border bg-background px-3 py-2 mt-1" />
+                      </label>
+                    </div>
+                    <label className="block text-sm" htmlFor="penalty-reason">{t('penaltyReason')}
+                      <input id="penalty-reason" type="text" maxLength={200}
+                        value={penaltyReason} onChange={(event) => setPenaltyReason(event.target.value)}
+                        className="w-full rounded-md border border-border bg-background px-3 py-2 mt-1" />
+                    </label>
+                    <Button type="button" disabled={busy || !selectedPenaltyDriverId || !validPenaltyAmount || penaltyReason.trim().length < 3}
+                      onClick={() => changePenalty('issue')}>{t('penaltyIssue')}</Button>
+                  </>
+                )}
+                {session.penalties?.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-semibold">{t('penaltyHistory')}</h3>
+                    {session.penalties.map((penalty) => {
+                      const row = assigned.find((driver) => driver.id === penalty.sessionDriverId)
+                      return (
+                        <div key={penalty.id} className="flex items-center justify-between gap-3 border-t border-border pt-2">
+                          <div className="min-w-0 text-sm">
+                            <p className="font-medium">{row?.driver?.name || `${t('controller')} ${penalty.controller + 1}`}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {penalty.kind === PenaltyKind.TIME
+                                ? `+${penalty.amount / 1000} s`
+                                : `−${penalty.amount} ${t('penaltyLaps')}`} · {penalty.reason}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {t(penalty.status === PenaltyStatus.ACTIVE ? 'penaltyActive' : 'penaltyRevoked')}
+                            </p>
+                          </div>
+                          {penalty.status === PenaltyStatus.ACTIVE && (
+                            <Button type="button" variant="outline" size="sm" disabled={busy}
+                              onClick={() => changePenalty('revoke', penalty.id)}>{t('penaltyRevoke')}</Button>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
                 )}
               </section>
             )}
