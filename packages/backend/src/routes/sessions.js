@@ -1,7 +1,7 @@
 import express from 'express';
 import SessionService from '../services/SessionService.js';
 import { getReferenceDriver } from '../lib/referenceDriver.js';
-import { SessionStatus, SessionType, validWeatherConfig, weatherForSession } from '@racehubos/shared';
+import { SessionStatus, SessionType, validWeatherConfig, validTyreMismatchPercent, weatherForSession } from '@racehubos/shared';
 import { idsFromQuery, sendWorkbook, sessionWorkbook, sessionsWorkbook } from '../lib/exportQueries.js';
 
 const router = express.Router();
@@ -152,6 +152,7 @@ router.get('/:id', async (req, res) => {
           include: { sessionDriver: { include: { driver: true, car: true } } },
           orderBy: { enteredAt: 'asc' },
         },
+        tyreChanges: { orderBy: { changedAt: 'asc' } },
       },
     });
 
@@ -218,6 +219,7 @@ router.put('/:id', async (req, res) => {
       weatherRainChance,
       weatherIntervalSeconds,
       weatherAdvanceDuringPause,
+      tyreMismatchPercent,
     } = req.body;
 
     const updateData = {};
@@ -235,22 +237,28 @@ router.put('/:id', async (req, res) => {
       weatherAdvanceDuringPause,
     };
     const weatherKeys = Object.keys(weatherUpdate).filter((key) => weatherUpdate[key] !== undefined);
-    if (weatherKeys.length || type !== undefined) {
+    if (weatherKeys.length || type !== undefined || tyreMismatchPercent !== undefined) {
       const current = await prisma().session.findUnique({ where: { id: req.params.id } });
       if (!current || current.deletedAt) {
         return res.status(404).json({ success: false, error: 'Session not found' });
       }
       const nextWeather = { ...current, ...Object.fromEntries(weatherKeys.map((key) => [key, weatherUpdate[key]])) };
+      const nextTyrePercent = tyreMismatchPercent ?? current.tyreMismatchPercent;
       if (
         !validWeatherConfig(nextWeather) ||
-        (nextWeather.weatherSeed !== null && (type ?? current.type) !== SessionType.RACE)
+        (nextWeather.weatherSeed !== null && (type ?? current.type) !== SessionType.RACE) ||
+        !validTyreMismatchPercent(nextTyrePercent) ||
+        (nextTyrePercent > 0 && (nextWeather.weatherSeed === null || (type ?? current.type) !== SessionType.RACE))
       ) {
         return res.status(400).json({ success: false, error: 'Invalid race weather configuration' });
       }
-      if (current.status !== SessionStatus.DRAFT && weatherKeys.some((key) => current[key] !== nextWeather[key])) {
+      if (current.status !== SessionStatus.DRAFT &&
+          (weatherKeys.some((key) => current[key] !== nextWeather[key]) ||
+           (tyreMismatchPercent !== undefined && current.tyreMismatchPercent !== nextTyrePercent))) {
         return res.status(409).json({ success: false, error: 'Weather cannot be changed after race start' });
       }
       for (const key of weatherKeys) updateData[key] = nextWeather[key];
+      if (tyreMismatchPercent !== undefined) updateData.tyreMismatchPercent = nextTyrePercent;
     }
     if (maxDuration !== undefined) updateData.maxDuration = maxDuration || null;
     if (maxLaps !== undefined) updateData.maxLaps = maxLaps || null;
@@ -657,8 +665,13 @@ router.get('/:id/leaderboard', async (req, res) => {
       });
 
       const entry = {
+        id: sd.id,
         controller: sd.controller,
         driverId: sd.driverId,
+        tyreType: sd.tyreType,
+        pendingTyreType: sd.pendingTyreType,
+        simulatedTotalTime: sd.simulatedTotalTime,
+        simulatedBestLapTime: sd.simulatedBestLapTime,
         driver: sd.driver,
         car: sd.car,
         gridPos: sd.gridPos,
