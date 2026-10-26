@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Flag, MapPin, Trash2, Trophy, Users2, Clock, Timer, Pause, Scale } from 'lucide-react'
+import { ArrowLeft, Flag, MapPin, Trash2, Trophy, Users2, Clock, Timer, Pause, Scale, Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import DeleteButton from '../components/ui/DeleteButton'
 import ExportButton from '../components/ui/ExportButton'
@@ -255,6 +255,14 @@ export default function SessionDetail() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {session.status === SessionStatus.FINISHED &&
+            [SessionType.RACE, SessionType.QUALIF].includes(session.type) && (
+              <Button variant="outline" size="sm" asChild>
+                <Link to={`/results/${session.id}`}>
+                  <Printer className="size-4" /> {t('printResults.open')}
+                </Link>
+              </Button>
+            )}
           <ExportButton url={`/api/sessions/${session.id}/export`} />
           <ExportButton
             url={`/api/sessions/${session.id}/export?format=csv&table=results`}

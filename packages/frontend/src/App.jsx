@@ -20,6 +20,7 @@ const Displays = lazy(() => import('./pages/Displays'))
 const DriverDisplayDemo = lazy(() => import('./pages/DriverDisplayDemo'))
 const SessionsList = lazy(() => import('./pages/SessionsList'))
 const SessionDetail = lazy(() => import('./pages/SessionDetail'))
+const SessionResults = lazy(() => import('./pages/SessionResults'))
 const Stats = lazy(() => import('./pages/Stats'))
 const Settings = lazy(() => import('./pages/Settings'))
 const Test = lazy(() => import('./pages/Test'))
@@ -233,6 +234,16 @@ function App() {
                     element={
                       <Suspense>
                         <MobileRaceControl />
+                      </Suspense>
+                    }
+                  />
+
+                  {/* Standalone read-only print view */}
+                  <Route
+                    path="results/:sessionId"
+                    element={
+                      <Suspense>
+                        <SessionResults />
                       </Suspense>
                     }
                   />
