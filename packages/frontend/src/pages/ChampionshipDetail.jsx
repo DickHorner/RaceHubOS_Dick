@@ -290,8 +290,10 @@ export default function ChampionshipDetail() {
         }
         fetchSessions()
         await loadSession(selectedSession.id)
+        return { success: true }
       } catch (err) {
         console.error('Error:', err)
+        return { success: false, error: err.message }
       }
     },
     [selectedSession, fetchSessions, loadSession]
