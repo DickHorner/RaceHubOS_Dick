@@ -204,8 +204,20 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const {
-      name, type, trackId, championshipId, fuelMode, maxDuration, maxLaps, gracePeriod, order,
-      weatherSeed, weatherInitial, weatherRainChance, weatherIntervalSeconds, weatherAdvanceDuringPause,
+      name,
+      type,
+      trackId,
+      championshipId,
+      fuelMode,
+      maxDuration,
+      maxLaps,
+      gracePeriod,
+      order,
+      weatherSeed,
+      weatherInitial,
+      weatherRainChance,
+      weatherIntervalSeconds,
+      weatherAdvanceDuringPause,
     } = req.body;
 
     const updateData = {};
@@ -215,7 +227,13 @@ router.put('/:id', async (req, res) => {
     if (championshipId !== undefined) updateData.championshipId = championshipId === '' ? null : championshipId;
     if (fuelMode !== undefined) updateData.fuelMode = fuelMode;
 
-    const weatherUpdate = { weatherSeed, weatherInitial, weatherRainChance, weatherIntervalSeconds, weatherAdvanceDuringPause };
+    const weatherUpdate = {
+      weatherSeed,
+      weatherInitial,
+      weatherRainChance,
+      weatherIntervalSeconds,
+      weatherAdvanceDuringPause,
+    };
     const weatherKeys = Object.keys(weatherUpdate).filter((key) => weatherUpdate[key] !== undefined);
     if (weatherKeys.length || type !== undefined) {
       const current = await prisma().session.findUnique({ where: { id: req.params.id } });
@@ -223,8 +241,10 @@ router.put('/:id', async (req, res) => {
         return res.status(404).json({ success: false, error: 'Session not found' });
       }
       const nextWeather = { ...current, ...Object.fromEntries(weatherKeys.map((key) => [key, weatherUpdate[key]])) };
-      if (!validWeatherConfig(nextWeather) ||
-          (nextWeather.weatherSeed !== null && (type ?? current.type) !== SessionType.RACE)) {
+      if (
+        !validWeatherConfig(nextWeather) ||
+        (nextWeather.weatherSeed !== null && (type ?? current.type) !== SessionType.RACE)
+      ) {
         return res.status(400).json({ success: false, error: 'Invalid race weather configuration' });
       }
       if (current.status !== SessionStatus.DRAFT && weatherKeys.some((key) => current[key] !== nextWeather[key])) {
