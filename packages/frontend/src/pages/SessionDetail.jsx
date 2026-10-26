@@ -347,9 +347,7 @@ export default function SessionDetail() {
         )}
 
         {/* Persisted lap analysis */}
-        {session.laps?.length > 0 && !isBalancing && (
-          <SessionLapChart key={session.id} session={session} />
-        )}
+        {session.laps?.length > 0 && !isBalancing && <SessionLapChart key={session.id} session={session} />}
 
         {/* Observed pit stops */}
         {session.pitStops?.length > 0 && (
