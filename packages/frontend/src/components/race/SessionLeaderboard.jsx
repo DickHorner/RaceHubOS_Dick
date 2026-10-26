@@ -223,6 +223,14 @@ export default function SessionLeaderboard({
                     {car.brand} {car.model || car.name || ''}
                   </span>
                 </div>
+                {(entry.penaltyLaps > 0 || entry.penaltyTimeMs > 0) && (
+                  <div className="flex gap-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                    {entry.penaltyLaps > 0 && <span>{t('leaderboard.penaltyLaps', { count: entry.penaltyLaps })}</span>}
+                    {entry.penaltyTimeMs > 0 && (
+                      <span>{t('leaderboard.penaltyTime', { seconds: entry.penaltyTimeMs / 1000 })}</span>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Stats */}

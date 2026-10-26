@@ -52,6 +52,14 @@
     "pitHistory": "Pit stops ({{count}})",
     "pitDriver": "Driver",
     "pitEntered": "Entry (observed)",
-    "pitDuration": "Duration (approx.)"
+    "pitDuration": "Duration (approx.)",
+    "penalties": "Penalties ({{count}})",
+    "penaltyAmount": "Deduction",
+    "penaltyReason": "Reason",
+    "penaltyStatus": "Status",
+    "penaltyLaps": "−{{count}} laps",
+    "penaltyTime": "+{{seconds}} s",
+    "penaltyActive": "Active",
+    "penaltyRevoked": "Revoked"
   }
 }

@@ -36,7 +36,9 @@
     "best": "Meilleur",
     "last": "Dernier",
     "gap": "Écart",
-    "total": "Total"
+    "total": "Total",
+    "penaltyLaps": "−{{count}} tours de pénalité",
+    "penaltyTime": "+{{seconds}} s de pénalité"
   },
   "resultsModal": {
     "title": "Résultats",
