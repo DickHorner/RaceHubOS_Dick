@@ -35,6 +35,16 @@
     "display": "Display",
     "fuel": "Fuel"
   },
+  "ghostCar": {
+    "title": "Ghost Car (Autonomous Car)",
+    "description": "Program the Ghost Car's speed directly on the Carrera Control Unit, not through RaceHubOS.",
+    "step1": "Stop the race. With the CU powered on, leave only the intended Ghost Car on the track.",
+    "step2": "Press CODE on the CU twice, then press the controller's lane-change button once.",
+    "step3": "Wait until only the centre LED on the CU is lit again.",
+    "step4": "Accelerate to a safe lap speed and press the lane-change button again to save it.",
+    "limitation": "RaceHubOS cannot yet confirm Ghost programming. Ghost and Pace Car addresses 7 and 8 (internal CU slots 6 and 7) are excluded from driver scoring. The Pace Car is a separate mode.",
+    "manualLink": "Carrera manual: Autonomous Car programming"
+  },
   "appearance": {
     "themeNight": "Night mode",
     "themeDay": "Day mode",
