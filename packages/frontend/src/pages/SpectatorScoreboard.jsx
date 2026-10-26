@@ -20,8 +20,15 @@ export default function SpectatorScoreboard() {
   const { t } = useTranslation('scoreboard')
   const { socketConnected } = useDevice()
   const {
-    session, entries, elapsed, remaining, maxLapsCompleted,
-    lastServerTime, isStale, fetchSession, clearSession,
+    session,
+    entries,
+    elapsed,
+    remaining,
+    maxLapsCompleted,
+    lastServerTime,
+    isStale,
+    fetchSession,
+    clearSession,
   } = useSession()
   const currentSession = useRef(session)
   currentSession.current = session
@@ -82,7 +89,7 @@ export default function SpectatorScoreboard() {
 
   const racing = session && ['active', 'paused', 'finishing'].includes(session.status)
   const signalMissing = !socketConnected || (racing && (!lastServerTime || isStale))
-  const lapCount = Math.max(maxLapsCompleted, ...((session?.drivers || []).map((driver) => driver.totalLaps || 0)), 0)
+  const lapCount = Math.max(maxLapsCompleted, ...(session?.drivers || []).map((driver) => driver.totalLaps || 0), 0)
   const sortBy = session?.type === SessionType.QUALIF ? 'bestLap' : session?.type === SessionType.RACE ? 'race' : 'laps'
 
   return (
@@ -90,12 +97,19 @@ export default function SpectatorScoreboard() {
       <div className="mx-auto max-w-screen-2xl space-y-5">
         <header className="flex items-center justify-between gap-4 border-b border-border pb-4">
           <h1 className="text-xl sm:text-3xl font-black tracking-tight">RaceHubOS · {t('title')}</h1>
-          <div role="status" className={`text-xs sm:text-sm font-semibold ${signalMissing ? 'text-amber-500' : 'text-green-500'}`}>
+          <div
+            role="status"
+            className={`text-xs sm:text-sm font-semibold ${signalMissing ? 'text-amber-500' : 'text-green-500'}`}
+          >
             {signalMissing ? t('noSignal') : t('connected')}
           </div>
         </header>
 
-        {loadError && <p role="alert" className="rounded-lg border border-amber-500/40 p-3 text-amber-500">{t('loadError')}</p>}
+        {loadError && (
+          <p role="alert" className="rounded-lg border border-amber-500/40 p-3 text-amber-500">
+            {t('loadError')}
+          </p>
+        )}
 
         {!session ? (
           <p className="rounded-xl bg-card border border-border p-8 text-center text-muted-foreground">
@@ -121,7 +135,8 @@ export default function SpectatorScoreboard() {
                 <div className="rounded-lg bg-muted/60 p-3 sm:p-5">
                   <p className="text-xs sm:text-base uppercase text-muted-foreground">{t('laps')}</p>
                   <p className="text-2xl sm:text-5xl font-black tabular-nums">
-                    {lapCount}{session.maxLaps ? ` / ${session.maxLaps}` : ''}
+                    {lapCount}
+                    {session.maxLaps ? ` / ${session.maxLaps}` : ''}
                   </p>
                 </div>
                 <div className="rounded-lg bg-muted/60 p-3 sm:p-5">
@@ -129,7 +144,9 @@ export default function SpectatorScoreboard() {
                     {session.maxDuration ? t('remainingTime') : t('elapsedTime')}
                   </p>
                   <p className="text-2xl sm:text-5xl font-black tabular-nums">
-                    {session.status === SessionStatus.FINISHED ? t('finished') : clock(session.maxDuration ? remaining : elapsed)}
+                    {session.status === SessionStatus.FINISHED
+                      ? t('finished')
+                      : clock(session.maxDuration ? remaining : elapsed)}
                   </p>
                 </div>
               </div>

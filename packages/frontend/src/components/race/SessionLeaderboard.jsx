@@ -15,13 +15,7 @@ import { SessionStatus, SessionType } from '@racehubos/shared'
  * @param {string} sortBy - 'laps' | 'bestLap' | 'race'
  * @param {string} sessionType - 'practice' | 'qualif' | 'race'
  */
-export default function SessionLeaderboard({
-  entries = [],
-  sortBy = 'laps',
-  sessionType = SessionType.RACE,
-  sessionStatus,
-  expanded = false,
-}) {
+export default function SessionLeaderboard({ entries = [], sortBy = 'laps', sessionStatus, expanded = false }) {
   const { isDark } = useApp()
   const { t } = useTranslation('race')
   const gradientEnd = 'var(--card)'
@@ -32,18 +26,19 @@ export default function SessionLeaderboard({
     const statsB = b.stats || {}
 
     switch (sortBy) {
-      case 'bestLap':
+      case 'bestLap': {
         // Best lap ascending (fastest first), null/0 last
         const bestA = statsA.bestLap || Infinity
         const bestB = statsB.bestLap || Infinity
         return bestA - bestB
+      }
 
       case 'race':
         // Laps descending, then total time ascending
         if ((statsB.laps || 0) !== (statsA.laps || 0)) {
           return (statsB.laps || 0) - (statsA.laps || 0)
         }
-        return (statsA.totalTime || Infinity) - (statsB.totalTime || Infinity)
+        return (statsA.rankTime || statsA.totalTime || Infinity) - (statsB.rankTime || statsB.totalTime || Infinity)
 
       case 'laps':
       default:
@@ -232,6 +227,25 @@ export default function SessionLeaderboard({
                     {t(`leaderboard.damageStatus.${entry.damageStatus}`)}
                   </p>
                 )}
+                {entry.tyreType && (
+                  <div className="text-xs text-sky-600 dark:text-sky-400">
+                    {t(entry.tyreType === 'wet' ? 'leaderboard.tyreWet' : 'leaderboard.tyreDry')}
+                    {entry.pendingTyreType && ` · ${t('leaderboard.tyrePending')}`}
+                  </div>
+                )}
+                {Number.isInteger(entry.virtualFuelUnits) && (
+                  <div className="text-xs font-semibold text-sky-600 dark:text-sky-400">
+                    {t('leaderboard.virtualFuel', { percent: Math.round(entry.virtualFuelUnits / 100) })}
+                  </div>
+                )}
+                {(entry.penaltyLaps > 0 || entry.penaltyTimeMs > 0) && (
+                  <div className="flex gap-2 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                    {entry.penaltyLaps > 0 && <span>{t('leaderboard.penaltyLaps', { count: entry.penaltyLaps })}</span>}
+                    {entry.penaltyTimeMs > 0 && (
+                      <span>{t('leaderboard.penaltyTime', { seconds: entry.penaltyTimeMs / 1000 })}</span>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Stats */}
@@ -252,6 +266,11 @@ export default function SessionLeaderboard({
                     {t('leaderboard.best')}
                   </div>
                   <LapTime time={stats.bestLap} size={expanded ? 'xl' : 'md'} highlight={entry.hasFastestLap} />
+                  {Number.isInteger(stats.simulatedBestLapTime) && (
+                    <div className="text-xs text-sky-600 dark:text-sky-400">
+                      {t('leaderboard.simulatedBest')} <LapTime time={stats.simulatedBestLapTime} size="sm" />
+                    </div>
+                  )}
                 </div>
 
                 {/* Last Lap */}
@@ -271,7 +290,16 @@ export default function SessionLeaderboard({
                   </div>
                   {sortBy === 'race' && position === 1 ? (
                     sessionStatus === SessionStatus.FINISHED ? (
-                      <LapTime time={stats.totalTime} size={expanded ? 'xl' : 'md'} format="total" />
+                      <div>
+                        <LapTime
+                          time={stats.simulatedTotalTime ?? stats.totalTime}
+                          size={expanded ? 'xl' : 'md'}
+                          format="total"
+                        />
+                        {Number.isInteger(stats.simulatedTotalTime) && (
+                          <p className="text-xs text-sky-600 dark:text-sky-400">{t('leaderboard.simulatedTotal')}</p>
+                        )}
+                      </div>
                     ) : (
                       <span className={`${expanded ? 'text-lg' : 'text-sm'} font-bold ${GAP_COLORS.leader}`}>
                         {t('gapDisplay.leader')}

@@ -4,4 +4,8 @@ export * from './championship.js';
 export * from './fuelMode.js';
 export * from './sessionStatus.js';
 export * from './sessionTypes.js';
+export * from './weather.js';
+export * from './tyres.js';
+export * from './virtualFuel.js';
+export * from './racePenalties.js';
 export * from './damage.js';

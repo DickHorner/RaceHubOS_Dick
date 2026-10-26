@@ -132,6 +132,13 @@ model Session {
   damageLapThresholdMs Int?       // Null disables race damage
   damageRepairSeconds Int         @default(60) // Deadline in active racing seconds
   damagePitSeconds Int            @default(5) // Minimum observed pit interval
+  weatherSeed    Int?            // Null = weather disabled; fixed seed reproduces each race
+  weatherInitial String          @default("dry") // dry | rain — @racehubos/shared
+  weatherRainChance Int          @default(35)  // Probability per interval, 0-100 %
+  weatherIntervalSeconds Int     @default(60)  // Each interval samples the seeded forecast
+  weatherAdvanceDuringPause Boolean @default(false) // Weather clock can continue while racing is paused
+  tyreMismatchPercent Int       @default(0) // Optional virtual lap-time penalty, 0-30%
+  virtualFuelRate Int?            // Virtual fuel burn: % per racing minute; null disables
   status         String          @default("draft") // draft | ready | active | paused | finishing | finished — @racehubos/shared
   maxDuration    Int?            // Session max duration in ms
   maxLaps        Int?
@@ -158,6 +165,9 @@ model Session {
   drivers        SessionDriver[]
   trackRecords   TrackRecord[]
   pitStops       PitStop[]
+  tyreChanges    TyreChange[]
+  virtualFuelEvents VirtualFuelEvent[]
+  penalties      SessionPenalty[]
 }
 
 model SessionDriver {
@@ -187,6 +197,13 @@ model SessionDriver {
   driver          Driver?  @relation(fields: [driverId], references: [id])
   session         Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   pitStops        PitStop[]
+  tyreType        String       @default("dry") // Actual simulated tyres; dry | wet
+  pendingTyreType String?      // Driver-requested tyres for next confirmed pit stop
+  simulatedTotalTime Int?      // Separate from measured totalTime, ms
+  simulatedBestLapTime Int?    // Separate from measured bestLapTime, ms
+  tyreChanges     TyreChange[]
+  virtualFuelEvents VirtualFuelEvent[]
+  penalties       SessionPenalty[]
 
   @@unique([sessionId, controller])
 }
@@ -202,9 +219,66 @@ model PitStop {
   source          String        // cu | simulator
   session         Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   sessionDriver   SessionDriver? @relation(fields: [sessionDriverId], references: [id], onDelete: SetNull)
+  tyreChange      TyreChange?
 
   @@index([sessionId, enteredAt])
   @@index([sessionDriverId])
+}
+
+model TyreChange {
+  id              String        @id @default(cuid())
+  sessionId       String
+  sessionDriverId String
+  controller      Int
+  fromType        String
+  toType          String
+  source          String        // simulator | director (human-observed pit)
+  pitStopId       String?       @unique
+  changedAt       DateTime      @default(now())
+  session         Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionDriver   SessionDriver @relation(fields: [sessionDriverId], references: [id], onDelete: Cascade)
+  pitStop         PitStop?      @relation(fields: [pitStopId], references: [id], onDelete: SetNull)
+
+  @@index([sessionId, changedAt])
+  @@index([sessionDriverId])
+}
+
+model VirtualFuelEvent {
+  id              Int           @id @default(autoincrement())
+  sessionId       String
+  sessionDriverId String
+  controller      Int
+  kind            String        // lap | refuel
+  units           Int           // basis points burned per lap; 0 for refuel
+  source          String        // lap | simulator
+  reference       String        // lap:<id> | pit:<id>, unique per session
+  createdAt       DateTime      @default(now())
+  session         Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionDriver   SessionDriver @relation(fields: [sessionDriverId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, reference])
+  @@index([sessionId, id])
+}
+
+model SessionPenalty {
+  id              String        @id @default(cuid())
+  sessionId       String
+  sessionDriverId String?
+  driverId        String?       // Driver at issue time; retained if the assignment is removed
+  controller      Int           // Controller at issue time (0-5)
+  requestId       String        // Idempotency key; not an authorization token
+  kind            String        // time | lap
+  amount          Int           // milliseconds for time, laps for lap
+  reason          String
+  status          String        @default("active") // active | revoked
+  issuedAt        DateTime      @default(now())
+  revokedAt       DateTime?
+  session         Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionDriver   SessionDriver? @relation(fields: [sessionDriverId], references: [id], onDelete: SetNull)
+
+  @@unique([sessionId, requestId])
+  @@index([sessionId, issuedAt])
+  @@index([sessionDriverId, status])
 }
 
 model Lap {
@@ -217,6 +291,9 @@ model Lap {
   phase         String
   lapNumber     Int
   lapTime       Float
+  simulatedLapTime Float?  // Virtual race calculation; never changes lapTime
+  tyreAtLap     String? // Tyres at this crossing (snapshot)
+  weatherAtLap  String? // Weather at this crossing (snapshot)
   sector1       Float?
   sector2       Float?
   sector3       Float?

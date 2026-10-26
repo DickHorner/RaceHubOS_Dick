@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, us
 import { io } from 'socket.io-client'
 import { useApp } from './AppContext'
 import { useVoice } from './VoiceContext'
-import { SessionStatus, SessionType } from '@racehubos/shared'
+import { SessionStatus, SessionType, rankRaceDrivers } from '@racehubos/shared'
 import i18n from '../i18n'
 import { sessionNames } from '../lib/sessionNames'
 
@@ -88,6 +88,10 @@ export function SessionProvider({ children }) {
     })
 
     // Session status changes
+    socket.on('session:penalties_changed', (data) => {
+      window.dispatchEvent(new CustomEvent('session:penalties_changed', { detail: data }))
+    })
+
     socket.on('session:status_changed', (data) => {
       if (data.sessionId && data.status) {
         setSession((prev) => (prev?.id === data.sessionId ? { ...prev, status: data.status } : prev))
@@ -102,6 +106,10 @@ export function SessionProvider({ children }) {
     socket.on('session:vsc_error', (data) => {
       window.dispatchEvent(new CustomEvent('session:vsc_error', { detail: data }))
     })
+    socket.on('session:tyre_changed', (data) => {
+      window.dispatchEvent(new CustomEvent('session:tyre_changed', { detail: data }))
+    })
+
     socket.on('session:damage_changed', (data) => {
       window.dispatchEvent(new CustomEvent('session:damage_changed', { detail: data }))
     })
@@ -127,7 +135,12 @@ export function SessionProvider({ children }) {
       setSession((prev) => {
         if (prev?.id !== data.sessionId) return prev
         const drivers = data.leaderboard?.length > 0 ? data.leaderboard : prev.drivers
-        return { ...prev, status: SessionStatus.FINISHED, drivers }
+        return {
+          ...prev,
+          status: SessionStatus.FINISHED,
+          drivers,
+          weatherCondition: data.weatherCondition ?? prev.weatherCondition,
+        }
       })
       setFinishingSession(null)
       // Keep final leaderboard
@@ -209,6 +222,12 @@ export function SessionProvider({ children }) {
       setTotalPauseDuration(data.totalPauseDuration ? Math.floor(data.totalPauseDuration / 1000) : 0)
       setPauses(data.pauses || [])
       if (data.startedAt) setStartedAt(data.startedAt)
+      if (data.weatherCondition !== undefined) {
+        setSession((prev) => {
+          if (!prev || prev.id !== data.sessionId || prev.weatherCondition === data.weatherCondition) return prev
+          return { ...prev, weatherCondition: data.weatherCondition }
+        })
+      }
       // Update leaderboard from heartbeat (ensures data sync on refresh)
       if (data.leaderboard && Array.isArray(data.leaderboard)) {
         setLeaderboard(data.leaderboard)
@@ -535,17 +554,24 @@ export function SessionProvider({ children }) {
   // Falls back to session drivers if leaderboard is empty
   const entries = useMemo(() => {
     // A finished scoreboard must keep its own saved results, not a newer session's live leaderboard.
-    const source = session?.status === SessionStatus.FINISHED && session.drivers?.length > 0
-      ? session.drivers
-      : leaderboard.length > 0 ? leaderboard : session?.drivers || []
+    const source =
+      session?.status === SessionStatus.FINISHED && session.drivers?.length > 0
+        ? session.drivers
+        : leaderboard.length > 0
+          ? leaderboard
+          : session?.drivers || []
     if (source.length === 0) return []
+    const rankedSource =
+      session?.status === SessionStatus.FINISHED && session?.type === SessionType.RACE
+        ? rankRaceDrivers(source, session.penalties || [])
+        : source
 
     // Find fastest lap
     const allBestLaps = source.map((p) => p.bestLapTime).filter((t) => t && t > 0)
     const fastestLapTime = allBestLaps.length > 0 ? Math.min(...allBestLaps) : null
 
-    return source
-      .map((p) => ({
+    return rankedSource
+      .map((p, index) => ({
         id: p.id,
         controller: p.controller,
         driver: p.driver,
@@ -557,14 +583,24 @@ export function SessionProvider({ children }) {
         damageDeadlineElapsedMs: p.damageDeadlineElapsedMs,
         damageRepairedAt: p.damageRepairedAt,
         damageRepairSource: p.damageRepairSource,
+        tyreType: p.tyreType,
+        pendingTyreType: p.pendingTyreType,
+        simulatedTotalTime: p.simulatedTotalTime,
+        simulatedBestLapTime: p.simulatedBestLapTime,
+        virtualFuelUnits: p.virtualFuelUnits ?? null,
         stats: {
-          laps: p.totalLaps || 0,
+          laps: p.classifiedLaps ?? p.totalLaps ?? 0,
           bestLap: p.bestLapTime || null,
           lastLap: p.lastLapTime || null,
-          totalTime: p.totalTime || 0,
+          totalTime: p.classifiedTime ?? p.totalTime ?? 0,
+          rankTime: p.classifiedSimulatedTime,
+          simulatedTotalTime: p.simulatedTotalTime,
+          simulatedBestLapTime: p.simulatedBestLapTime,
           gap: p.gap ?? null,
         },
-        position: p.position || 0,
+        penaltyLaps: p.penaltyLaps || 0,
+        penaltyTimeMs: p.penaltyTimeMs || 0,
+        position: rankedSource !== source ? index + 1 : p.position || 0,
         positionDelta: p.positionDelta || 0, // From backend
         hasFastestLap: fastestLapTime && p.bestLapTime === fastestLapTime,
         isDNF: p.isDNF || false,

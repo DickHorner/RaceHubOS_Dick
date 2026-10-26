@@ -2,22 +2,39 @@ import { test, expect } from '@playwright/test'
 
 const participants = [
   {
-    id: 'entry-a', driverId: 'driver-a', controller: 0,
-    position: 1, totalLaps: 7, totalTime: 90000, bestLapTime: 12000, lastLapTime: 13000,
+    id: 'entry-a',
+    driverId: 'driver-a',
+    controller: 0,
+    position: 1,
+    totalLaps: 7,
+    totalTime: 90000,
+    bestLapTime: 12000,
+    lastLapTime: 13000,
     driver: { id: 'driver-a', name: 'Driver Alpha', color: '#ef4444', number: 11 },
     car: { brand: 'BMW', model: 'M4' },
   },
   {
-    id: 'entry-b', driverId: 'driver-b', controller: 1,
-    position: 2, totalLaps: 6, totalTime: 88000, bestLapTime: 13500, lastLapTime: 14000,
+    id: 'entry-b',
+    driverId: 'driver-b',
+    controller: 1,
+    position: 2,
+    totalLaps: 6,
+    totalTime: 88000,
+    bestLapTime: 13500,
+    lastLapTime: 14000,
     driver: { id: 'driver-b', name: 'Driver Beta', color: '#3b82f6', number: 22 },
     car: { brand: 'AMG', model: 'GT3' },
   },
 ]
 
 const race = {
-  id: 'race-a', name: 'Live Test Race', type: 'race', status: 'paused', maxLaps: 20,
-  track: { name: 'Circuit E2E' }, drivers: participants,
+  id: 'race-a',
+  name: 'Live Test Race',
+  type: 'race',
+  status: 'paused',
+  maxLaps: 20,
+  track: { name: 'Circuit E2E' },
+  drivers: participants,
 }
 
 async function mockSession(page, current) {
@@ -27,13 +44,12 @@ async function mockSession(page, current) {
   })
   await page.route('**/api/sessions?*', (route) => {
     const status = new URL(route.request().url()).searchParams.get('status')
-    const available = ['active,paused,finishing', 'finished'].includes(status) &&
+    const available =
+      ['active,paused,finishing', 'finished'].includes(status) &&
       (status === 'finished') === (current.value.status === 'finished')
     return route.fulfill({ json: { success: true, data: available ? [current.value] : [] } })
   })
-  await page.route('**/api/sessions/race-*', (route) =>
-    route.fulfill({ json: { success: true, data: current.value } })
-  )
+  await page.route('**/api/sessions/race-*', (route) => route.fulfill({ json: { success: true, data: current.value } }))
   return writes
 }
 
@@ -47,10 +63,7 @@ test('two phones show only their own assigned driver and never issue race comman
     const writesA = await mockSession(pageA, state)
     const writesB = await mockSession(pageB, state)
 
-    await Promise.all([
-      pageA.goto('/display/driver/driver-a'),
-      pageB.goto('/display/driver/driver-b'),
-    ])
+    await Promise.all([pageA.goto('/display/driver/driver-a'), pageB.goto('/display/driver/driver-b')])
 
     await expect(pageA.getByText('Driver Alpha')).toBeVisible()
     await expect(pageA.getByText('Controller 1')).toBeVisible()
@@ -89,7 +102,8 @@ test('driver reassignment and session changes cannot show another driver', async
 
   state.value = {
     ...race,
-    id: 'race-b', name: 'Another session',
+    id: 'race-b',
+    name: 'Another session',
     drivers: [{ ...participants[1], id: 'entry-new', controller: 0 }],
   }
   await page.evaluate(() => window.dispatchEvent(new Event('session:status_changed')))
@@ -98,9 +112,10 @@ test('driver reassignment and session changes cannot show another driver', async
   await expect(page.getByText('Driver Beta')).toHaveCount(0)
 })
 
-
 test('duplicate assignment does not silently select the wrong controller', async ({ page }) => {
-  const state = { value: { ...race, drivers: [participants[0], { ...participants[0], id: 'entry-duplicate', controller: 3 }] } }
+  const state = {
+    value: { ...race, drivers: [participants[0], { ...participants[0], id: 'entry-duplicate', controller: 3 }] },
+  }
   await mockSession(page, state)
   await page.goto('/display/driver/driver-a')
   await expect(page.getByRole('alert')).toContainText('multiple assignments')

@@ -76,7 +76,8 @@ function soundExtension(file) {
   if (data.length < 12) return null;
   if (ext === '.wav' && data.toString('ascii', 0, 4) === 'RIFF' && data.toString('ascii', 8, 12) === 'WAVE') return ext;
   if (ext === '.ogg' && data.toString('ascii', 0, 4) === 'OggS') return ext;
-  if (ext === '.mp3' && (data.toString('ascii', 0, 3) === 'ID3' || (data[0] === 0xff && (data[1] & 0xe0) === 0xe0))) return ext;
+  if (ext === '.mp3' && (data.toString('ascii', 0, 3) === 'ID3' || (data[0] === 0xff && (data[1] & 0xe0) === 0xe0)))
+    return ext;
   return null;
 }
 
