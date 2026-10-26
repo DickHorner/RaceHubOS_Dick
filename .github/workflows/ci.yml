@@ -23,15 +23,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: |
-          for f in packages/backend/src/__tests__/carRotation.test.js packages/backend/src/routes/sessions.js packages/backend/src/services/ChampionshipService.js packages/frontend/src/components/championship/ChampionshipConfigModal.jsx; do
-            ./node_modules/.bin/prettier --write "$f"
-            echo "FORMATTED_START:$f"
-            base64 -w0 "$f"
-            echo
-            echo "FORMATTED_END:$f"
-          done
-          ./node_modules/.bin/eslint packages/backend/src/__tests__/carRotation.test.js || true
-      - run: |
           echo "Direct Prettier diagnostics for all changed files"
           ./node_modules/.bin/prettier --list-different packages/backend/prisma/migrations/20261026142000_add_race_damage/migration.sql packages/backend/prisma/schema.prisma packages/backend/src/__tests__/raceControl.test.js packages/backend/src/__tests__/raceDamage.test.js packages/backend/src/routes/raceControl.js packages/backend/src/routes/sessions.js packages/backend/src/services/SessionService.js packages/frontend/src/components/SessionForm.jsx packages/frontend/src/components/championship/SessionSection.jsx packages/frontend/src/components/race/SessionLeaderboard.jsx packages/frontend/src/context/SessionContext.jsx packages/frontend/src/i18n/locales/de/championships.json packages/frontend/src/i18n/locales/de/driverDisplay.json packages/frontend/src/i18n/locales/de/mobileControl.json packages/frontend/src/i18n/locales/de/race.json packages/frontend/src/i18n/locales/de/sessions.json packages/frontend/src/i18n/locales/en/championships.json packages/frontend/src/i18n/locales/en/driverDisplay.json packages/frontend/src/i18n/locales/en/mobileControl.json packages/frontend/src/i18n/locales/en/race.json packages/frontend/src/i18n/locales/en/sessions.json packages/frontend/src/i18n/locales/fr/championships.json packages/frontend/src/i18n/locales/fr/driverDisplay.json packages/frontend/src/i18n/locales/fr/mobileControl.json packages/frontend/src/i18n/locales/fr/race.json packages/frontend/src/i18n/locales/fr/sessions.json packages/frontend/src/pages/ChampionshipDetail.jsx packages/frontend/src/pages/DriverDisplay.jsx packages/frontend/src/pages/FreeSessionPage.jsx packages/frontend/src/pages/MobileRaceControl.jsx packages/frontend/src/pages/SessionDetail.jsx packages/shared/src/damage.js packages/shared/src/index.js 2>&1 || true
       - run: npm run check -- --ci
