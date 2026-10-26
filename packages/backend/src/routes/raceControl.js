@@ -200,6 +200,35 @@ router.post('/driver-link', requireDirector, async (req, res) => {
   }
 });
 
+// A driver can plan their own tyres, but cannot claim that a pit stop has occurred.
+router.post('/driver/tyres', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const access = decodeDriverAccess(bearer(req));
+  if (!access) return res.status(403).json({ success: false, error: 'Invalid or expired driver access' });
+  const { tyreType } = req.body || {};
+  try {
+    const result = await serialize(async () => {
+      const assignments = await sessionService.prisma.sessionDriver.findMany({
+        where: { sessionId: access.sid, driverId: access.did, deletedAt: null },
+      });
+      if (assignments.length !== 1 || assignments[0].id !== access.sdid ||
+          assignments[0].controller !== access.controller) {
+        return { status: 403, error: 'Driver assignment has changed; request a new link' };
+      }
+      if (sessionService.activeSessionId !== access.sid) {
+        return { status: 409, error: 'Driver link is not for the current session' };
+      }
+      return { status: 200, data: await sessionService.requestTyreChange(access.sid, access.sdid, tyreType) };
+    });
+    if (result.error) return res.status(result.status).json({ success: false, error: result.error });
+    res.json({ success: true, data: result.data });
+  } catch (error) {
+    const status = error.status || 500;
+    if (status === 500) console.error('[RaceControl] Tyre request failed:', error);
+    res.status(status).json({ success: false, error: status === 500 ? 'Could not request tyres' : error.message });
+  }
+});
+
 router.post('/chaos', async (req, res) => {
   res.set('Cache-Control', 'no-store');
   const access = decodeDriverAccess(bearer(req));
@@ -275,6 +304,25 @@ router.post('/director/vsc/:action', requireDirector, async (req, res) => {
   } catch (error) {
     console.error('[RaceControl] VSC command failed:', error);
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Explicit human observation when the physical CU pit signals have not been validated.
+router.post('/director/tyres/confirm', requireDirector, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const { sessionId, sessionDriverId } = req.body || {};
+  if (typeof sessionId !== 'string' || !sessionId ||
+      typeof sessionDriverId !== 'string' || !sessionDriverId) {
+    return res.status(400).json({ success: false, error: 'Session and driver assignment are required' });
+  }
+  try {
+    const change = await serialize(() => sessionService.confirmTyreChange(sessionId, sessionDriverId));
+    console.info(`[RaceControl] Manual tyre change confirmed session=${sessionId} assignment=${sessionDriverId}`);
+    res.json({ success: true, data: change });
+  } catch (error) {
+    const status = error.status || 500;
+    if (status === 500) console.error('[RaceControl] Manual tyre confirmation failed:', error);
+    res.status(status).json({ success: false, error: status === 500 ? 'Could not confirm tyre change' : error.message });
   }
 });
 
