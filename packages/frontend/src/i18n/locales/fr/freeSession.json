@@ -5,6 +5,20 @@
     "showStandings": "Afficher le classement",
     "hideStandings": "Masquer le classement"
   },
+  "layout": {
+    "configure": "Disposition",
+    "title": "Widgets de course",
+    "pinned": "Les commandes de course, l'horloge et le soundboard restent toujours visibles.",
+    "widgets": {
+      "leaderboard": "Classement en direct",
+      "standings": "Classement général"
+    },
+    "moveUp": "Monter {{widget}}",
+    "moveDown": "Descendre {{widget}}",
+    "autoHidden": "Le classement général est automatiquement masqué pendant une session en cours.",
+    "loadError": "Impossible de charger la disposition. La vue précédente reste active.",
+    "saveError": "Disposition non enregistrée. Réessayez."
+  },
   "standings": {
     "title": "Classement Général"
   }
