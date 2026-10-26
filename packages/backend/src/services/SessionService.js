@@ -106,6 +106,10 @@ export class SessionService extends EventEmitter {
 
     if (sector !== 1) return;
 
+    // CU slots 6 and 7 are reserved for Autonomous Car and Pace Car.
+    // Never count them as human laps, even if old assignments contain them.
+    if (!Number.isInteger(controller) || controller < 0 || controller > 5) return;
+
     const driver = this.getDriverByController(controller);
     if (driver?.damageStatus === DamageStatus.ACTIVE) await this.expireDamage();
     if (!driver || this.hasDriverFinished(driver)) return;
@@ -1513,6 +1517,9 @@ export class SessionService extends EventEmitter {
   writeRaceSpeed(controller, level) {
     const device = this.syncService?.getDevice();
     const write = this.speedWrites.then(async () => {
+      if (!Number.isInteger(controller) || controller < 0 || controller > 5) {
+        throw new Error(`Controller ${controller} is not a human CU slot`);
+      }
       if (!device?.setSpeed || this.syncService?.isConnected?.() === false) {
         throw new Error('CU speed programming unavailable');
       }

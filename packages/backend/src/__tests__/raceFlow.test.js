@@ -69,6 +69,20 @@ describe('déroulé de course', () => {
       expect(service.sessionDrivers[0].totalLaps).toBe(11);
       expect(setSpeed).not.toHaveBeenCalled();
     });
+
+    it('ignore les adresses Ghost et Pace Car, meme avec une ancienne affectation', async () => {
+      for (const controller of [6, 7]) {
+        const autonomous = driver(controller, 0);
+        service.sessionDrivers.push(autonomous);
+        await service.handleLap({ controller, timestamp: 12000, lapTime: 10000, sector: 1 });
+        expect(autonomous.totalLaps).toBe(0);
+      }
+
+      expect(service.saveLap).not.toHaveBeenCalled();
+      expect(service.updateSessionDriver).not.toHaveBeenCalled();
+      expect(service.emitLeaderboard).not.toHaveBeenCalled();
+      expect(setSpeed).not.toHaveBeenCalled();
+    });
   });
 
   describe('pendant la période de grâce', () => {

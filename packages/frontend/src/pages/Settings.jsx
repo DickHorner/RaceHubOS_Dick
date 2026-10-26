@@ -546,6 +546,32 @@ export default function Settings() {
         </CardContent>
       </Card>
 
+      {/* Native-CU Ghost Car setup; never sends programming commands */}
+      <Card>
+        <CardContent className="space-y-3">
+          <h2 className="font-semibold flex items-center gap-2">
+            <Cpu className="size-4 text-muted-foreground" />
+            {t('ghostCar.title')}
+          </h2>
+          <p className="text-sm text-muted-foreground">{t('ghostCar.description')}</p>
+          <ol className="list-decimal pl-5 space-y-1 text-sm">
+            <li>{t('ghostCar.step1')}</li>
+            <li>{t('ghostCar.step2')}</li>
+            <li>{t('ghostCar.step3')}</li>
+            <li>{t('ghostCar.step4')}</li>
+          </ol>
+          <p className="text-xs text-muted-foreground">{t('ghostCar.limitation')}</p>
+          <a
+            className="text-sm text-primary underline"
+            href="https://backend.carrera-revell-toys.com/var/assets/coreshop/pdfs/General%20Introduction%20%28B%29%20D132%20%26%20Wireless.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {t('ghostCar.manualLink')}
+          </a>
+        </CardContent>
+      </Card>
+
       {/* CU Status */}
       {connected && cuStatus && (
         <Card>

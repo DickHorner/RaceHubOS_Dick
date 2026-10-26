@@ -35,6 +35,16 @@
     "display": "Display",
     "fuel": "Fuel"
   },
+  "ghostCar": {
+    "title": "Ghost Car (voiture autonome)",
+    "description": "Programmez la vitesse de la voiture autonome directement sur la Control Unit Carrera, pas dans RaceHubOS.",
+    "step1": "Arrêtez la course. CU allumée, laissez uniquement la voiture autonome à programmer sur la piste.",
+    "step2": "Appuyez deux fois sur CODE sur la CU, puis une fois sur le bouton de changement de voie de la manette.",
+    "step3": "Attendez que seule la LED centrale de la CU soit à nouveau allumée.",
+    "step4": "Accélérez jusqu'à une vitesse sûre sur le circuit, puis appuyez à nouveau sur le bouton de changement de voie pour l'enregistrer.",
+    "limitation": "RaceHubOS ne peut pas encore confirmer la programmation autonome. Les tours des Ghost Cars et Pace Cars sont exclus du classement des pilotes. La Pace Car est un mode distinct.",
+    "manualLink": "Notice Carrera : programmation Autonomous Car"
+  },
   "appearance": {
     "themeNight": "Mode nuit",
     "themeDay": "Mode jour",

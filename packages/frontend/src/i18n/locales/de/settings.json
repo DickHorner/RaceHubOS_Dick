@@ -35,6 +35,16 @@
     "display": "Anzeige",
     "fuel": "Tankstand"
   },
+  "ghostCar": {
+    "title": "Ghost Car (Autonomous Car)",
+    "description": "Die Ghost-Car-Geschwindigkeit wird direkt an der Carrera Control Unit programmiert, nicht durch RaceHubOS.",
+    "step1": "Beende das Rennen. Lass bei eingeschalteter CU nur das gewünschte Ghost Car auf der Bahn.",
+    "step2": "Drücke CODE an der CU zweimal, danach einmal die Weichentaste am Handregler.",
+    "step3": "Warte, bis an der CU wieder nur die mittlere LED leuchtet.",
+    "step4": "Beschleunige auf eine sichere Rundengeschwindigkeit und drücke erneut die Weichentaste zum Speichern.",
+    "limitation": "RaceHubOS kann die Ghost-Programmierung derzeit nicht bestätigen. Ghost- und Pace-Car-Runden werden nicht in die Fahrerwertung übernommen. Das Pace Car ist ein anderer Modus.",
+    "manualLink": "Carrera-Anleitung zur autonomen Fahrzeugprogrammierung"
+  },
   "appearance": {
     "themeNight": "Nachtmodus",
     "themeDay": "Tagmodus",
