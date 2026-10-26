@@ -126,6 +126,7 @@ router.get('/:id/export', async (req, res) => {
         return res.status(404).json({ success: false, error: 'Championship not found' });
       }
       const rows = worksheetTableRows(result.workbook.worksheets[1], 'Classement pilotes');
+      if (!rows) return res.status(404).json({ success: false, error: 'No driver standings to export' });
       sendCsv(res, result.fileName.replace(/\.xlsx$/, '_standings.csv'), rows);
       return;
     }
