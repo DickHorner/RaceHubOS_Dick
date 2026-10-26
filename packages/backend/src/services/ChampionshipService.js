@@ -76,7 +76,6 @@ export class ChampionshipService {
     return groups;
   }
 
-
   /**
    * Preview a complete driver/car rotation without changing any sessions.
    * Each heat is a matching: no driver or physical car appears twice.
@@ -130,7 +129,8 @@ export class ChampionshipService {
     const races = Array.from({ length: heatCount }, (_, round) => ({
       round: round + 1,
       drivers: Array.from({ length: heatSize }, (_, controller) => {
-        const participant = participants[driversOutnumberCars ? (round + controller) % participants.length : controller];
+        const participant =
+          participants[driversOutnumberCars ? (round + controller) % participants.length : controller];
         const car = cars[driversOutnumberCars ? controller : (round + controller) % cars.length];
         return {
           controller,
@@ -210,8 +210,10 @@ export class ChampionshipService {
       }
 
       const firstOrder =
-        Math.max(0, ...championship.sessions.filter((session) => session.type !== SessionType.RACE).map((s) => s.order)) +
-        1;
+        Math.max(
+          0,
+          ...championship.sessions.filter((session) => session.type !== SessionType.RACE).map((s) => s.order)
+        ) + 1;
       for (let index = 0; index < plan.races.length; index++) {
         await tx.session.create({
           data: {
