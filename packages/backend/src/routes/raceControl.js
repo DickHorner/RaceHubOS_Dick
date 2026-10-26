@@ -278,6 +278,27 @@ router.post('/director/vsc/:action', requireDirector, async (req, res) => {
   }
 });
 
+// A CU pit flag is only an observation. The director must verify the actual repair.
+router.post('/director/damage/repair', requireDirector, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const { sessionId, sessionDriverId, pitStopId } = req.body || {};
+  if (![sessionId, sessionDriverId, pitStopId].every((value) => typeof value === 'string' && value.length > 0)) {
+    return res.status(400).json({ success: false, error: 'Session, driver assignment and pit stop are required' });
+  }
+  try {
+    const data = await serialize(() => sessionService.confirmDamageRepair(sessionId, sessionDriverId, pitStopId));
+    console.info(`[RaceControl] Verified pit repair session=${sessionId} assignment=${sessionDriverId} pit=${pitStopId}`);
+    res.json({ success: true, data });
+  } catch (error) {
+    const status = error.status || 500;
+    if (status === 500) console.error('[RaceControl] Pit repair failed:', error);
+    res.status(status).json({
+      success: false,
+      error: status === 500 ? 'Could not confirm repair' : error.message,
+    });
+  }
+});
+
 router.post('/director/:action', requireDirector, async (req, res) => {
   res.set('Cache-Control', 'no-store');
   const { action } = req.params;
