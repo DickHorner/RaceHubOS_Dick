@@ -6,7 +6,7 @@ export function worksheetTableRows(sheet, heading) {
   sheet.eachRow((row, number) => {
     if (!headingRow && row.getCell(1).value === heading) headingRow = number;
   });
-  if (!headingRow) throw new Error(`Export table not found: ${heading}`);
+  if (!headingRow) return null;
 
   const header = sheet.getRow(headingRow + 2);
   const width = header.cellCount;
