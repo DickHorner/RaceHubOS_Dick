@@ -713,6 +713,7 @@ export default function Settings() {
               <button
                 type="button"
                 role="switch"
+                aria-label={t(`appearance.raceVoice.${event}`)}
                 aria-checked={raceEvents[event]}
                 onClick={() => saveRaceEvent(event, !raceEvents[event])}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${raceEvents[event] ? 'bg-orange-600' : 'bg-muted'}`}
@@ -724,7 +725,7 @@ export default function Settings() {
             </div>
           ))}
 
-          {(bestLapEnabled || podiumEnabled) && (
+          {(bestLapEnabled || podiumEnabled || Object.values(raceEvents).some(Boolean)) && (
             <div className="flex items-center gap-2 pl-7">
               {/* One voice per interface language, the language's default voice unless chosen */}
               <Select
