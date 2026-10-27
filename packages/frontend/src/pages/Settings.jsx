@@ -717,7 +717,9 @@ export default function Settings() {
                 onClick={() => saveRaceEvent(event, !raceEvents[event])}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${raceEvents[event] ? 'bg-orange-600' : 'bg-muted'}`}
               >
-                <span className={`inline-block size-4 transform rounded-full bg-white shadow-sm transition-transform ${raceEvents[event] ? 'translate-x-6' : 'translate-x-1'}`} />
+                <span
+                  className={`inline-block size-4 transform rounded-full bg-white shadow-sm transition-transform ${raceEvents[event] ? 'translate-x-6' : 'translate-x-1'}`}
+                />
               </button>
             </div>
           ))}
