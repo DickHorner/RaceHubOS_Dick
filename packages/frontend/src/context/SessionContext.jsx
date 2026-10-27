@@ -49,6 +49,9 @@ export function SessionProvider({ children }) {
   // Ref for voice access from socket listeners
   const voiceRef = useRef(voice)
   voiceRef.current = voice
+  const sessionRef = useRef(session)
+  sessionRef.current = session
+  const announcedRef = useRef({ start: new Set(), finish: new Set(), leader: new Map() })
 
   // Check data freshness
   useEffect(() => {
@@ -73,8 +76,21 @@ export function SessionProvider({ children }) {
     })
     socketRef.current = socket
 
-    // Leaderboard updates
+    // Only announce an observed change from one unambiguous race leader to another.
     socket.on('session:leaderboard', (data) => {
+      const rows = Array.isArray(data) ? data : data?.leaderboard
+      const race = sessionRef.current
+      if (race?.type === SessionType.RACE && race.status === SessionStatus.ACTIVE && Array.isArray(rows)) {
+        const leaders = rows.filter((row) => row.position === 1 && row.driver?.name && row.totalLaps > 0)
+        const next = leaders.length === 1 ? leaders[0] : null
+        const prev = announcedRef.current.leader.get(race.id)
+        if (next && prev && prev !== next.id && voiceRef.current.raceEventsRef.current.leader &&
+            !window.location.pathname.startsWith('/display/')) {
+          voiceRef.current.speak(i18n.t('voice:leaderChange', { name: next.driver.name }))
+        }
+        announcedRef.current.leader.set(race.id, next?.id || null)
+      }
+
       if (Array.isArray(data)) {
         setLeaderboard(data)
       } else if (data.leaderboard && Array.isArray(data.leaderboard)) {
@@ -130,8 +146,23 @@ export function SessionProvider({ children }) {
       })
     })
 
+    socket.on('session:race_started', (data) => {
+      if (sessionRef.current?.type !== SessionType.RACE || !data?.sessionId || announcedRef.current.start.has(data.sessionId)) return
+      announcedRef.current.start.add(data.sessionId)
+      if (!window.location.pathname.startsWith('/display/') && voiceRef.current.raceEventsRef.current.start) {
+        voiceRef.current.speak(i18n.t('voice:raceStarted'))
+      }
+    })
+
     // Session finished
     socket.on('session:finished', (data) => {
+      if (data?.sessionId && !announcedRef.current.finish.has(data.sessionId)) {
+        announcedRef.current.finish.add(data.sessionId)
+        if (data.sessionType === SessionType.RACE && !window.location.pathname.startsWith('/display/') &&
+            voiceRef.current.raceEventsRef.current.finish) {
+          voiceRef.current.speak(i18n.t('voice:raceFinished'))
+        }
+      }
       setSession((prev) => {
         if (prev?.id !== data.sessionId) return prev
         const drivers = data.leaderboard?.length > 0 ? data.leaderboard : prev.drivers
