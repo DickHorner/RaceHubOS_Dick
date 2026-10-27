@@ -25,7 +25,9 @@ export function VoiceProvider({ children }) {
   const podiumEnabledRef = useRef(podiumEnabled)
   podiumEnabledRef.current = podiumEnabled
   const raceEventsRef = useRef(raceEvents)
-  raceEventsRef.current = raceEvents
+  useEffect(() => {
+    raceEventsRef.current = raceEvents
+  }, [raceEvents])
   const minLapsRef = useRef(minLaps)
   minLapsRef.current = minLaps
   const voiceIdsRef = useRef(voiceIds)
