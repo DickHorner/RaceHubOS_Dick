@@ -9,5 +9,8 @@
   "car": "Auto {{number}}",
   "seconds": "{{value}} Sekunden",
   "minutes_one": "{{count}} Minute {{seconds}}",
-  "minutes_other": "{{count}} Minuten {{seconds}}"
+  "minutes_other": "{{count}} Minuten {{seconds}}",
+  "raceStarted": "Das Rennen ist gestartet",
+  "leaderChange": "{{name}} übernimmt die Führung",
+  "raceFinished": "Das Rennen ist beendet"
 }
