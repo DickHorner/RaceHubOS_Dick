@@ -132,6 +132,9 @@ async function socketSpy(page) {
   await page.routeWebSocket('**/socket.io/**', (socket) => {
     const connection = { socket, ready: false }
     sockets.push(connection)
+    socket.onClose(() => {
+      connection.ready = false
+    })
     socket.onMessage((message) => {
       if (message === '40') {
         socket.send('40{"sid":"voice-test"}')
@@ -144,9 +147,10 @@ async function socketSpy(page) {
 }
 
 function send(sockets, event, data) {
-  const connection = sockets.findLast((socket) => socket.ready)
-  expect(connection).toBeTruthy()
-  connection.socket.send('42' + JSON.stringify([event, data]))
+  const connected = sockets.filter((socket) => socket.ready)
+  expect(connected.length).toBeGreaterThan(0)
+  // Socket.IO broadcasts to both the session and device connections.
+  for (const connection of connected) connection.socket.send('42' + JSON.stringify([event, data]))
 }
 
 async function spoken(page) {
