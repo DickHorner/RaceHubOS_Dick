@@ -82,9 +82,18 @@ export function SessionProvider({ children }) {
     socket.on('session:leaderboard', (data) => {
       const rows = Array.isArray(data) ? data : data?.leaderboard
       const race = sessionRef.current
-      if (race?.type === SessionType.RACE && race.status === SessionStatus.ACTIVE && Array.isArray(rows)) {
-        const leaders = rows.filter((row) => row.position === 1 && row.id && row.driver?.name && row.totalLaps > 0)
-        const next = leaders.length === 1 ? leaders[0] : null
+      if (
+        race?.type === SessionType.RACE &&
+        race.status === SessionStatus.ACTIVE &&
+        Array.isArray(rows) &&
+        rows.length > 0 &&
+        rows.every((row) => row?.sessionId === race.id)
+      ) {
+        const leaders = rows.filter((row) => row.position === 1)
+        const next =
+          leaders.length === 1 && leaders[0].id && leaders[0].driver?.name && leaders[0].totalLaps > 0
+            ? leaders[0]
+            : null
         const previous = announcedRef.current.leader.get(race.id)
         if (next && (!previous || next.id === previous.id || next.totalLaps > previous.laps)) {
           if (
