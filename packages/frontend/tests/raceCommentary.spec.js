@@ -200,6 +200,11 @@ test('GO is spoken once; preparation, resume, duplicate and reload remain silent
   send(sockets, 'session:race_started', { sessionId: race.id, startedAt })
   await expect.poll(() => spoken(page)).toEqual(['The race has started'])
 
+  for (const connection of sockets.filter((socket) => socket.ready)) connection.socket.close()
+  await expect.poll(() => sockets.filter((socket) => socket.ready).length, { timeout: 15000 }).toBe(2)
+  send(sockets, 'session:race_started', { sessionId: race.id, startedAt })
+  await expect.poll(() => spoken(page)).toEqual(['The race has started'])
+
   await page.reload()
   await expect.poll(() => sockets.filter((socket) => socket.ready).length).toBe(2)
   send(sockets, 'session:race_started', { sessionId: race.id, startedAt })
@@ -214,7 +219,11 @@ test('leader changes require identified leaders and strictly advancing completed
   await expect.poll(() => sockets.some((socket) => socket.ready)).toBe(true)
 
   send(sockets, 'session:leaderboard', leaderboard('one', 3))
-  send(sockets, 'session:leaderboard', leaderboard('two', 6).map((row) => ({ ...row, sessionId: 'old-race' })))
+  send(
+    sockets,
+    'session:leaderboard',
+    leaderboard('two', 6).map((row) => ({ ...row, sessionId: 'old-race' }))
+  )
   await expect.poll(() => spoken(page)).toEqual([])
   send(sockets, 'session:leaderboard', leaderboard('two', 4))
   await expect.poll(() => spoken(page)).toEqual(['Driver Two takes the lead'])
