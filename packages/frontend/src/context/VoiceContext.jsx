@@ -6,10 +6,12 @@ import { speechLocale } from '../lib/speech'
 const API_URL = import.meta.env.VITE_API_URL || ''
 
 const VoiceContext = createContext(null)
+const DEFAULT_RACE_EVENTS = { start: false, leader: false, finish: false }
 
 export function VoiceProvider({ children }) {
   const [bestLapEnabled, setBestLapEnabled] = useState(true)
   const [podiumEnabled, setPodiumEnabled] = useState(true)
+  const [raceEvents, setRaceEvents] = useState(DEFAULT_RACE_EVENTS)
   const [minLaps, setMinLaps] = useState(3)
   // Chosen voice per interface language; a language without one uses its default voice
   const [voiceIds, setVoiceIds] = useState({})
@@ -22,6 +24,8 @@ export function VoiceProvider({ children }) {
   bestLapEnabledRef.current = bestLapEnabled
   const podiumEnabledRef = useRef(podiumEnabled)
   podiumEnabledRef.current = podiumEnabled
+  const raceEventsRef = useRef(raceEvents)
+  raceEventsRef.current = raceEvents
   const minLapsRef = useRef(minLaps)
   minLapsRef.current = minLaps
   const voiceIdsRef = useRef(voiceIds)
@@ -39,6 +43,18 @@ export function VoiceProvider({ children }) {
       .then((r) => r.json())
       .then((d) => {
         if (d.success && d.data !== null) setPodiumEnabled(d.data)
+      })
+      .catch(() => {})
+    fetch(`${API_URL}/api/preferences/raceVoice:events`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && d.data && typeof d.data === 'object' && !Array.isArray(d.data)) {
+          setRaceEvents({
+            start: d.data.start === true,
+            leader: d.data.leader === true,
+            finish: d.data.finish === true,
+          })
+        }
       })
       .catch(() => {})
     fetch(`${API_URL}/api/preferences/bestLapVoice:minLaps`)
@@ -70,6 +86,18 @@ export function VoiceProvider({ children }) {
   const savePodiumEnabled = useCallback((value) => {
     setPodiumEnabled(value)
     fetch(`${API_URL}/api/preferences/podiumVoice:enabled`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value }),
+    }).catch(() => {})
+  }, [])
+
+  const saveRaceEvent = useCallback((event, enabled) => {
+    if (!Object.hasOwn(DEFAULT_RACE_EVENTS, event)) return
+    const value = { ...raceEventsRef.current, [event]: enabled === true }
+    raceEventsRef.current = value
+    setRaceEvents(value)
+    fetch(`${API_URL}/api/preferences/raceVoice:events`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ value }),
@@ -146,6 +174,9 @@ export function VoiceProvider({ children }) {
         saveBestLapEnabled,
         podiumEnabled,
         savePodiumEnabled,
+        raceEvents,
+        saveRaceEvent,
+        raceEventsRef,
         minLaps,
         saveMinLaps,
         voiceId: voiceIds[resolvedLanguage] || '',
