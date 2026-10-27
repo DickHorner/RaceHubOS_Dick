@@ -27,3 +27,7 @@ jobs:
       - run: npm run build
       - run: npm run prisma:generate -w @racehubos/backend
       - run: npm test -w @racehubos/backend
+      - run: npx playwright install --with-deps chromium
+        working-directory: packages/frontend
+      - run: npx playwright test tests/raceCommentary.spec.js
+        working-directory: packages/frontend
