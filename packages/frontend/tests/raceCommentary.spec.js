@@ -27,12 +27,14 @@ function leaderboard(leader, laps, otherLaps = laps - 1) {
   return [
     {
       id: 'voice-entry-one',
+      sessionId: race.id,
       position: oneLeads ? 1 : 2,
       totalLaps: oneLeads ? laps : otherLaps,
       driver: driverOne,
     },
     {
       id: 'voice-entry-two',
+      sessionId: race.id,
       position: oneLeads ? 2 : 1,
       totalLaps: oneLeads ? otherLaps : laps,
       driver: driverTwo,
@@ -212,6 +214,8 @@ test('leader changes require identified leaders and strictly advancing completed
   await expect.poll(() => sockets.some((socket) => socket.ready)).toBe(true)
 
   send(sockets, 'session:leaderboard', leaderboard('one', 3))
+  send(sockets, 'session:leaderboard', leaderboard('two', 6).map((row) => ({ ...row, sessionId: 'old-race' })))
+  await expect.poll(() => spoken(page)).toEqual([])
   send(sockets, 'session:leaderboard', leaderboard('two', 4))
   await expect.poll(() => spoken(page)).toEqual(['Driver Two takes the lead'])
 
@@ -284,5 +288,5 @@ test('busy browser speech does not cause overlapping announcements', async ({ pa
   send(sockets, 'session:leaderboard', leaderboard('two', 4))
   await expect.poll(() => spoken(page)).toEqual(['The race has started'])
   await page.evaluate(() => window.__releaseSpeech())
-  expect(await spoken(page)).toEqual(['The race has started'])
+  await expect.poll(() => spoken(page)).toEqual(['The race has started', 'Driver Two takes the lead'])
 })
