@@ -156,6 +156,28 @@ export function VoiceProvider({ children }) {
     [getVoice]
   )
 
+  // An event may be received by several race-control tabs. Mark it while
+  // holding an origin-wide lock, before another tab can speak it.
+  const announceRaceEvent = useCallback(
+    async (key, text) => {
+      if (!navigator.locks?.request) return null
+      try {
+        return await navigator.locks.request('racehubos-race-commentary', () => {
+          const previous = JSON.parse(localStorage.getItem('racehubos-race-commentary') || '[]')
+          if (!Array.isArray(previous) || previous.includes(key)) return null
+          const utterance = speak(text)
+          if (utterance) {
+            localStorage.setItem('racehubos-race-commentary', JSON.stringify([...previous.slice(-127), key]))
+          }
+          return utterance
+        })
+      } catch {
+        return null
+      }
+    },
+    [speak]
+  )
+
   // Format time for speech
   const formatTimeVoice = useCallback((ms) => {
     if (!ms) return ''
@@ -187,6 +209,7 @@ export function VoiceProvider({ children }) {
         podiumEnabledRef,
         minLapsRef,
         speak,
+        announceRaceEvent,
         getVoice,
         formatTimeVoice,
       }}
