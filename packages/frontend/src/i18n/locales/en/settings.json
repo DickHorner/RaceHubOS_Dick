@@ -62,7 +62,12 @@
     "adminMode": "Administrator mode",
     "adminModeDesc": "Displays, Test, Simulator",
     "language": "Language",
-    "languageDesc": "Interface language"
+    "languageDesc": "Interface language",
+    "raceVoice": {
+      "start": "Announce race start",
+      "leader": "Announce lead changes",
+      "finish": "Announce race finish"
+    }
   },
   "logs": {
     "title": "Logs",
