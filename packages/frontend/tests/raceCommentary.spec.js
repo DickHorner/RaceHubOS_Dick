@@ -58,18 +58,18 @@ async function racePage(page, current = race) {
   )
   await page.route('**/api/cars', (route) => route.fulfill({ json: { success: true, data: [car] } }))
   await page.route('**/api/sessions?*', (route) => route.fulfill({ json: { success: true, data: [current] } }))
-  await page.route('**/api/sessions/voice-race', (route) =>
-    route.fulfill({ json: { success: true, data: current } })
-  )
+  await page.route('**/api/sessions/voice-race', (route) => route.fulfill({ json: { success: true, data: current } }))
   await page.route('**/api/sessions/voice-race/leaderboard', (route) =>
     route.fulfill({ json: { success: true, data: leaderboard('one', 3) } })
   )
-  await page.route('**/api/sync/load-session/voice-race', (route) =>
-    route.fulfill({ json: { success: true } })
-  )
+  await page.route('**/api/sync/load-session/voice-race', (route) => route.fulfill({ json: { success: true } }))
   await page.route('**/api/records/track/**', (route) =>
     route.fulfill({ json: { success: true, data: { practice: [], qualif: [], race: [] } } })
   )
+  await page.addInitScript(() => {
+    localStorage.setItem('racehubos-free-track', 'voice-track')
+    localStorage.setItem('racehubos-free-type', 'race')
+  })
   await page.goto('/race')
   await expect(page.getByTestId('session-section')).toBeVisible()
 }
@@ -78,6 +78,9 @@ async function audioSpy(page) {
   await page.addInitScript(() => {
     window.__spoken = []
     window.__audio = []
+    window.__received = []
+    window.addEventListener('session:status_changed', () => window.__received.push('status'))
+    window.addEventListener('session:finished', () => window.__received.push('finish'))
     window.__holdSpeech = false
     let current = null
     const synthesis = {
@@ -180,6 +183,8 @@ test('GO is spoken once; preparation, resume, duplicate and reload remain silent
   await racePage(page)
   await expect.poll(() => sockets.some((socket) => socket.ready)).toBe(true)
 
+  send(sockets, 'session:status_changed', { sessionId: race.id, status: 'active' })
+  await expect.poll(() => page.evaluate(() => window.__received)).toEqual(['status'])
   send(sockets, 'session:started', { sessionId: race.id })
   send(sockets, 'session:race_resumed', { sessionId: race.id })
   expect(await spoken(page)).toEqual([])
