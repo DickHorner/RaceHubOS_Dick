@@ -350,6 +350,7 @@ export class SessionService extends EventEmitter {
     const fuelLevels = replayVirtualFuel(session.virtualFuelEvents);
     this.sessionDrivers = session.drivers.map((sd) => ({
       id: sd.id,
+      sessionId: session.id,
       controller: sd.controller,
       driverId: sd.driverId,
       carId: sd.carId,
