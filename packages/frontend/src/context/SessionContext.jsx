@@ -84,7 +84,7 @@ export function SessionProvider({ children }) {
         const leaders = rows.filter((row) => row.position === 1 && row.driver?.name && row.totalLaps > 0)
         const next = leaders.length === 1 ? leaders[0] : null
         const prev = announcedRef.current.leader.get(race.id)
-        if (next && prev && prev !== next.id && voiceRef.current.raceEventsRef.current.leader &&
+        if (next && next.id && prev && prev !== next.id && voiceRef.current.raceEventsRef.current.leader &&
             !window.location.pathname.startsWith('/display/')) {
           voiceRef.current.speak(i18n.t('voice:leaderChange', { name: next.driver.name }))
         }
