@@ -160,11 +160,7 @@ export function SessionProvider({ children }) {
     })
 
     socket.on('session:race_started', (data) => {
-      if (
-        sessionRef.current?.id !== data?.sessionId ||
-        sessionRef.current.type !== SessionType.RACE ||
-        !data.startedAt
-      )
+      if (sessionRef.current?.id !== data?.sessionId || sessionRef.current.type !== SessionType.RACE || !data.startedAt)
         return
       const key = `${data.sessionId}:${data.startedAt}`
       if (announcedRef.current.start.has(key)) return
