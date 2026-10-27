@@ -1450,6 +1450,7 @@ export class SessionService extends EventEmitter {
       reason,
       championshipId,
       sessionType: this.currentPhase,
+      startedAt: this.sessionConfig?.startedAt,
       weatherCondition: weatherForSession(this.sessionConfig, Date.now()),
       leaderboard: this.getEnrichedLeaderboard(),
     });
