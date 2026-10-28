@@ -126,3 +126,149 @@ test('stored clips play locally or travel by HTTP to the sole enabled director r
     await page.request.put('/api/preferences/soundboard:presets', { data: { value: null } })
   }
 })
+
+test('director auto cues map verified best lap and finish to saved speech and HTTP clip', async ({ page, browser }) => {
+  const directorContext = await browser.newContext({ locale: 'en-US' })
+  const director = await directorContext.newPage()
+  let uploadedUrl
+  const readySockets = []
+  const audioResponses = []
+  let preferenceReads = 0
+  try {
+    const upload = await page.request.post('/api/upload/sounds', {
+      multipart: { audio: { name: 'beep.wav', mimeType: 'audio/wav', buffer: wavFile() } },
+    })
+    expect(upload.ok()).toBe(true)
+    uploadedUrl = (await upload.json()).data.url
+    const presets = [
+      { id: 'auto-voice', label: 'Auto lap voice', kind: 'speech', text: '{driver}: car {controller}, lap {lapTime}' },
+      { id: 'auto-clip', label: 'Auto finish clip', kind: 'clip', url: uploadedUrl },
+    ]
+    expect((await page.request.put('/api/preferences/soundboard:presets', { data: { value: presets } })).ok()).toBe(
+      true
+    )
+    await page.request.put('/api/preferences/soundboard:auto', { data: { value: { bestlap: '', finished: '' } } })
+    await page.goto('/race')
+    await page.getByRole('button', { name: 'Soundboard' }).click()
+    await page.getByRole('combobox', { name: 'New best lap' }).selectOption('auto-voice')
+    await expect.poll(async () => {
+      const response = await page.request.get('/api/preferences/soundboard:auto')
+      return (await response.json()).data?.bestlap
+    }).toBe('auto-voice')
+    await page.getByRole('combobox', { name: 'Session finished' }).selectOption('auto-clip')
+    await expect.poll(async () => {
+      const response = await page.request.get('/api/preferences/soundboard:auto')
+      return (await response.json()).data
+    }).toEqual({ bestlap: 'auto-voice', finished: 'auto-clip' })
+
+    await director.addInitScript(() => {
+      window.__autoSpoken = []
+      window.__autoClip = []
+      Object.defineProperty(window, 'speechSynthesis', {
+        configurable: true,
+        value: {
+          speaking: false,
+          getVoices: () => [],
+          cancel() {},
+          speak(utterance) {
+            window.__autoSpoken.push(utterance.text)
+            queueMicrotask(() => {
+              utterance.onstart?.()
+              utterance.onend?.()
+            })
+          },
+        },
+      })
+      Object.defineProperty(window, 'SpeechSynthesisUtterance', {
+        configurable: true,
+        value: class {
+          constructor(text) {
+            this.text = text
+          }
+        },
+      })
+      const NativeAudio = window.Audio
+      window.Audio = function (src) {
+        if (src?.includes('/api/upload/sounds/')) window.__autoClip.push(src)
+        return new NativeAudio(src)
+      }
+    })
+    await director.routeWebSocket('**/socket.io/**', (socket) => {
+      const item = { socket, ready: false }
+      readySockets.push(item)
+      socket.onMessage((message) => {
+        if (message === '40') {
+          socket.send('40{"sid":"auto-test-socket"}')
+          item.ready = true
+        }
+      })
+      socket.send('0{"sid":"auto-test-socket","upgrades":[],"pingInterval":25000,"pingTimeout":20000}')
+    })
+    await director.route('**/api/race-control/director/soundboard/receiver', (route) =>
+      route.fulfill({ json: { success: true, ready: true } })
+    )
+    director.on('request', (request) => {
+      if (request.method() === 'GET' && /\/api\/preferences\/(soundboard:auto|soundboard:presets)$/.test(request.url())) {
+        preferenceReads += 1
+      }
+    })
+    director.on('response', (response) => {
+      if (response.url().includes('/api/upload/sounds/')) audioResponses.push(response)
+    })
+    await authorizeDirector(director)
+    await director.getByRole('button', { name: 'Receive audio here' }).click()
+    await expect(director.getByText('Receiver connected (speakers not verified)')).toBeVisible()
+    await expect.poll(() => readySockets.some((socket) => socket.ready)).toBe(true)
+
+    const send = (type, data) => {
+      for (const connection of readySockets.filter((socket) => socket.ready)) {
+        connection.socket.send('42' + JSON.stringify(['soundboard:auto', { type, data }]))
+      }
+    }
+    const best = {
+      sessionId: 'auto-race',
+      sessionType: 'race',
+      controller: 0,
+      totalLaps: 3,
+      lapTime: 8956,
+      driverName: 'Alice',
+      carBrand: 'BMW',
+      carModel: 'M4',
+    }
+    send('bestlap', best)
+    await expect.poll(() => director.evaluate(() => window.__autoSpoken.length)).toBe(1)
+    expect((await director.evaluate(() => window.__autoSpoken))[0]).toContain('Alice: car 1, lap')
+
+    const beforeDuplicate = preferenceReads
+    send('bestlap', best)
+    await expect.poll(() => preferenceReads).toBe(beforeDuplicate + 2)
+    expect(await director.evaluate(() => window.__autoSpoken.length)).toBe(1)
+
+    const beforeMissing = preferenceReads
+    send('bestlap', { ...best, driverName: null, totalLaps: 4 })
+    await expect.poll(() => preferenceReads).toBe(beforeMissing + 2)
+    expect(await director.evaluate(() => window.__autoSpoken.length)).toBe(1)
+
+    const finish = { sessionId: 'auto-race', sessionType: 'race', startedAt: '2026-10-28T12:00:00Z' }
+    send('finished', finish)
+    await expect.poll(() => director.evaluate(() => window.__autoClip.length)).toBe(1)
+    await expect.poll(() => audioResponses.length).toBe(1)
+    expect(audioResponses[0].status()).toBe(200)
+    expect(audioResponses[0].headers()['content-type']).toContain('audio/')
+    expect((await audioResponses[0].body()).length).toBeGreaterThan(44)
+
+    const beforeSecondFinish = preferenceReads
+    send('finished', finish)
+    await expect.poll(() => preferenceReads).toBe(beforeSecondFinish + 2)
+    expect(await director.evaluate(() => window.__autoClip.length)).toBe(1)
+
+    await director.getByRole('button', { name: 'Mute' }).click()
+    send('bestlap', { ...best, totalLaps: 5 })
+    expect(await director.evaluate(() => window.__autoSpoken.length)).toBe(1)
+  } finally {
+    await directorContext.close()
+    if (uploadedUrl) await page.request.delete(uploadedUrl)
+    await page.request.put('/api/preferences/soundboard:auto', { data: { value: null } })
+    await page.request.put('/api/preferences/soundboard:presets', { data: { value: null } })
+  }
+})
