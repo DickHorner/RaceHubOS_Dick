@@ -2,7 +2,12 @@ import { jest } from '@jest/globals';
 import fs from 'node:fs/promises';
 import express from 'express';
 import request from 'supertest';
-import raceControl, { setRaceControlServices, remoteWriteGuard, mayControlSocket } from '../routes/raceControl.js';
+import raceControl, {
+  setRaceControlServices,
+  remoteWriteGuard,
+  mayControlSocket,
+  lanAddresses,
+} from '../routes/raceControl.js';
 import { SessionService } from '../services/SessionService.js';
 
 const secret = 'this-is-a-long-private-race-director-secret-123456';
@@ -705,5 +710,44 @@ describe('director-only damage repair confirmation', () => {
       .send({ sessionId: 'race-1', sessionDriverId: 'sd-1', pitStopId: 'wrong-pit' })
       .expect(409);
     expect(response.body.success).toBe(false);
+  });
+});
+
+describe('read-only LAN share addresses', () => {
+  test('returns only real private IPv4 interfaces, deduplicated and sorted', () => {
+    const interfaces = {
+      zWiFi: [
+        { family: 'IPv4', internal: false, address: '192.168.178.42' },
+        { family: 'IPv6', internal: false, address: 'fd00::42' },
+      ],
+      aEthernet: [
+        { family: 'IPv4', internal: false, address: '10.0.1.4' },
+        { family: 'IPv4', internal: false, address: '172.31.2.3' },
+        { family: 'IPv4', internal: false, address: '172.32.2.3' },
+        { family: 'IPv4', internal: false, address: '8.8.8.8' },
+        { family: 'IPv4', internal: true, address: '127.0.0.1' },
+        { family: 'IPv4', internal: false, address: '192.168.178.42' },
+      ],
+      disabled: undefined,
+    };
+
+    expect(lanAddresses(interfaces)).toEqual([
+      { name: 'aEthernet', address: '10.0.1.4' },
+      { name: 'aEthernet', address: '172.31.2.3' },
+      { name: 'zWiFi', address: '192.168.178.42' },
+    ]);
+    expect(lanAddresses({ lo: [{ family: 'IPv4', internal: true, address: '127.0.0.1' }] })).toEqual([]);
+  });
+
+  test('GET exposes only private addresses and never requires the director credential', async () => {
+    const { app } = setup();
+    const res = await request(app).get('/api/race-control/lan-addresses').expect(200);
+    expect(res.headers['cache-control']).toBe('no-store');
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    for (const entry of res.body.data) {
+      expect(entry).toEqual({ name: expect.any(String), address: expect.any(String) });
+      expect(entry.address).not.toMatch(/^(?:127\.|169\.254\.)/);
+    }
   });
 });

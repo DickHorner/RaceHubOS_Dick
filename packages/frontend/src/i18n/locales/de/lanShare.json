@@ -1,0 +1,18 @@
+{
+  "loading": "LAN-Adressen werden ermittelt …",
+  "unavailable": "LAN-Adressen konnten nicht ermittelt werden.",
+  "noLan": "Keine private IPv4-Adresse am RaceHubOS-Server gefunden. Kein QR-Code mit localhost erzeugt.",
+  "address": "LAN-Adresse des Rennrechners",
+  "chooseAddress": "LAN-Adresse auswählen (z. B. WLAN statt Docker/VPN).",
+  "qrLabel": "QR-Code für den LAN-Link",
+  "link": "LAN-Link",
+  "copy": "Link kopieren",
+  "copied": "Link kopiert",
+  "manualCopy": "Diesen LAN-Link kopieren:",
+  "lanHint": "Für Geräte im selben LAN. Die Erreichbarkeit hängt von Netzwerk, Firewall und gewählter Schnittstelle ab.",
+  "linksTitle": "Fahrer- und Rennleitungslinks",
+  "includeKey": "Rennleiterschlüssel in den QR-Code aufnehmen",
+  "directorKey": "Rennleiterschlüssel eingeben",
+  "keyWarning": "Dieser QR-Code erteilt volle Rennleiterrechte. Nur im vertrauenswürdigen Heimnetz zeigen und nicht fotografieren oder weiterleiten.",
+  "keyRequired": "Rennleiterschlüssel mit mindestens 32 Zeichen eingeben."
+}

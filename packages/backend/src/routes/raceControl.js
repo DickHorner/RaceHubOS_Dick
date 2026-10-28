@@ -2,6 +2,7 @@ import express from 'express';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import fs from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { networkInterfaces } from 'node:os';
 import { SessionStatus } from '@racehubos/shared';
 
 const router = express.Router();
@@ -17,6 +18,36 @@ const soundRequests = new Map();
 const SOUND_URL =
   /^\/api\/upload\/sounds\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.(mp3|ogg|wav)$/;
 const SOUND_REQUEST_ID = /^[a-f0-9]{32}$/;
+
+function isPrivateIPv4(address) {
+  const parts = address.split('.').map(Number);
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
+  return (
+    parts[0] === 10 || (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) || (parts[0] === 192 && parts[1] === 168)
+  );
+}
+
+export function lanAddresses(interfaces) {
+  const found = new Map();
+  for (const [name, addresses] of Object.entries(interfaces)) {
+    for (const entry of addresses || []) {
+      if (
+        (entry.family === 'IPv4' || entry.family === 4) &&
+        !entry.internal &&
+        typeof entry.address === 'string' &&
+        isPrivateIPv4(entry.address)
+      ) {
+        if (!found.has(entry.address)) found.set(entry.address, { name, address: entry.address });
+      }
+    }
+  }
+  return [...found.values()].sort((a, b) => a.name.localeCompare(b.name) || a.address.localeCompare(b.address));
+}
+
+router.get('/lan-addresses', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ success: true, data: lanAddresses(networkInterfaces()) });
+});
 
 // An automatic cue is delivered to the one director who opted in to receive audio.
 function forwardAutoSoundEvent(payload) {

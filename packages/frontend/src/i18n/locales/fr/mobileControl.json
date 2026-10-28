@@ -75,5 +75,6 @@
   "damageNoPit": "Aucun intervalle aux stands CU admissible enregistré.",
   "damageConfirm": "Confirmer la réparation",
   "damageVerifyConfirm": "As-tu personnellement vérifié l'arrêt de réparation ?",
-  "damageConfirmError": "Impossible de confirmer la réparation."
+  "damageConfirmError": "Impossible de confirmer la réparation.",
+  "shareDirector": "Partager le lien de direction"
 }
