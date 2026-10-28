@@ -41,6 +41,9 @@ test('team tab shows historical team points and warns about older unsnapshotted 
   await expect(page.getByText('Bleus')).toBeVisible()
   await expect(page.getByText('43 pts')).toBeVisible()
   await expect(page.getByRole('status')).toContainText('ancienne course')
-  await page.getByRole('button', { name: /Course/ }).last().click()
+  await page
+    .getByRole('button', { name: /Course/ })
+    .last()
+    .click()
   await expect(page.getByText('Rouges')).toHaveCount(0)
 })

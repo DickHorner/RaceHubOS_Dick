@@ -222,5 +222,4 @@ describe('championship points without a custom points schema', () => {
     const missing = await request(app).get('/api/championships/missing/team-standings');
     expect(missing.status).toBe(404);
   });
-
 });

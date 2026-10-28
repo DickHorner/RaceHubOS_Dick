@@ -687,9 +687,7 @@ export class ChampionshipService {
     }
 
     const teamIds = [...teamPoints.keys()];
-    const teams = teamIds.length
-      ? await this.prisma.team.findMany({ where: { id: { in: teamIds } } })
-      : [];
+    const teams = teamIds.length ? await this.prisma.team.findMany({ where: { id: { in: teamIds } } }) : [];
     const teamsById = new Map(teams.map((team) => [team.id, team]));
     const standings = [...teamPoints.entries()]
       .map(([teamId, totalPoints]) => ({ teamId, team: teamsById.get(teamId) || null, totalPoints }))
