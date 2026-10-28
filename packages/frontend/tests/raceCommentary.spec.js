@@ -159,6 +159,82 @@ async function spoken(page) {
   return page.evaluate(() => window.__spoken)
 }
 
+async function holdRaceEventPreferences(page) {
+  let requested = false
+  let release
+  const held = new Promise((resolve) => {
+    release = resolve
+  })
+  await page.route('**/api/preferences/raceVoice:events', async (route) => {
+    if (route.request().method() !== 'GET') return route.continue()
+    requested = true
+    await held
+    return route.continue()
+  })
+  return { requested: () => requested, release }
+}
+
+test('race start received before preferences load is spoken once when enabled', async ({ page }) => {
+  await preferences(page, { start: true, leader: false, finish: false })
+  await audioSpy(page)
+  const sockets = await socketSpy(page)
+  const held = await holdRaceEventPreferences(page)
+  await racePage(page)
+  await expect.poll(held.requested).toBe(true)
+  await expect.poll(() => sockets.some((socket) => socket.ready)).toBe(true)
+
+  send(sockets, 'session:race_started', { sessionId: race.id, startedAt })
+  send(sockets, 'session:race_started', { sessionId: race.id, startedAt })
+  await expect.poll(() => spoken(page)).toEqual([])
+
+  held.release()
+  await expect.poll(() => spoken(page)).toEqual(['The race has started'])
+  send(sockets, 'session:race_started', { sessionId: race.id, startedAt })
+  await expect.poll(() => spoken(page)).toEqual(['The race has started'])
+})
+
+test('race finish waits for both sound completion and delayed opt-in preferences', async ({ page }) => {
+  await preferences(page, { start: false, leader: false, finish: true })
+  await audioSpy(page)
+  const sockets = await socketSpy(page)
+  const held = await holdRaceEventPreferences(page)
+  await racePage(page)
+  await expect.poll(held.requested).toBe(true)
+  await expect.poll(() => sockets.some((socket) => socket.ready)).toBe(true)
+
+  const finish = { sessionId: race.id, sessionType: 'race', startedAt, leaderboard: [], reason: 'manual_stop' }
+  send(sockets, 'session:finished', finish)
+  await expect.poll(() => page.evaluate(() => window.__audio.length)).toBe(1)
+  await page.evaluate(() => window.__audio[0].onended?.())
+  send(sockets, 'session:finished', finish)
+  await expect.poll(() => spoken(page)).toEqual([])
+
+  held.release()
+  await expect.poll(() => spoken(page)).toEqual(['The race has finished'])
+  send(sockets, 'session:finished', finish)
+  await expect.poll(() => spoken(page)).toEqual(['The race has finished'])
+  expect(await page.evaluate(() => window.__audio.length)).toBe(1)
+})
+
+test('disabled race commentary does not replay buffered start or finish events', async ({ page }) => {
+  await preferences(page, { start: false, leader: false, finish: false })
+  await audioSpy(page)
+  const sockets = await socketSpy(page)
+  const held = await holdRaceEventPreferences(page)
+  await racePage(page)
+  await expect.poll(held.requested).toBe(true)
+  await expect.poll(() => sockets.some((socket) => socket.ready)).toBe(true)
+
+  send(sockets, 'session:race_started', { sessionId: race.id, startedAt })
+  const finish = { sessionId: race.id, sessionType: 'race', startedAt, leaderboard: [], reason: 'manual_stop' }
+  send(sockets, 'session:finished', finish)
+  await expect.poll(() => page.evaluate(() => window.__audio.length)).toBe(1)
+  await page.evaluate(() => window.__audio[0].onended?.())
+  held.release()
+  await expect.poll(() => page.evaluate(() => window.__received)).toEqual(['finish'])
+  await expect.poll(() => spoken(page)).toEqual([])
+})
+
 test('commentary is opt-in, saved and restored', async ({ page }) => {
   await preferences(page, null)
   await page.goto('/settings')
