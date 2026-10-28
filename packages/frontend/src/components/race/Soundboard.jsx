@@ -3,8 +3,10 @@ import { useTranslation } from 'react-i18next'
 import { ChevronDown, ChevronUp, Pencil, Play, Plus, Square, Trash2, Volume2, VolumeX } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useVoice } from '../../context/VoiceContext'
+import { io } from 'socket.io-client'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
+const WS_URL = import.meta.env.VITE_WS_URL || ''
 const PREF_KEY = 'soundboard:presets'
 const AUDIO_URL = /^\/api\/upload\/sounds\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.(mp3|ogg|wav)$/
 
@@ -23,10 +25,10 @@ function validPreset(preset) {
   )
 }
 
-export default function Soundboard() {
+export default function Soundboard({ directorKey = '' }) {
   const { t } = useTranslation('soundboard')
   const { speak } = useVoice()
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(Boolean(directorKey))
   const [presets, setPresets] = useState([])
   const [editingId, setEditingId] = useState(null)
   const [formOpen, setFormOpen] = useState(false)
@@ -38,9 +40,17 @@ export default function Soundboard() {
   const [muted, setMuted] = useState(false)
   const [playingId, setPlayingId] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [target, setTarget] = useState('local')
+  const [remoteReady, setRemoteReady] = useState(false)
+  const [remoteStatus, setRemoteStatus] = useState('')
+  const [receiverState, setReceiverState] = useState('off')
   const [error, setError] = useState('')
   const audioRef = useRef(null)
   const playTokenRef = useRef(0)
+  const receiverSocketRef = useRef(null)
+  const receiverWantedRef = useRef(false)
+  const playbackRef = useRef(null)
+  const receivedRef = useRef(new Map())
 
   useEffect(() => {
     let active = true
@@ -62,6 +72,170 @@ export default function Soundboard() {
     }
   }, [t])
 
+  useEffect(() => {
+    playbackRef.current = { playPreset, stopPlayback }
+  })
+
+  useEffect(() => {
+    if (directorKey || target !== 'director') return
+    let active = true
+    async function check() {
+      try {
+        const response = await fetch(`${API_URL}/api/race-control/soundboard/status`)
+        const status = await response.json()
+        if (active) setRemoteReady(response.ok && status.ready === true)
+      } catch {
+        if (active) setRemoteReady(false)
+      }
+    }
+    check()
+    const interval = setInterval(check, 3000)
+    return () => {
+      active = false
+      clearInterval(interval)
+    }
+  }, [directorKey, target])
+
+  useEffect(() => {
+    return () => {
+      receiverWantedRef.current = false
+      receiverSocketRef.current?.disconnect()
+    }
+  }, [])
+
+  async function sendRemote(action, preset = null) {
+    const bytes = crypto.getRandomValues(new Uint8Array(16))
+    const requestId = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+    const response = await fetch(`${API_URL}/api/race-control/soundboard/${action}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ requestId, ...(preset ? { presetId: preset.id } : {}) }),
+    })
+    const result = await response.json()
+    if (!response.ok || !result.success) throw new Error(result.error || t('remoteError'))
+    return result
+  }
+
+  async function playSelected(preset) {
+    if (muted || busy) return
+    if (directorKey || target === 'local') {
+      await playPreset(preset)
+      return
+    }
+    stopPlayback()
+    setError('')
+    setRemoteStatus('')
+    setPlayingId(preset.id)
+    const token = playTokenRef.current
+    try {
+      await sendRemote('play', preset)
+      if (playTokenRef.current === token) setRemoteStatus(t('remoteStarted'))
+    } catch (cause) {
+      if (playTokenRef.current !== token) return
+      setPlayingId(null)
+      setRemoteStatus('')
+      setError(cause.message || t('remoteError'))
+    }
+  }
+
+  async function stopSelected() {
+    const remotelyPlaying = !directorKey && target === 'director'
+    stopPlayback()
+    setRemoteStatus('')
+    if (!remotelyPlaying) return
+    try {
+      await sendRemote('stop')
+    } catch (cause) {
+      setError(cause.message || t('remoteError'))
+    }
+  }
+
+  function disableReceiver() {
+    receiverWantedRef.current = false
+    const socket = receiverSocketRef.current
+    receiverSocketRef.current = null
+    if (socket?.connected) {
+      fetch(`${API_URL}/api/race-control/director/soundboard/release`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${directorKey}` },
+        body: JSON.stringify({ socketId: socket.id }),
+      }).catch(() => {})
+    }
+    socket?.disconnect()
+    stopPlayback()
+    setReceiverState('off')
+  }
+
+  async function enableReceiver() {
+    if (!directorKey || receiverWantedRef.current) return
+    setError('')
+    try {
+      if (window.AudioContext) {
+        const audioContext = new AudioContext()
+        await audioContext.resume()
+        await audioContext.close()
+      }
+    } catch {
+      setError(t('unlockError'))
+      return
+    }
+    receiverWantedRef.current = true
+    setReceiverState('connecting')
+    const socket = io(WS_URL, { transports: ['websocket', 'polling'], reconnection: true })
+    receiverSocketRef.current = socket
+    socket.on('connect', async () => {
+      if (!receiverWantedRef.current) return
+      try {
+        const response = await fetch(`${API_URL}/api/race-control/director/soundboard/receiver`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${directorKey}` },
+          body: JSON.stringify({ socketId: socket.id }),
+        })
+        const result = await response.json()
+        if (!response.ok || !result.success) throw new Error(result.error || t('receiverError'))
+        if (receiverWantedRef.current) setReceiverState('ready')
+        else {
+          fetch(`${API_URL}/api/race-control/director/soundboard/release`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${directorKey}` },
+            body: JSON.stringify({ socketId: socket.id }),
+          }).catch(() => {})
+        }
+      } catch (cause) {
+        if (!receiverWantedRef.current) return
+        setError(cause.message || t('receiverError'))
+        setReceiverState('error')
+        receiverWantedRef.current = false
+        socket.disconnect()
+      }
+    })
+    socket.on('disconnect', () => {
+      if (receiverWantedRef.current) setReceiverState('offline')
+    })
+    socket.on('soundboard:deactivate', () => {
+      if (!receiverWantedRef.current) return
+      disableReceiver()
+      setError(t('receiverReplaced'))
+    })
+    socket.on('soundboard:play', async (data, acknowledge) => {
+      if (!receiverWantedRef.current || !validPreset(data?.preset) || typeof data.requestId !== 'string') {
+        acknowledge?.({ status: 'blocked' })
+        return
+      }
+      let outcome = receivedRef.current.get(data.requestId)
+      if (!outcome) {
+        outcome = playbackRef.current.playPreset(data.preset)
+        receivedRef.current.set(data.requestId, outcome)
+        if (receivedRef.current.size > 64) receivedRef.current.delete(receivedRef.current.keys().next().value)
+      }
+      acknowledge?.(await outcome)
+    })
+    socket.on('soundboard:stop', (data, acknowledge) => {
+      playbackRef.current.stopPlayback()
+      acknowledge?.({ status: 'stopped' })
+    })
+  }
+
   function stopPlayback() {
     playTokenRef.current += 1
     if (audioRef.current) {
@@ -74,45 +248,62 @@ export default function Soundboard() {
     setPlayingId(null)
   }
 
-  function playPreset(preset) {
-    if (muted) return
+  async function playPreset(preset) {
+    if (muted) return { status: 'muted' }
     stopPlayback()
     setError('')
     setPlayingId(preset.id)
     const token = playTokenRef.current
     try {
       if (preset.kind === 'speech') {
-        const utterance = speak(preset.text, { force: true, volume })
-        if (!utterance) throw new Error(t('playError'))
-        utterance.onend = () => {
-          if (playTokenRef.current === token) setPlayingId(null)
-        }
-        utterance.onerror = () => {
-          if (playTokenRef.current !== token) return
-          setPlayingId(null)
-          setError(t('playError'))
-        }
-      } else {
-        const audio = new Audio(`${API_URL}${preset.url}`)
-        audioRef.current = audio
-        audio.volume = volume
-        audio.onended = () => {
-          if (playTokenRef.current === token) setPlayingId(null)
-        }
-        audio.onerror = () => {
-          if (playTokenRef.current !== token) return
-          setPlayingId(null)
-          setError(t('playError'))
-        }
-        audio.play().catch(() => {
-          if (playTokenRef.current !== token) return
-          setPlayingId(null)
-          setError(t('playError'))
+        return await new Promise((resolve) => {
+          let settled = false
+          const complete = (status) => {
+            if (!settled) {
+              settled = true
+              resolve({ status })
+            }
+          }
+          const utterance = speak(preset.text, { force: true, volume })
+          if (!utterance) {
+            setPlayingId(null)
+            complete('blocked')
+            return
+          }
+          utterance.onstart = () => complete('started')
+          utterance.onend = () => {
+            if (playTokenRef.current === token) setPlayingId(null)
+            complete('started')
+          }
+          utterance.onerror = () => {
+            if (playTokenRef.current === token) {
+              setPlayingId(null)
+              setError(t('playError'))
+            }
+            complete('blocked')
+          }
         })
       }
+      const audio = new Audio(`${API_URL}${preset.url}`)
+      audioRef.current = audio
+      audio.volume = volume
+      audio.onended = () => {
+        if (playTokenRef.current === token) setPlayingId(null)
+      }
+      audio.onerror = () => {
+        if (playTokenRef.current === token) {
+          setPlayingId(null)
+          setError(t('playError'))
+        }
+      }
+      await audio.play()
+      return { status: playTokenRef.current === token ? 'started' : 'blocked' }
     } catch {
-      setPlayingId(null)
-      setError(t('playError'))
+      if (playTokenRef.current === token) {
+        setPlayingId(null)
+        setError(t('playError'))
+      }
+      return { status: 'blocked' }
     }
   }
 
@@ -242,19 +433,24 @@ export default function Soundboard() {
           <Volume2 className="size-4" /> {t('title')}{' '}
           {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
         </Button>
-        <Button variant="outline" size="sm" onClick={stopPlayback} disabled={!playingId}>
+        <Button variant="outline" size="sm" onClick={stopSelected} disabled={!playingId}>
           <Square className="size-3" /> {t('stop')}
         </Button>
         <Button
           variant="ghost"
           size="sm"
           onClick={() => {
-            if (!muted) stopPlayback()
+            if (!muted) void stopSelected()
             setMuted(!muted)
           }}
         >
           {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />} {t(muted ? 'unmute' : 'mute')}
         </Button>
+        {directorKey && (
+          <Button variant="outline" size="sm" onClick={receiverWantedRef.current ? disableReceiver : enableReceiver}>
+            {t(receiverState === 'ready' ? 'receiverDisable' : 'receiverEnable')}
+          </Button>
+        )}
         {open && (
           <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
             {t('volume')}
@@ -272,6 +468,26 @@ export default function Soundboard() {
       </div>
       {open && (
         <div className="border-t p-3 space-y-3">
+          {!directorKey && (
+            <label className="flex flex-wrap items-center gap-2 text-xs">
+              {t('output')}
+              <select
+                className="rounded-md border bg-background p-1"
+                value={target}
+                onChange={(event) => {
+                  void stopSelected()
+                  setTarget(event.target.value)
+                  setRemoteStatus('')
+                }}
+              >
+                <option value="local">{t('outputLocal')}</option>
+                <option value="director">{t('outputDirector')}</option>
+              </select>
+              {target === 'director' && <span role="status">{t(remoteReady ? 'receiverReady' : 'receiverOffline')}</span>}
+            </label>
+          )}
+          {directorKey && <p role="status" className="text-xs text-muted-foreground">{t(`receiverState.${receiverState}`)}</p>}
+          {remoteStatus && <p role="status" className="text-xs text-green-600">{remoteStatus}</p>}
           <div className="flex flex-wrap gap-2">
             {presets.map((preset, index) => (
               <div key={preset.id} className="flex items-center rounded-md border bg-background">
@@ -279,57 +495,65 @@ export default function Soundboard() {
                   variant={playingId === preset.id ? 'default' : 'ghost'}
                   size="sm"
                   disabled={muted || busy}
-                  onClick={() => playPreset(preset)}
+                  onClick={() => playSelected(preset)}
                   title={t('play')}
                 >
                   <Play className="size-3" /> {preset.label}
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  disabled={busy}
-                  onClick={() => editPreset(preset)}
-                  aria-label={`${t('edit')}: ${preset.label}`}
-                >
-                  <Pencil className="size-3" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  disabled={busy || index === 0}
-                  onClick={() => movePreset(index, -1)}
-                  aria-label={`${t('up')}: ${preset.label}`}
-                >
-                  <ChevronUp className="size-3" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  disabled={busy || index === presets.length - 1}
-                  onClick={() => movePreset(index, 1)}
-                  aria-label={`${t('down')}: ${preset.label}`}
-                >
-                  <ChevronDown className="size-3" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  disabled={busy}
-                  onClick={() => deletePreset(preset)}
-                  aria-label={`${t('delete')}: ${preset.label}`}
-                >
-                  <Trash2 className="size-3" />
-                </Button>
+                {!directorKey && (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={busy}
+                    onClick={() => editPreset(preset)}
+                    aria-label={`${t('edit')}: ${preset.label}`}
+                  >
+                    <Pencil className="size-3" />
+                  </Button>
+                )}
+                {!directorKey && (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={busy || index === 0}
+                    onClick={() => movePreset(index, -1)}
+                    aria-label={`${t('up')}: ${preset.label}`}
+                  >
+                    <ChevronUp className="size-3" />
+                  </Button>
+                )}
+                {!directorKey && (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={busy || index === presets.length - 1}
+                    onClick={() => movePreset(index, 1)}
+                    aria-label={`${t('down')}: ${preset.label}`}
+                  >
+                    <ChevronDown className="size-3" />
+                  </Button>
+                )}
+                {!directorKey && (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={busy}
+                    onClick={() => deletePreset(preset)}
+                    aria-label={`${t('delete')}: ${preset.label}`}
+                  >
+                    <Trash2 className="size-3" />
+                  </Button>
+                )}
               </div>
             ))}
           </div>
           {presets.length === 0 && <p className="text-sm text-muted-foreground">{t('empty')}</p>}
-          {!formOpen && (
+          {!directorKey && !formOpen && (
             <Button variant="outline" size="sm" onClick={() => editPreset()} disabled={busy || presets.length >= 32}>
               <Plus className="size-4" /> {t('add')}
             </Button>
           )}
-          {formOpen && (
+          {!directorKey && formOpen && (
             <form className="flex flex-col gap-2 max-w-xl" onSubmit={savePreset}>
               <label className="text-sm font-medium">{t('name')}</label>
               <input
