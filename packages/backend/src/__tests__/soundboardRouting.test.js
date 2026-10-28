@@ -105,8 +105,12 @@ describe('soundboard director output routing', () => {
     const { app, director, receiver, events } = setup();
     await director('/api/race-control/director/soundboard/receiver').send({ socketId: receiver.id }).expect(200);
     const responses = await Promise.all([
-      request(app).post('/api/race-control/soundboard/play').send({ presetId: clip.id, requestId: '7'.repeat(32) }),
-      request(app).post('/api/race-control/soundboard/play').send({ presetId: clip.id, requestId: '7'.repeat(32) }),
+      request(app)
+        .post('/api/race-control/soundboard/play')
+        .send({ presetId: clip.id, requestId: '7'.repeat(32) }),
+      request(app)
+        .post('/api/race-control/soundboard/play')
+        .send({ presetId: clip.id, requestId: '7'.repeat(32) }),
     ]);
     expect(responses.map((response) => response.status)).toEqual([200, 200]);
     expect(events.filter((event) => event.event === 'soundboard:play')).toHaveLength(1);
