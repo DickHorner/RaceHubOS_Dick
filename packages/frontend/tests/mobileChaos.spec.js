@@ -96,3 +96,61 @@ test('remote first-run screen explains setup location rather than displaying a b
   await expect(page.getByRole('button', { name: /set up race control/i })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /check setup status again/i })).toBeVisible()
 })
+
+test('first-run setup lets the race PC choose its own director credential', async ({ page }) => {
+  await mockRace(page, race)
+  await page.route('**/api/race-control/status', (route) =>
+    route.fulfill({ json: { success: true, enabled: false, setupAvailable: true } })
+  )
+  const custom = 'Race_Director_Custom_Key_2026-ABC'
+  let submitted
+  await page.route('**/api/race-control/setup', (route) => {
+    submitted = route.request().postDataJSON()
+    return route.fulfill({ json: { success: true, secret: submitted.secret } })
+  })
+  await page.goto('/display/control')
+  await page.getByLabel('Custom director credential (optional)').fill('too-short')
+  await expect(page.getByRole('button', { name: /set up race control/i })).toBeDisabled()
+  await page.getByLabel('Custom director credential (optional)').fill(custom)
+  await page.getByRole('button', { name: /set up race control/i }).click()
+  await expect(page.getByRole('status').filter({ hasText: /director authorized/i })).toBeVisible()
+  expect(submitted).toEqual({ secret: custom })
+  await expect(page.getByLabel(/new race director credential/i)).toHaveValue(custom)
+  expect(page.url()).not.toContain(custom)
+})
+
+test('authorized director can change the key and refresh the optional QR link', async ({ page }) => {
+  await mockRace(page, race)
+  const original = 'Original_Director_Key_1234567890'
+  const replacement = 'Replacement_Director_Key_1234567890'
+  await page.route('**/api/race-control/status', (route) => route.fulfill({ json: { success: true, enabled: true } }))
+  await page.route('**/api/race-control/director/check', (route) => {
+    const allowed = route.request().headers().authorization === `Bearer ${original}`
+    return route.fulfill({ status: allowed ? 200 : 403, json: { success: allowed } })
+  })
+  await page.route('**/api/race-control/lan-addresses', (route) =>
+    route.fulfill({ json: { success: true, data: [{ name: 'Wi-Fi', address: '192.168.178.42' }] } })
+  )
+  let oldAuthorization
+  let received
+  await page.route('**/api/race-control/director/credential', (route) => {
+    oldAuthorization = route.request().headers().authorization
+    received = route.request().postDataJSON()
+    return route.fulfill({ json: { success: true } })
+  })
+  await page.goto('/display/control')
+  await page.getByLabel(/director credential/i).fill(original)
+  await page.getByRole('button', { name: /unlock/i }).click()
+  await expect(page.getByText('Share race director')).toBeVisible()
+  await page.getByLabel('Set a new director credential').fill('short')
+  await expect(page.getByRole('button', { name: 'Change credential' })).toBeDisabled()
+  await page.getByLabel('Set a new director credential').fill(replacement)
+  await page.getByRole('button', { name: 'Change credential' }).click()
+  await expect(page.getByText('Director credential changed. The new key is active immediately.')).toBeVisible()
+  expect(oldAuthorization).toBe(`Bearer ${original}`)
+  expect(received).toEqual({ secret: replacement })
+  const share = page.getByTestId('lan-share-panel')
+  await share.getByLabel('Include director credential in QR code').check()
+  await expect(share.getByLabel('LAN link')).toHaveValue(new RegExp(`#director=${replacement}$`))
+  expect(page.url()).not.toContain(replacement)
+})

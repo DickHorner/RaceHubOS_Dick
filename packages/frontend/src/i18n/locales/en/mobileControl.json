@@ -22,7 +22,7 @@
   "linkWarning": "Anyone with a link may request chaos for that driver. Do not share publicly. Valid for six hours and only while the assignment remains unchanged.",
   "linkError": "Could not issue driver link.",
   "copyLink": "Copied if clipboard is available. Otherwise select and copy this link. On other devices use the LAN IP instead of localhost.",
-  "setupHere": "You are on the race PC. One click generates a strong director credential and saves it on the server. No terminal or restart needed.",
+  "setupHere": "On the race PC, enter your own key or leave the field empty to generate a secure key automatically. RaceHubOS saves it on the server without a restart.",
   "setupButton": "Set up race control",
   "setupOnRacePc": "Initial setup is only available directly on the race PC. Open http://localhost:5173/display/control (development) or http://localhost:3001/display/control there, then refresh this page.",
   "retryStatus": "Check setup status again",
@@ -76,5 +76,12 @@
   "damageConfirm": "Confirm repair",
   "damageVerifyConfirm": "Did you personally verify the actual repair stop?",
   "damageConfirmError": "Could not confirm repair.",
-  "shareDirector": "Share race director"
+  "shareDirector": "Share race director",
+  "setupCustomSecret": "Custom director credential (optional)",
+  "secretRequirements": "32–128 characters: letters, digits, hyphen or underscore. Leave empty to generate a secure key.",
+  "changeSecret": "Set a new director credential",
+  "saveSecret": "Change credential",
+  "changeSecretWarning": "Existing driver CHAOS links and previous director QR codes will stop working. Other director devices must unlock again.",
+  "secretChanged": "Director credential changed. The new key is active immediately.",
+  "changeSecretError": "Could not change director credential."
 }

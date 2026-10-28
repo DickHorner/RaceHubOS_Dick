@@ -8,6 +8,7 @@ import LanShareLink from '../components/LanShareLink'
 import { SessionStatus, SessionType, PenaltyKind, PenaltyStatus, TyreType, DamageStatus } from '@racehubos/shared'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
+const DIRECTOR_SECRET_PATTERN = /^[A-Za-z0-9_-]{32,128}$/
 
 export default function MobileRaceControl() {
   const { t } = useTranslation('mobileControl')
@@ -16,6 +17,9 @@ export default function MobileRaceControl() {
   const [configured, setConfigured] = useState(null)
   const [setupAvailable, setSetupAvailable] = useState(false)
   const [generatedSecret, setGeneratedSecret] = useState('')
+  const [setupSecretInput, setSetupSecretInput] = useState('')
+  const [replacementSecret, setReplacementSecret] = useState('')
+  const [credentialChanged, setCredentialChanged] = useState(false)
   const [secretCopied, setSecretCopied] = useState(false)
   const [secretInput, setSecretInput] = useState('')
   const [directorKey, setDirectorKey] = useState('')
@@ -158,10 +162,15 @@ export default function MobileRaceControl() {
     setError('')
     setBusy(true)
     try {
-      const response = await fetch(`${API_URL}/api/race-control/setup`, { method: 'POST' })
+      const response = await fetch(`${API_URL}/api/race-control/setup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(setupSecretInput ? { secret: setupSecretInput } : {}),
+      })
       const result = await response.json()
       if (!response.ok || !result.success || !result.secret) throw new Error(result.error || t('setupError'))
       setDirectorKey(result.secret)
+      setSetupSecretInput('')
       setGeneratedSecret(result.secret)
       setSecretCopied(false)
       setConfigured(true)
@@ -194,6 +203,35 @@ export default function MobileRaceControl() {
       if (!response.ok) throw new Error(t('wrongCredential'))
       setDirectorKey(secretInput)
       setSecretInput('')
+    } catch (cause) {
+      setError(cause.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function changeDirectorCredential(event) {
+    event.preventDefault()
+    if (busy || !directorKey || !DIRECTOR_SECRET_PATTERN.test(replacementSecret)) return
+    setError('')
+    setCredentialChanged(false)
+    setBusy(true)
+    try {
+      const response = await fetch(`${API_URL}/api/race-control/director/credential`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${directorKey}`,
+        },
+        body: JSON.stringify({ secret: replacementSecret }),
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error(result.error || t('changeSecretError'))
+      setDirectorKey(replacementSecret)
+      setReplacementSecret('')
+      setGeneratedSecret('')
+      setIssuedLink('')
+      setCredentialChanged(true)
     } catch (cause) {
       setError(cause.message)
     } finally {
@@ -375,7 +413,26 @@ export default function MobileRaceControl() {
             {setupAvailable ? (
               <>
                 <p className="text-sm text-muted-foreground">{t('setupHere')}</p>
-                <Button type="button" disabled={busy} onClick={setupRaceControl}>
+                <label className="block text-sm font-medium" htmlFor="custom-director-key">
+                  {t('setupCustomSecret')}
+                </label>
+                <input
+                  id="custom-director-key"
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={32}
+                  maxLength={128}
+                  pattern="[A-Za-z0-9_-]{32,128}"
+                  value={setupSecretInput}
+                  onChange={(event) => setSetupSecretInput(event.target.value)}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2"
+                />
+                <p className="text-xs text-muted-foreground">{t('secretRequirements')}</p>
+                <Button
+                  type="button"
+                  disabled={busy || (setupSecretInput !== '' && !DIRECTOR_SECRET_PATTERN.test(setupSecretInput))}
+                  onClick={setupRaceControl}
+                >
                   {t('setupButton')}
                 </Button>
               </>
@@ -445,6 +502,7 @@ export default function MobileRaceControl() {
                   setDirectorKey('')
                   setIssuedLink('')
                   setGeneratedSecret('')
+                  setCredentialChanged(false)
                 }}
               >
                 {t('lock')}
@@ -455,6 +513,36 @@ export default function MobileRaceControl() {
               <h2 className="text-sm font-semibold">{t('shareDirector')}</h2>
               <LanShareLink path="/display/control" directorKey={directorKey} />
             </section>
+            <form onSubmit={changeDirectorCredential} className="rounded-xl border border-border bg-card p-5 space-y-3">
+              <label className="block text-sm font-medium" htmlFor="replacement-director-key">
+                {t('changeSecret')}
+              </label>
+              <input
+                id="replacement-director-key"
+                type="password"
+                autoComplete="new-password"
+                minLength={32}
+                maxLength={128}
+                pattern="[A-Za-z0-9_-]{32,128}"
+                required
+                value={replacementSecret}
+                onChange={(event) => {
+                  setReplacementSecret(event.target.value)
+                  setCredentialChanged(false)
+                }}
+                className="w-full rounded-md border border-border bg-background px-3 py-2"
+              />
+              <p className="text-xs text-muted-foreground">{t('secretRequirements')}</p>
+              <p className="text-xs text-amber-600">{t('changeSecretWarning')}</p>
+              <Button type="submit" disabled={busy || !DIRECTOR_SECRET_PATTERN.test(replacementSecret)}>
+                {t('saveSecret')}
+              </Button>
+              {credentialChanged && (
+                <p role="status" className="text-sm text-green-600">
+                  {t('secretChanged')}
+                </p>
+              )}
+            </form>
             <section className="rounded-xl border border-border bg-card p-5 space-y-3">
               <label className="text-sm font-medium block" htmlFor="race-select">
                 {t('session')}
