@@ -248,6 +248,123 @@ describe('race director and driver-scoped chaos access', () => {
     expect(append).not.toHaveBeenCalled();
   });
 
+  test('first-run setup accepts a custom key but rejects unsafe or short keys', async () => {
+    const { app } = setup();
+    delete process.env.RACE_CONTROL_SECRET;
+    jest.spyOn(fs, 'readFile').mockRejectedValue(Object.assign(new Error('missing'), { code: 'ENOENT' }));
+    const append = jest.spyOn(fs, 'appendFile').mockResolvedValue();
+    const url = '/api/race-control/setup';
+    for (const value of ['too-short', 'x'.repeat(31), 'x'.repeat(129), `x${'a'.repeat(30)}\nBAD=1`, 10]) {
+      await request(app)
+        .post(url)
+        .set('Host', 'localhost:3001')
+        .set('Origin', 'http://localhost:5173')
+        .send({ secret: value })
+        .expect(400);
+    }
+    expect(append).not.toHaveBeenCalled();
+    const requested = 'Test_Key-'.padEnd(40, 'a');
+    const response = await request(app)
+      .post(url)
+      .set('Host', 'localhost:3001')
+      .set('Origin', 'http://localhost:5173')
+      .send({ secret: requested })
+      .expect(200);
+    expect(response.body.secret).toBe(requested);
+    expect(append).toHaveBeenCalledWith(
+      expect.stringMatching(/packages[\\/]backend[\\/]\.env$/),
+      `RACE_CONTROL_SECRET=${requested}\n`,
+      { mode: 0o600 }
+    );
+    await request(app)
+      .get('/api/race-control/director/check')
+      .set('Authorization', `Bearer ${requested}`)
+      .expect(200);
+  });
+
+  test('credential rotation requires the current key and atomically persists the replacement', async () => {
+    const { app } = setup();
+    const oldToken = await issueToken(app);
+    jest.spyOn(fs, 'readFile').mockResolvedValue(`SITE_NAME=test\nRACE_CONTROL_SECRET=${secret}\nMODE=home\n`);
+    const write = jest.spyOn(fs, 'writeFile').mockResolvedValue();
+    const rename = jest.spyOn(fs, 'rename').mockResolvedValue();
+    const replacement = 'My_New_Director-Key-2026'.padEnd(40, 'A');
+    const url = '/api/race-control/director/credential';
+
+    await request(app).post(url).send({ secret: replacement }).expect(403);
+    await request(app).post(url).set('Authorization', 'Bearer wrong').send({ secret: replacement }).expect(403);
+    await request(app)
+      .post(url)
+      .set('Authorization', `Bearer ${secret}`)
+      .send({ secret: 'short' })
+      .expect(400);
+    await request(app)
+      .post(url)
+      .set('Authorization', `Bearer ${secret}`)
+      .send({ secret: secret })
+      .expect(409);
+    expect(write).not.toHaveBeenCalled();
+
+    const response = await request(app)
+      .post(url)
+      .set('Authorization', `Bearer ${secret}`)
+      .send({ secret: replacement })
+      .expect(200);
+    expect(response.body).toEqual({ success: true });
+    const [temporary, written, opts] = write.mock.calls[0];
+    expect(temporary).toMatch(/packages[\\/]backend[\\/]\.env\.[0-9a-f]{16}\.tmp$/);
+    expect(written).toBe(`SITE_NAME=test\nRACE_CONTROL_SECRET=${replacement}\nMODE=home\n`);
+    expect(opts).toEqual({ mode: 0o600, flag: 'wx' });
+    expect(rename).toHaveBeenCalledWith(temporary, expect.stringMatching(/packages[\\/]backend[\\/]\.env$/));
+    expect(process.env.RACE_CONTROL_SECRET).toBe(replacement);
+
+    await request(app)
+      .get('/api/race-control/director/check')
+      .set('Authorization', `Bearer ${secret}`)
+      .expect(403);
+    await request(app)
+      .get('/api/race-control/director/check')
+      .set('Authorization', `Bearer ${replacement}`)
+      .expect(200);
+    await request(app)
+      .post('/api/race-control/chaos')
+      .set('Authorization', `Bearer ${oldToken}`)
+      .expect(403);
+  });
+
+  test('rotation refuses externally managed keys and retains the active key after write failure', async () => {
+    const { app } = setup();
+    const url = '/api/race-control/director/credential';
+    const replacement = 'Another_New_Director_Credential_2026';
+    const read = jest.spyOn(fs, 'readFile').mockResolvedValue('RACE_CONTROL_SECRET=other-key\n');
+    const write = jest.spyOn(fs, 'writeFile').mockResolvedValue();
+    const rename = jest.spyOn(fs, 'rename').mockResolvedValue();
+    await request(app)
+      .post(url)
+      .set('Authorization', `Bearer ${secret}`)
+      .send({ secret: replacement })
+      .expect(409);
+    expect(write).not.toHaveBeenCalled();
+    expect(rename).not.toHaveBeenCalled();
+
+    read.mockResolvedValue(`RACE_CONTROL_SECRET=${secret}\n`);
+    write.mockRejectedValueOnce(new Error('disk full'));
+    const unlink = jest.spyOn(fs, 'unlink').mockResolvedValue();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    await request(app)
+      .post(url)
+      .set('Authorization', `Bearer ${secret}`)
+      .send({ secret: replacement })
+      .expect(500);
+    expect(unlink).toHaveBeenCalledTimes(1);
+    expect(process.env.RACE_CONTROL_SECRET).toBe(secret);
+    expect(rename).not.toHaveBeenCalled();
+    await request(app)
+      .get('/api/race-control/director/check')
+      .set('Authorization', `Bearer ${secret}`)
+      .expect(200);
+  });
+
   test('missing server secret disables the new feature', async () => {
     const { app } = setup();
     delete process.env.RACE_CONTROL_SECRET;

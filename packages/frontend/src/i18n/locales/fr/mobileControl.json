@@ -22,7 +22,7 @@
   "linkWarning": "Toute personne possédant ce lien peut déclencher Chaos pour ce pilote. Ne le partagez pas publiquement. Valable six heures uniquement tant que l'affectation reste inchangée.",
   "linkError": "Impossible de créer le lien du pilote.",
   "copyLink": "Copié si le presse-papiers est disponible. Sinon sélectionnez et copiez le lien. Utilisez l'adresse IP LAN plutôt que localhost sur d'autres appareils.",
-  "setupHere": "Vous êtes sur le PC de course. Un clic génère une clé sécurisée et l'enregistre sur le serveur. Aucun terminal ni redémarrage requis.",
+  "setupHere": "Sur le PC de course, saisissez votre clé ou laissez le champ vide pour générer une clé sécurisée. RaceHubOS l'enregistre sur le serveur sans redémarrage.",
   "setupButton": "Configurer la direction de course",
   "setupOnRacePc": "La première configuration est uniquement possible sur le PC de course. Ouvrez-y http://localhost:5173/display/control (développement) ou http://localhost:3001/display/control, puis actualisez cette page.",
   "retryStatus": "Revérifier la configuration",

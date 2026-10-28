@@ -22,7 +22,7 @@
   "linkWarning": "Anyone with a link may request chaos for that driver. Do not share publicly. Valid for six hours and only while the assignment remains unchanged.",
   "linkError": "Could not issue driver link.",
   "copyLink": "Copied if clipboard is available. Otherwise select and copy this link. On other devices use the LAN IP instead of localhost.",
-  "setupHere": "You are on the race PC. One click generates a strong director credential and saves it on the server. No terminal or restart needed.",
+  "setupHere": "On the race PC, enter your own key or leave the field empty to generate a secure key automatically. RaceHubOS saves it on the server without a restart.",
   "setupButton": "Set up race control",
   "setupOnRacePc": "Initial setup is only available directly on the race PC. Open http://localhost:5173/display/control (development) or http://localhost:3001/display/control there, then refresh this page.",
   "retryStatus": "Check setup status again",
