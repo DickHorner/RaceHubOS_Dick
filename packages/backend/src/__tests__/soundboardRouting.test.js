@@ -27,9 +27,14 @@ function setup() {
     },
   };
   const sockets = new Map([[receiver.id, receiver]]);
+  let autoListener;
   setRaceControlServices(
     {
       io: { sockets: { sockets } },
+      on(event, listener) {
+        if (event === 'soundboardAutoEvent') autoListener = listener;
+      },
+      off() {},
       prisma: { preference: { findUnique: jest.fn(async () => ({ value: JSON.stringify([clip, speech]) })) } },
     },
     null
@@ -38,7 +43,7 @@ function setup() {
   app.use(express.json());
   app.use('/api/race-control', raceControl);
   const director = (path) => request(app).post(path).set('Authorization', `Bearer ${secret}`);
-  return { app, director, events, receiver, sockets };
+  return { app, director, events, receiver, sockets, emitAuto: (event) => autoListener(event) };
 }
 
 describe('soundboard director output routing', () => {
@@ -116,6 +121,23 @@ describe('soundboard director output routing', () => {
     expect(events.filter((event) => event.event === 'soundboard:play')).toHaveLength(1);
   });
 
+
+  it('forwards race sound events only to the selected, explicitly registered receiver', async () => {
+    const { app, director, receiver, events, sockets, emitAuto } = setup();
+    const other = { ...receiver, id: 'receiver-two-12345' };
+    sockets.set(other.id, other);
+    emitAuto({ type: 'bestlap', data: { sessionId: 'race-1' } });
+    expect(events).toHaveLength(0);
+
+    await director('/api/race-control/director/soundboard/receiver').send({ socketId: receiver.id }).expect(200);
+    emitAuto({ type: 'bestlap', data: { sessionId: 'race-1' } });
+    expect(events).toEqual([
+      { event: 'soundboard:auto', data: { type: 'bestlap', data: { sessionId: 'race-1' } } },
+    ]);
+    await director('/api/race-control/director/soundboard/release').send({ socketId: receiver.id }).expect(200);
+    emitAuto({ type: 'finished', data: { sessionId: 'race-1' } });
+    expect(events).toHaveLength(1);
+  });
   it('reports muted or unreachable output without silent local fallback', async () => {
     const { app, director, receiver } = setup();
     await request(app)

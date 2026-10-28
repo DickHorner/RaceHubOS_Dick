@@ -18,12 +18,20 @@ const SOUND_URL =
   /^\/api\/upload\/sounds\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.(mp3|ogg|wav)$/;
 const SOUND_REQUEST_ID = /^[a-f0-9]{32}$/;
 
+// An automatic cue is delivered to the one director who opted in to receive audio.
+function forwardAutoSoundEvent(payload) {
+  const socket = soundReceiver();
+  if (socket) socket.emit('soundboard:auto', payload);
+}
+
 export function setRaceControlServices(session, sync) {
+  sessionService?.off?.('soundboardAutoEvent', forwardAutoSoundEvent);
   sessionService = session;
   syncService = sync;
   soundReceiverId = null;
   lastSoundPlayAt = 0;
   soundRequests.clear();
+  sessionService?.on?.('soundboardAutoEvent', forwardAutoSoundEvent);
 }
 
 function directorSecret() {

@@ -187,7 +187,8 @@ export class SessionService extends EventEmitter {
     // Check if this is a new session best lap
     const roundedLap = Math.round(lapTime);
     if (previousSessionBest === null || roundedLap < previousSessionBest) {
-      this.emit('session:bestlap', {
+      const bestLapEvent = {
+        sessionId: this.activeSessionId,
         controller: driver.controller,
         driverName: driver.driver?.name || null,
         carBrand: driver.car?.brand || null,
@@ -196,7 +197,9 @@ export class SessionService extends EventEmitter {
         lapTime: roundedLap,
         totalLaps: driver.totalLaps,
         maxLapsCompleted: Math.max(...this.sessionDrivers.map((d) => d.totalLaps)),
-      });
+      };
+      this.emit('session:bestlap', bestLapEvent);
+      super.emit('soundboardAutoEvent', { type: 'bestlap', data: bestLapEvent });
     }
 
     // Measured and simulated lap times are separate; no CU speed command is sent.
@@ -1473,7 +1476,7 @@ export class SessionService extends EventEmitter {
     ]);
 
     // Broadcast to clients with final leaderboard
-    this.emit('session:finished', {
+    const finishEvent = {
       sessionId,
       reason,
       championshipId,
@@ -1481,7 +1484,9 @@ export class SessionService extends EventEmitter {
       startedAt: this.sessionConfig?.startedAt,
       weatherCondition: weatherForSession(this.sessionConfig, Date.now()),
       leaderboard: this.getEnrichedLeaderboard(),
-    });
+    };
+    this.emit('session:finished', finishEvent);
+    super.emit('soundboardAutoEvent', { type: 'finished', data: finishEvent });
     this.emitStatusChanged('finished', previousStatus);
 
     // Emit internal event for other services (ChampionshipManager)
