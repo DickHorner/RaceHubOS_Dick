@@ -22,7 +22,6 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: npx prettier packages/backend/src/__tests__/raceControl.test.js > /tmp/expected.js && diff -u packages/backend/src/__tests__/raceControl.test.js /tmp/expected.js || true
       - run: npm run check -- --ci
       - run: node --test packages/frontend/tests/lapAnalysis.unit.js packages/frontend/tests/soundboardAuto.unit.js
       - run: npm run build
