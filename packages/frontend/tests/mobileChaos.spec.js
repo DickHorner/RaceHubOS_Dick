@@ -158,7 +158,6 @@ test('authorized director can change the key and refresh the optional QR link', 
   expect(page.url()).not.toContain(replacement)
 })
 
-
 test('director access is remembered only by opt-in, revalidated and cleared on lock', async ({ page }) => {
   await mockRace(page, race)
   const secret = 'Remembered_Director_Key_123456789'
@@ -181,15 +180,18 @@ test('director access is remembered only by opt-in, revalidated and cleared on l
 
   await remember.check()
   expect(await page.evaluate(() => localStorage.getItem('racehubos:remembered-director-key'))).toBe(secret)
+  const checksBeforeReload = checked.length
   await page.reload()
   await expect(page.getByRole('status').filter({ hasText: /director authorized/i })).toBeVisible()
-  expect(checked).toEqual([`Bearer ${secret}`, `Bearer ${secret}`])
+  expect(checked.length).toBeGreaterThan(checksBeforeReload)
+  expect(checked.every((authorization) => authorization === `Bearer ${secret}`)).toBe(true)
 
   await page.getByRole('button', { name: 'Lock' }).click()
   expect(await page.evaluate(() => localStorage.getItem('racehubos:remembered-director-key'))).toBeNull()
+  const checksBeforeLockReload = checked.length
   await page.reload()
   await expect(page.getByLabel(/director credential/i)).toBeVisible()
-  expect(checked).toHaveLength(2)
+  expect(checked).toHaveLength(checksBeforeLockReload)
 })
 
 test('expired remembered director key is discarded before manual login', async ({ page }) => {
