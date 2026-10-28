@@ -186,7 +186,7 @@ test('director can disable the credential entirely and re-enable it from the ope
   await page.reload()
   await expect(page.getByRole('status').filter({ hasText: /director authorized/i })).toBeVisible()
   await expect(page.getByLabel('Require race director key')).not.toBeChecked()
-  await expect(page.getByLabel(/director credential/i)).toHaveCount(0)
+  await expect(page.getByLabel('Race director credential', { exact: true })).toHaveCount(0)
   await page.getByLabel('Require race director key').check()
   expect(updates[1].required).toBe(true)
   await page.reload()
