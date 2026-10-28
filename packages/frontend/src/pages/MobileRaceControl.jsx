@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useDevice } from '../context/DeviceContext'
 import { useSession } from '../context/SessionContext'
 import { Button } from '@/components/ui/button'
+import Soundboard from '../components/race/Soundboard'
 import { SessionStatus, SessionType, PenaltyKind, PenaltyStatus, TyreType, DamageStatus } from '@racehubos/shared'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
@@ -423,6 +424,7 @@ export default function MobileRaceControl() {
                 {t('lock')}
               </Button>
             </div>
+            <Soundboard directorKey={directorKey} />
             <section className="rounded-xl border border-border bg-card p-5 space-y-3">
               <label className="text-sm font-medium block" htmlFor="race-select">
                 {t('session')}

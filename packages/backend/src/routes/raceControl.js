@@ -11,10 +11,19 @@ let setupInProgress = false;
 let sessionService;
 let syncService;
 let controlQueue = Promise.resolve();
+let soundReceiverId = null;
+let lastSoundPlayAt = 0;
+const soundRequests = new Map();
+const SOUND_URL =
+  /^\/api\/upload\/sounds\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.(mp3|ogg|wav)$/;
+const SOUND_REQUEST_ID = /^[a-f0-9]{32}$/;
 
 export function setRaceControlServices(session, sync) {
   sessionService = session;
   syncService = sync;
+  soundReceiverId = null;
+  lastSoundPlayAt = 0;
+  soundRequests.clear();
 }
 
 function directorSecret() {
@@ -42,6 +51,20 @@ function requireDirector(req, res, next) {
   if (!directorSecret()) return res.status(503).json({ success: false, error: 'Race control is not configured' });
   if (!isDirector(req)) return res.status(403).json({ success: false, error: 'Race director credential required' });
   next();
+}
+
+function requireLocalOrDirector(req, res, next) {
+  if (isLoopback(req.socket.remoteAddress) && trustedOrigin(req.get('origin'), req.get('host'))) return next();
+  return requireDirector(req, res, next);
+}
+
+function soundReceiver() {
+  const socket = sessionService?.io?.sockets?.sockets?.get(soundReceiverId);
+  if (!socket?.connected) {
+    soundReceiverId = null;
+    return null;
+  }
+  return socket;
 }
 
 export function isLoopback(address) {
@@ -300,6 +323,124 @@ router.post('/chaos', async (req, res) => {
 router.get('/vsc', (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true, data: sessionService.getVscState() });
+});
+
+// A director browser explicitly owns the only soundboard output socket.
+// The stored audio stays on the server and is fetched by that browser via HTTP.
+router.get('/soundboard/status', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ success: true, ready: Boolean(soundReceiver()) });
+});
+
+router.post('/director/soundboard/receiver', requireDirector, (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const { socketId } = req.body || {};
+  if (typeof socketId !== 'string' || !/^[A-Za-z0-9_-]{8,64}$/.test(socketId)) {
+    return res.status(400).json({ success: false, error: 'Invalid receiver connection' });
+  }
+  const next = sessionService?.io?.sockets?.sockets?.get(socketId);
+  if (!next?.connected) return res.status(409).json({ success: false, error: 'Receiver is offline' });
+  const previous = soundReceiver();
+  if (previous && previous.id !== socketId) previous.emit('soundboard:deactivate');
+  soundReceiverId = socketId;
+  res.json({ success: true, ready: true });
+});
+
+router.post('/director/soundboard/release', requireDirector, (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (req.body?.socketId === soundReceiverId) soundReceiverId = null;
+  res.json({ success: true });
+});
+
+// The race PC may trigger remotely via its existing trusted-loopback boundary;
+// a remote browser requires the director credential, never a driver token.
+router.post('/soundboard/:action', requireLocalOrDirector, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const { action } = req.params;
+  if (action !== 'play' && action !== 'stop') {
+    return res.status(400).json({ success: false, error: 'Unknown soundboard action' });
+  }
+  const { presetId, requestId } = req.body || {};
+  if (typeof requestId !== 'string' || !SOUND_REQUEST_ID.test(requestId)) {
+    return res.status(400).json({ success: false, error: 'Invalid sound request' });
+  }
+  if (action === 'play' && (typeof presetId !== 'string' || !presetId || presetId.length > 80)) {
+    return res.status(400).json({ success: false, error: 'Invalid preset ID' });
+  }
+
+  const now = Date.now();
+  for (const [id, item] of soundRequests) {
+    if (now - item.time > 60000) soundRequests.delete(id);
+  }
+  const existing = soundRequests.get(requestId);
+  if (existing) {
+    const reply = await existing.result;
+    return res.status(reply.code).json(reply.body);
+  }
+
+  const socket = soundReceiver();
+  if (!socket) return res.status(503).json({ success: false, error: 'Director audio receiver is offline' });
+
+  // Reserve the request ID before the asynchronous preset lookup. Concurrent
+  // retries must never send the same sound twice.
+  const result = (async () => {
+    let preset;
+    if (action === 'play') {
+      try {
+        const stored = await sessionService.prisma.preference.findUnique({ where: { key: 'soundboard:presets' } });
+        const presets = stored ? JSON.parse(stored.value) : [];
+        const found = Array.isArray(presets) ? presets.slice(0, 32).find((item) => item?.id === presetId) : null;
+        if (
+          !found ||
+          (found.kind === 'clip' && (typeof found.url !== 'string' || !SOUND_URL.test(found.url))) ||
+          (found.kind === 'speech' &&
+            (typeof found.text !== 'string' || !found.text.trim() || found.text.length > 300)) ||
+          !['clip', 'speech'].includes(found.kind) ||
+          typeof found.label !== 'string' ||
+          !found.label ||
+          found.label.length > 60
+        ) {
+          return { code: 400, body: { success: false, error: 'Unknown or invalid soundboard preset' } };
+        }
+        preset =
+          found.kind === 'clip'
+            ? { id: found.id, label: found.label, kind: 'clip', url: found.url }
+            : { id: found.id, label: found.label, kind: 'speech', text: found.text };
+      } catch (error) {
+        console.error('[RaceControl] Soundboard preset lookup failed:', error);
+        return { code: 500, body: { success: false, error: 'Could not load soundboard preset' } };
+      }
+      const time = Date.now();
+      if (time - lastSoundPlayAt < 200) {
+        return { code: 429, body: { success: false, error: 'Sound requests are too frequent' } };
+      }
+      lastSoundPlayAt = time;
+    }
+
+    if (!socket.connected) return { code: 503, body: { success: false, error: 'Director audio receiver is offline' } };
+
+    return new Promise((resolve) => {
+      socket
+        .timeout(7000)
+        .emit(`soundboard:${action}`, { requestId, ...(preset ? { preset } : {}) }, (error, answer) => {
+          if (error) {
+            resolve({ code: 504, body: { success: false, error: 'Audio playback was not confirmed' } });
+            return;
+          }
+          const expected = action === 'play' ? 'started' : 'stopped';
+          if (answer?.status === expected) {
+            resolve({ code: 200, body: { success: true, status: answer.status } });
+          } else {
+            resolve({ code: 409, body: { success: false, error: answer?.status || 'Audio playback rejected' } });
+          }
+        });
+    });
+  })();
+
+  soundRequests.set(requestId, { time: now, result });
+  if (soundRequests.size > 64) soundRequests.delete(soundRequests.keys().next().value);
+  const reply = await result;
+  res.status(reply.code).json(reply.body);
 });
 
 router.post('/director/vsc/:action', requireDirector, async (req, res) => {

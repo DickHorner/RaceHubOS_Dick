@@ -27,5 +27,24 @@
   "invalidPreset": "Enter a button name and a valid announcement.",
   "selectFile": "Select an audio file.",
   "fileTooLarge": "File is larger than 5 MB.",
-  "limitReached": "Up to 32 soundboard buttons are supported."
+  "limitReached": "Up to 32 soundboard buttons are supported.",
+  "output": "Playback on",
+  "outputLocal": "RaceHubOS PC (here)",
+  "outputDirector": "Director PC",
+  "receiverEnable": "Receive audio here",
+  "receiverDisable": "Disable receiving",
+  "receiverReady": "Director connected",
+  "receiverOffline": "Director unavailable",
+  "remoteStarted": "Director playback started (speakers not verified).",
+  "remoteError": "Remote playback failed.",
+  "receiverError": "Could not activate audio receiver.",
+  "receiverReplaced": "Another director browser has taken over sound output.",
+  "unlockError": "Browser audio could not be unlocked.",
+  "receiverState": {
+    "off": "Remote receiving off",
+    "connecting": "Connecting audio receiver…",
+    "ready": "Receiver connected (speakers not verified)",
+    "offline": "Connection lost – reconnecting",
+    "error": "Receiver unavailable"
+  }
 }
