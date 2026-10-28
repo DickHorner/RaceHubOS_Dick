@@ -10,5 +10,9 @@
   "copied": "Lien copié",
   "manualCopy": "Copier ce lien LAN :",
   "lanHint": "Pour les appareils du même réseau local. L’accès dépend du réseau, du pare-feu et de l’interface choisie.",
-  "linksTitle": "Liens pilotes et direction de course"
+  "linksTitle": "Liens pilotes et direction de course",
+  "includeKey": "Inclure la clé de direction dans le QR code",
+  "directorKey": "Saisir la clé de direction",
+  "keyWarning": "Ce QR code donne accès à toutes les commandes de direction. À utiliser uniquement sur un réseau privé de confiance. Ne pas photographier ni partager.",
+  "keyRequired": "Saisir une clé de direction d’au moins 32 caractères."
 }

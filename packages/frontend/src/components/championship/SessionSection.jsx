@@ -12,10 +12,12 @@ import {
   AlertTriangle,
   Trash2,
   Copy,
+  QrCode,
   Trophy,
   Timer,
 } from 'lucide-react'
 import Podium from '../race/Podium'
+import LanShareLink from '../LanShareLink'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -68,7 +70,7 @@ export default function SessionSection({
   const [startError, setStartError] = useState('')
   const [damageError, setDamageError] = useState('')
   const [weatherError, setWeatherError] = useState('')
-  const [copiedDriverId, setCopiedDriverId] = useState(null)
+  const [sharedLink, setSharedLink] = useState(null)
   const [editingName, setEditingName] = useState(false)
   const [inlineName, setInlineName] = useState('')
   const nameInputRef = useRef(null)
@@ -209,20 +211,6 @@ export default function SessionSection({
       await onSaveConfig({ drivers: driversPayload })
     } catch (err) {
       console.error('Failed to copy from practice:', err)
-    }
-  }
-
-  async function copyDriverLink(driverId) {
-    const link = `${window.location.origin}/display/driver/${encodeURIComponent(driverId)}`
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      window.prompt(t('driverDisplay:manualCopy') + ' ' + t('driverDisplay:lanHint'), link)
-      return
-    }
-    try {
-      await navigator.clipboard.writeText(link)
-      setCopiedDriverId(driverId)
-    } catch {
-      window.prompt(t('driverDisplay:manualCopy'), link)
     }
   }
 
@@ -433,11 +421,11 @@ export default function SessionSection({
         </div>
       </div>
 
-      {session.type !== SessionType.BALANCING && sessionDrivers.some((sd) => sd.driverId) && (
-        <div className="px-4 py-3 border-b border-border space-y-2">
-          <p className="text-xs font-medium text-muted-foreground">{t('driverDisplay:linksTitle')}</p>
-          <div className="flex flex-wrap items-center gap-2">
-            {sessionDrivers
+      <div className="px-4 py-3 border-b border-border space-y-2">
+        <p className="text-xs font-medium text-muted-foreground">{t('lanShare:linksTitle')}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          {session.type !== SessionType.BALANCING &&
+            sessionDrivers
               .filter((sd) => sd.driverId)
               .map((sd) => (
                 <Button
@@ -445,34 +433,19 @@ export default function SessionSection({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => copyDriverLink(sd.driverId)}
+                  onClick={() => setSharedLink(`/display/driver/${encodeURIComponent(sd.driverId)}`)}
                   title={t('driverDisplay:copyLink', { name: sd.driver?.name || `Ctrl ${sd.controller + 1}` })}
                 >
-                  <Copy className="size-3.5" />
+                  <QrCode className="size-3.5" />
                   {sd.driver?.name || `Ctrl ${sd.controller + 1}`}
                 </Button>
               ))}
-            {copiedDriverId && (
-              <span role="status" className="text-xs text-green-600">
-                {t('driverDisplay:linkCopied')}
-              </span>
-            )}
-          </div>
-          {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
-            <p className="text-xs text-muted-foreground">{t('driverDisplay:lanHint')}</p>
-          )}
+          <Button type="button" variant="outline" size="sm" onClick={() => setSharedLink('/display/control')}>
+            <QrCode className="size-3.5" />
+            {t('mobileControl:title')}
+          </Button>
         </div>
-      )}
-
-      <div className="px-4 py-2 border-b border-border">
-        <a
-          href="/display/control"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-sm text-primary underline underline-offset-2"
-        >
-          {t('mobileControl:title')}
-        </a>
+        {sharedLink && <LanShareLink key={sharedLink} path={sharedLink} />}
       </div>
 
       {/* Session config + Controllers table */}

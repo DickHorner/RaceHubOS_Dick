@@ -10,5 +10,9 @@
   "copied": "Link copied",
   "manualCopy": "Copy this LAN link:",
   "lanHint": "For devices on the same LAN. Reachability depends on the network, firewall and selected interface.",
-  "linksTitle": "Driver and race-director links"
+  "linksTitle": "Driver and race-director links",
+  "includeKey": "Include director credential in QR code",
+  "directorKey": "Enter director credential",
+  "keyWarning": "This QR code grants full race-director control. Only show it on a trusted home network; do not photograph or forward it.",
+  "keyRequired": "Enter a director credential of at least 32 characters."
 }

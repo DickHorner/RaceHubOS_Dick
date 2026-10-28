@@ -4,6 +4,7 @@ import { useDevice } from '../context/DeviceContext'
 import { useSession } from '../context/SessionContext'
 import { Button } from '@/components/ui/button'
 import Soundboard from '../components/race/Soundboard'
+import LanShareLink from '../components/LanShareLink'
 import { SessionStatus, SessionType, PenaltyKind, PenaltyStatus, TyreType, DamageStatus } from '@racehubos/shared'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
@@ -77,6 +78,35 @@ export default function MobileRaceControl() {
     const tick = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(tick)
   }, [])
+
+  useEffect(() => {
+    const fragment = new URLSearchParams(window.location.hash.slice(1))
+    const credential = fragment.get('director')
+    if (!credential) return
+    // The fragment never reaches HTTP, and is immediately removed from history and the address bar.
+    window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search)
+    if (credential.length < 32 || credential.length > 256) {
+      setError(t('wrongCredential'))
+      return
+    }
+    let active = true
+    fetch(`${API_URL}/api/race-control/director/check`, {
+      headers: { Authorization: `Bearer ${credential}` },
+    })
+      .then((response) => {
+        if (!response.ok) throw new Error(t('wrongCredential'))
+        if (active) {
+          setDirectorKey(credential)
+          setConfigured(true)
+        }
+      })
+      .catch(() => {
+        if (active) setError(t('wrongCredential'))
+      })
+    return () => {
+      active = false
+    }
+  }, [t])
 
   useEffect(() => {
     fetch(`${API_URL}/api/race-control/status`)
@@ -305,13 +335,7 @@ export default function MobileRaceControl() {
       })
       const result = await response.json()
       if (!response.ok || !result.success) throw new Error(result.error || t('linkError'))
-      const url = `${window.location.origin}/display/driver/${encodeURIComponent(driverId)}#chaos=${result.token}`
-      setIssuedLink(url)
-      try {
-        await navigator.clipboard.writeText(url)
-      } catch {
-        // HTTP LAN origins may not expose Clipboard API. Link remains selectable below.
-      }
+      setIssuedLink(`/display/driver/${encodeURIComponent(driverId)}#chaos=${result.token}`)
     } catch (cause) {
       setError(cause.message)
     } finally {
@@ -425,6 +449,10 @@ export default function MobileRaceControl() {
               </Button>
             </div>
             <Soundboard directorKey={directorKey} />
+            <section className="rounded-xl border border-border bg-card p-5 space-y-2">
+              <h2 className="text-sm font-semibold">{t('shareDirector')}</h2>
+              <LanShareLink path="/display/control" directorKey={directorKey} />
+            </section>
             <section className="rounded-xl border border-border bg-card p-5 space-y-3">
               <label className="text-sm font-medium block" htmlFor="race-select">
                 {t('session')}
@@ -764,20 +792,7 @@ export default function MobileRaceControl() {
                     </Button>
                   ))}
                 </div>
-                {issuedLink && (
-                  <div className="space-y-2">
-                    <label className="block text-sm" htmlFor="issued-driver-link">
-                      {t('copyLink')}
-                    </label>
-                    <input
-                      id="issued-driver-link"
-                      readOnly
-                      value={issuedLink}
-                      onFocus={(event) => event.target.select()}
-                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs"
-                    />
-                  </div>
-                )}
+                {issuedLink && <LanShareLink key={issuedLink} path={issuedLink} inputId="issued-driver-link" />}
               </section>
             )}
           </>

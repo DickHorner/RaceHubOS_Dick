@@ -75,5 +75,6 @@
   "damageNoPit": "No eligible CU pit interval recorded; cannot confirm.",
   "damageConfirm": "Confirm repair",
   "damageVerifyConfirm": "Did you personally verify the actual repair stop?",
-  "damageConfirmError": "Could not confirm repair."
+  "damageConfirmError": "Could not confirm repair.",
+  "shareDirector": "Share race director"
 }

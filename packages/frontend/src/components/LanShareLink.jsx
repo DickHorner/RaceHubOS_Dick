@@ -5,13 +5,15 @@ import { Button } from '@/components/ui/button'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
-export default function LanShareLink({ path, inputId }) {
+export default function LanShareLink({ path, inputId, directorKey = '' }) {
   const { t } = useTranslation('lanShare')
   const [addresses, setAddresses] = useState([])
   const [selected, setSelected] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [includeKey, setIncludeKey] = useState(false)
+  const [enteredKey, setEnteredKey] = useState('')
 
   useEffect(() => {
     let active = true
@@ -45,8 +47,14 @@ export default function LanShareLink({ path, inputId }) {
   }, [])
 
   const address = addresses.find((entry) => entry.address === selected)?.address
-  const url = address ? new URL(path, window.location.origin) : null
-  if (url) url.hostname = address
+  const isDirector = path === '/display/control'
+  const credential = directorKey || enteredKey.trim()
+  const keyReady = !includeKey || credential.length >= 32
+  const url = address && keyReady ? new URL(path, window.location.origin) : null
+  if (url) {
+    url.hostname = address
+    if (isDirector && includeKey) url.hash = new URLSearchParams({ director: credential }).toString()
+  }
   const link = url?.href || ''
 
   async function copy() {
@@ -86,6 +94,29 @@ export default function LanShareLink({ path, inputId }) {
           </select>
         </label>
       )}
+      {isDirector && (
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-xs">
+            <input type="checkbox" checked={includeKey} onChange={(event) => {
+              setIncludeKey(event.target.checked)
+              setCopied(false)
+            }} />
+            {t('includeKey')}
+          </label>
+          {includeKey && !directorKey && (
+            <input
+              type="password"
+              autoComplete="off"
+              aria-label={t('directorKey')}
+              placeholder={t('directorKey')}
+              className="w-full rounded-md border bg-background p-2 text-sm"
+              value={enteredKey}
+              onChange={(event) => setEnteredKey(event.target.value)}
+            />
+          )}
+          {includeKey && <p className="text-xs text-amber-600">{t('keyWarning')}</p>}
+        </div>
+      )}
       {link ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
           <div className="inline-flex w-fit rounded bg-white p-2" data-testid="lan-share-qr">
@@ -98,11 +129,12 @@ export default function LanShareLink({ path, inputId }) {
               rel="noopener noreferrer"
               className="block break-all text-sm text-primary underline underline-offset-2"
             >
-              {link}
+              {includeKey ? `${url.origin}${url.pathname}#director=••••` : link}
             </a>
             <input
               id={inputId}
               aria-label={t('link')}
+              type={includeKey ? 'password' : 'text'}
               className="w-full rounded-md border bg-background p-2 font-mono text-xs"
               readOnly
               value={link}
@@ -115,7 +147,9 @@ export default function LanShareLink({ path, inputId }) {
           </div>
         </div>
       ) : (
-        <p role="status" className="text-xs text-muted-foreground">{t('chooseAddress')}</p>
+        <p role="status" className="text-xs text-muted-foreground">
+          {address && !keyReady ? t('keyRequired') : t('chooseAddress')}
+        </p>
       )}
     </div>
   )
