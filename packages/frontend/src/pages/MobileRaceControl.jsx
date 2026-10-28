@@ -518,18 +518,20 @@ export default function MobileRaceControl() {
               <span role="status" className="text-sm text-green-500">
                 {t('authorized')}
               </span>
-              {keyRequired && <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setDirectorKey('')
-                  setIssuedLink('')
-                  setGeneratedSecret('')
-                  setCredentialChanged(false)
-                }}
-              >
-                {t('lock')}
-              </Button>}
+              {keyRequired && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setDirectorKey('')
+                    setIssuedLink('')
+                    setGeneratedSecret('')
+                    setCredentialChanged(false)
+                  }}
+                >
+                  {t('lock')}
+                </Button>
+              )}
             </div>
             <section className="rounded-xl border border-border bg-card p-5 space-y-3">
               <label className="flex items-center gap-3 text-sm font-semibold">
