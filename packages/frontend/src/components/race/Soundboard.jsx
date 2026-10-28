@@ -35,6 +35,7 @@ export default function Soundboard({ directorKey = '' }) {
   const [presets, setPresets] = useState([])
   const [autoMappings, setAutoMappings] = useState({ bestlap: '', finished: '' })
   const [autoLoaded, setAutoLoaded] = useState(false)
+  const [autoPreview, setAutoPreview] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [formOpen, setFormOpen] = useState(false)
   const [label, setLabel] = useState('')
@@ -59,6 +60,7 @@ export default function Soundboard({ directorKey = '' }) {
   const autoQueueRef = useRef([])
   const autoRunningRef = useRef(false)
   const autoPendingRef = useRef(new Set())
+  const autoGenerationRef = useRef(0)
   const autoSeenRef = useRef(new Set())
   const mutedRef = useRef(muted)
   const playbackDoneRef = useRef(null)
@@ -276,6 +278,7 @@ export default function Soundboard({ directorKey = '' }) {
   }
 
   function cancelAuto() {
+    autoGenerationRef.current += 1
     autoQueueRef.current = []
   }
 
@@ -296,6 +299,7 @@ export default function Soundboard({ directorKey = '' }) {
     const key = autoCueKey(type, data)
     if (!key || !receiverWantedRef.current || mutedRef.current || autoPendingRef.current.has(key)) return
     autoPendingRef.current.add(key)
+    const generation = autoGenerationRef.current
     try {
       // Read current server preferences: the operator may edit mappings on another PC.
       const [mapped, stored] = await Promise.all([
@@ -305,11 +309,12 @@ export default function Soundboard({ directorKey = '' }) {
       const selectedId = mapped.success && mapped.data?.[type]
       const source = stored.success && Array.isArray(stored.data) ? stored.data : []
       const found = source.find((item) => item?.id === selectedId && validPreset(item))
-      if (!found || !receiverWantedRef.current || mutedRef.current) return
+      if (!found || !receiverWantedRef.current || mutedRef.current || autoGenerationRef.current !== generation) return
 
       const text = found.kind === 'speech' ? autoSpeechText(found.text, type, data, formatTimeVoice) : null
       if (found.kind === 'speech' && !text) return
       const preset = found.kind === 'speech' ? { ...found, text } : found
+      if (text) setAutoPreview(text)
 
       let previous = []
       try {
@@ -628,6 +633,9 @@ export default function Soundboard({ directorKey = '' }) {
             <p role="status" className="text-xs text-muted-foreground">
               {t(`receiverState.${receiverState}`)}
             </p>
+          )}
+          {directorKey && autoPreview && (
+            <p className="text-xs text-muted-foreground">{t('auto.lastSpoken')}: {autoPreview}</p>
           )}
           {remoteStatus && (
             <p role="status" className="text-xs text-green-600">
