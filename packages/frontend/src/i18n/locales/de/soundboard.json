@@ -46,5 +46,13 @@
     "ready": "Empfänger verbunden (Lautsprecher nicht verifiziert)",
     "offline": "Verbindung unterbrochen – wird erneut hergestellt",
     "error": "Empfänger nicht verfügbar"
+  },
+  "auto": {
+    "title": "Automatische Rennsounds",
+    "bestlap": "Neue Bestzeit",
+    "finished": "Sitzung beendet",
+    "off": "Aus",
+    "description": "Nur bei aktiviertem Audio-Empfang auf dem Rennleiter-PC. {driver}, {car}, {controller} und {lapTime} sind für Bestzeiten verfügbar. Bei fehlenden Daten entfällt die Ansage.",
+    "loadError": "Automatischer Sound konnte nicht geladen werden."
   }
 }
