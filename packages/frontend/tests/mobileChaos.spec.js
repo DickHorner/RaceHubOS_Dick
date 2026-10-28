@@ -123,9 +123,7 @@ test('authorized director can change the key and refresh the optional QR link', 
   await mockRace(page, race)
   const original = 'Original_Director_Key_1234567890'
   const replacement = 'Replacement_Director_Key_1234567890'
-  await page.route('**/api/race-control/status', (route) =>
-    route.fulfill({ json: { success: true, enabled: true } })
-  )
+  await page.route('**/api/race-control/status', (route) => route.fulfill({ json: { success: true, enabled: true } }))
   await page.route('**/api/race-control/director/check', (route) => {
     const allowed = route.request().headers().authorization === `Bearer ${original}`
     return route.fulfill({ status: allowed ? 200 : 403, json: { success: allowed } })
@@ -156,4 +154,3 @@ test('authorized director can change the key and refresh the optional QR link', 
   await expect(share.getByLabel('LAN link')).toHaveValue(new RegExp(`#director=${replacement}$`))
   expect(page.url()).not.toContain(replacement)
 })
-

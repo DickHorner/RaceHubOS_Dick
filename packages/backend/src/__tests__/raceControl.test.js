@@ -276,10 +276,7 @@ describe('race director and driver-scoped chaos access', () => {
       `RACE_CONTROL_SECRET=${requested}\n`,
       { mode: 0o600 }
     );
-    await request(app)
-      .get('/api/race-control/director/check')
-      .set('Authorization', `Bearer ${requested}`)
-      .expect(200);
+    await request(app).get('/api/race-control/director/check').set('Authorization', `Bearer ${requested}`).expect(200);
   });
 
   test('credential rotation requires the current key and atomically persists the replacement', async () => {
@@ -293,16 +290,8 @@ describe('race director and driver-scoped chaos access', () => {
 
     await request(app).post(url).send({ secret: replacement }).expect(403);
     await request(app).post(url).set('Authorization', 'Bearer wrong').send({ secret: replacement }).expect(403);
-    await request(app)
-      .post(url)
-      .set('Authorization', `Bearer ${secret}`)
-      .send({ secret: 'short' })
-      .expect(400);
-    await request(app)
-      .post(url)
-      .set('Authorization', `Bearer ${secret}`)
-      .send({ secret: secret })
-      .expect(409);
+    await request(app).post(url).set('Authorization', `Bearer ${secret}`).send({ secret: 'short' }).expect(400);
+    await request(app).post(url).set('Authorization', `Bearer ${secret}`).send({ secret: secret }).expect(409);
     expect(write).not.toHaveBeenCalled();
 
     const response = await request(app)
@@ -318,18 +307,12 @@ describe('race director and driver-scoped chaos access', () => {
     expect(rename).toHaveBeenCalledWith(temporary, expect.stringMatching(/packages[\\/]backend[\\/]\.env$/));
     expect(process.env.RACE_CONTROL_SECRET).toBe(replacement);
 
-    await request(app)
-      .get('/api/race-control/director/check')
-      .set('Authorization', `Bearer ${secret}`)
-      .expect(403);
+    await request(app).get('/api/race-control/director/check').set('Authorization', `Bearer ${secret}`).expect(403);
     await request(app)
       .get('/api/race-control/director/check')
       .set('Authorization', `Bearer ${replacement}`)
       .expect(200);
-    await request(app)
-      .post('/api/race-control/chaos')
-      .set('Authorization', `Bearer ${oldToken}`)
-      .expect(403);
+    await request(app).post('/api/race-control/chaos').set('Authorization', `Bearer ${oldToken}`).expect(403);
   });
 
   test('rotation refuses externally managed keys and retains the active key after write failure', async () => {
@@ -339,11 +322,7 @@ describe('race director and driver-scoped chaos access', () => {
     const read = jest.spyOn(fs, 'readFile').mockResolvedValue('RACE_CONTROL_SECRET=other-key\n');
     const write = jest.spyOn(fs, 'writeFile').mockResolvedValue();
     const rename = jest.spyOn(fs, 'rename').mockResolvedValue();
-    await request(app)
-      .post(url)
-      .set('Authorization', `Bearer ${secret}`)
-      .send({ secret: replacement })
-      .expect(409);
+    await request(app).post(url).set('Authorization', `Bearer ${secret}`).send({ secret: replacement }).expect(409);
     expect(write).not.toHaveBeenCalled();
     expect(rename).not.toHaveBeenCalled();
 
@@ -351,18 +330,11 @@ describe('race director and driver-scoped chaos access', () => {
     write.mockRejectedValueOnce(new Error('disk full'));
     const unlink = jest.spyOn(fs, 'unlink').mockResolvedValue();
     jest.spyOn(console, 'error').mockImplementation(() => {});
-    await request(app)
-      .post(url)
-      .set('Authorization', `Bearer ${secret}`)
-      .send({ secret: replacement })
-      .expect(500);
+    await request(app).post(url).set('Authorization', `Bearer ${secret}`).send({ secret: replacement }).expect(500);
     expect(unlink).toHaveBeenCalledTimes(1);
     expect(process.env.RACE_CONTROL_SECRET).toBe(secret);
     expect(rename).not.toHaveBeenCalled();
-    await request(app)
-      .get('/api/race-control/director/check')
-      .set('Authorization', `Bearer ${secret}`)
-      .expect(200);
+    await request(app).get('/api/race-control/director/check').set('Authorization', `Bearer ${secret}`).expect(200);
   });
 
   test('missing server secret disables the new feature', async () => {

@@ -296,9 +296,7 @@ router.post('/director/credential', requireDirector, async (req, res) => {
       return res.status(409).json({ success: false, error: 'Credential is managed outside the server .env file' });
     }
 
-    const matches = [
-      ...existing.matchAll(/^([ \t]*(?:export[ \t]+)?RACE_CONTROL_SECRET[ \t]*=[ \t]*)([^\r\n]*)/gm),
-    ];
+    const matches = [...existing.matchAll(/^([ \t]*(?:export[ \t]+)?RACE_CONTROL_SECRET[ \t]*=[ \t]*)([^\r\n]*)/gm)];
     const fileSecret = matches[0]?.[2]?.trim().replace(/^(['"])(.*)\1$/, '$2');
     if (matches.length !== 1 || fileSecret !== directorSecret()) {
       return res.status(409).json({ success: false, error: 'Credential is managed outside the server .env file' });
@@ -306,10 +304,7 @@ router.post('/director/credential', requireDirector, async (req, res) => {
 
     const entry = matches[0];
     const updated =
-      existing.slice(0, entry.index) +
-      entry[1] +
-      nextSecret +
-      existing.slice(entry.index + entry[0].length);
+      existing.slice(0, entry.index) + entry[1] + nextSecret + existing.slice(entry.index + entry[0].length);
     temporaryPath = `${directorEnvPath}.${randomBytes(8).toString('hex')}.tmp`;
     await fs.writeFile(temporaryPath, updated, { mode: 0o600, flag: 'wx' });
     await fs.rename(temporaryPath, directorEnvPath);

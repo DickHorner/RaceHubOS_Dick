@@ -537,7 +537,11 @@ export default function MobileRaceControl() {
               <Button type="submit" disabled={busy || !DIRECTOR_SECRET_PATTERN.test(replacementSecret)}>
                 {t('saveSecret')}
               </Button>
-              {credentialChanged && <p role="status" className="text-sm text-green-600">{t('secretChanged')}</p>}
+              {credentialChanged && (
+                <p role="status" className="text-sm text-green-600">
+                  {t('secretChanged')}
+                </p>
+              )}
             </form>
             <section className="rounded-xl border border-border bg-card p-5 space-y-3">
               <label className="text-sm font-medium block" htmlFor="race-select">
