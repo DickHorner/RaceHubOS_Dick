@@ -43,6 +43,7 @@ export default defineConfig({
         DATABASE_URL: `file:${E2E_DB}`,
         PORT: String(BACKEND_PORT),
         USE_MOCK_DEVICE: 'true',
+        RACE_CONTROL_SECRET: 'e2e-only-director-secret-for-isolated-playwright-server',
       },
     },
     {
