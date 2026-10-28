@@ -483,11 +483,21 @@ export default function Soundboard({ directorKey = '' }) {
                 <option value="local">{t('outputLocal')}</option>
                 <option value="director">{t('outputDirector')}</option>
               </select>
-              {target === 'director' && <span role="status">{t(remoteReady ? 'receiverReady' : 'receiverOffline')}</span>}
+              {target === 'director' && (
+                <span role="status">{t(remoteReady ? 'receiverReady' : 'receiverOffline')}</span>
+              )}
             </label>
           )}
-          {directorKey && <p role="status" className="text-xs text-muted-foreground">{t(`receiverState.${receiverState}`)}</p>}
-          {remoteStatus && <p role="status" className="text-xs text-green-600">{remoteStatus}</p>}
+          {directorKey && (
+            <p role="status" className="text-xs text-muted-foreground">
+              {t(`receiverState.${receiverState}`)}
+            </p>
+          )}
+          {remoteStatus && (
+            <p role="status" className="text-xs text-green-600">
+              {remoteStatus}
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
             {presets.map((preset, index) => (
               <div key={preset.id} className="flex items-center rounded-md border bg-background">
