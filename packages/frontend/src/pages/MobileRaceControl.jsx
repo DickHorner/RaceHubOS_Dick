@@ -35,6 +35,7 @@ export default function MobileRaceControl() {
   const [penaltyReason, setPenaltyReason] = useState('')
   const updating = useRef(false)
   const penaltyPending = useRef(false)
+  const pendingDirectorKey = useRef(new URLSearchParams(window.location.hash.slice(1)).get('director'))
 
   const refresh = useCallback(async () => {
     if (updating.current) return
@@ -80,25 +81,29 @@ export default function MobileRaceControl() {
   }, [])
 
   useEffect(() => {
-    const fragment = new URLSearchParams(window.location.hash.slice(1))
-    const credential = fragment.get('director')
+    const credential = pendingDirectorKey.current
     if (!credential) return
-    // The fragment never reaches HTTP, and is immediately removed from history and the address bar.
+    // Retain the pending key across React StrictMode's setup/cleanup replay.
     window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search)
-    if (credential.length < 32 || credential.length > 256) return
+    if (credential.length < 32 || credential.length > 256) {
+      pendingDirectorKey.current = null
+      return
+    }
     let active = true
     fetch(`${API_URL}/api/race-control/director/check`, {
       headers: { Authorization: `Bearer ${credential}` },
     })
       .then((response) => {
         if (!response.ok) throw new Error(t('wrongCredential'))
-        if (active) {
-          setDirectorKey(credential)
-          setConfigured(true)
-        }
+        if (!active) return
+        pendingDirectorKey.current = null
+        setDirectorKey(credential)
+        setConfigured(true)
       })
       .catch(() => {
-        if (active) setError(t('wrongCredential'))
+        if (!active) return
+        pendingDirectorKey.current = null
+        setError(t('wrongCredential'))
       })
     return () => {
       active = false
