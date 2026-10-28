@@ -28,10 +28,11 @@ function validPreset(preset) {
   )
 }
 
-export default function Soundboard({ directorKey = '' }) {
+export default function Soundboard({ directorKey = '', allowDirectorWithoutKey = false }) {
   const { t } = useTranslation('soundboard')
   const { speak, formatTimeVoice } = useVoice()
-  const [open, setOpen] = useState(Boolean(directorKey))
+  const directorAccess = Boolean(directorKey || allowDirectorWithoutKey)
+  const [open, setOpen] = useState(directorAccess)
   const [presets, setPresets] = useState([])
   const [autoMappings, setAutoMappings] = useState({ bestlap: '', finished: '' })
   const [autoLoaded, setAutoLoaded] = useState(false)
@@ -110,7 +111,7 @@ export default function Soundboard({ directorKey = '' }) {
   })
 
   useEffect(() => {
-    if (directorKey || target !== 'director') return
+    if (directorAccess || target !== 'director') return
     let active = true
     async function check() {
       try {
@@ -127,7 +128,7 @@ export default function Soundboard({ directorKey = '' }) {
       active = false
       clearInterval(interval)
     }
-  }, [directorKey, target])
+  }, [directorAccess, target])
 
   useEffect(() => {
     return () => {
@@ -152,7 +153,7 @@ export default function Soundboard({ directorKey = '' }) {
   async function playSelected(preset) {
     if (muted || busy) return
     cancelAuto()
-    if (directorKey || target === 'local') {
+    if (directorAccess || target === 'local') {
       await playPreset(preset)
       return
     }
@@ -174,7 +175,7 @@ export default function Soundboard({ directorKey = '' }) {
 
   async function stopSelected() {
     cancelAuto()
-    const remotelyPlaying = !directorKey && target === 'director'
+    const remotelyPlaying = !directorAccess && target === 'director'
     stopPlayback()
     setRemoteStatus('')
     if (!remotelyPlaying) return
@@ -203,7 +204,7 @@ export default function Soundboard({ directorKey = '' }) {
   }
 
   async function enableReceiver() {
-    if (!directorKey || receiverWantedRef.current) return
+    if (!directorAccess || receiverWantedRef.current) return
     setError('')
     try {
       if (window.AudioContext) {
@@ -587,7 +588,7 @@ export default function Soundboard({ directorKey = '' }) {
         >
           {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />} {t(muted ? 'unmute' : 'mute')}
         </Button>
-        {directorKey && (
+        {directorAccess && (
           <Button variant="outline" size="sm" onClick={receiverWantedRef.current ? disableReceiver : enableReceiver}>
             {t(receiverState === 'ready' ? 'receiverDisable' : 'receiverEnable')}
           </Button>
@@ -609,7 +610,7 @@ export default function Soundboard({ directorKey = '' }) {
       </div>
       {open && (
         <div className="border-t p-3 space-y-3">
-          {!directorKey && (
+          {!directorAccess && (
             <label className="flex flex-wrap items-center gap-2 text-xs">
               {t('output')}
               <select
@@ -629,12 +630,12 @@ export default function Soundboard({ directorKey = '' }) {
               )}
             </label>
           )}
-          {directorKey && (
+          {directorAccess && (
             <p role="status" className="text-xs text-muted-foreground">
               {t(`receiverState.${receiverState}`)}
             </p>
           )}
-          {directorKey && autoPreview && (
+          {directorAccess && autoPreview && (
             <p className="text-xs text-muted-foreground">
               {t('auto.lastSpoken')}: {autoPreview}
             </p>
@@ -644,7 +645,7 @@ export default function Soundboard({ directorKey = '' }) {
               {remoteStatus}
             </p>
           )}
-          {!directorKey && (
+          {!directorAccess && (
             <fieldset className="rounded-md border p-2 space-y-2">
               <legend className="text-sm font-medium">{t('auto.title')}</legend>
               {['bestlap', 'finished'].map((type) => (
@@ -681,7 +682,7 @@ export default function Soundboard({ directorKey = '' }) {
                 >
                   <Play className="size-3" /> {preset.label}
                 </Button>
-                {!directorKey && (
+                {!directorAccess && (
                   <Button
                     variant="ghost"
                     size="icon-sm"
@@ -692,7 +693,7 @@ export default function Soundboard({ directorKey = '' }) {
                     <Pencil className="size-3" />
                   </Button>
                 )}
-                {!directorKey && (
+                {!directorAccess && (
                   <Button
                     variant="ghost"
                     size="icon-sm"
@@ -703,7 +704,7 @@ export default function Soundboard({ directorKey = '' }) {
                     <ChevronUp className="size-3" />
                   </Button>
                 )}
-                {!directorKey && (
+                {!directorAccess && (
                   <Button
                     variant="ghost"
                     size="icon-sm"
@@ -714,7 +715,7 @@ export default function Soundboard({ directorKey = '' }) {
                     <ChevronDown className="size-3" />
                   </Button>
                 )}
-                {!directorKey && (
+                {!directorAccess && (
                   <Button
                     variant="ghost"
                     size="icon-sm"
@@ -729,12 +730,12 @@ export default function Soundboard({ directorKey = '' }) {
             ))}
           </div>
           {presets.length === 0 && <p className="text-sm text-muted-foreground">{t('empty')}</p>}
-          {!directorKey && !formOpen && (
+          {!directorAccess && !formOpen && (
             <Button variant="outline" size="sm" onClick={() => editPreset()} disabled={busy || presets.length >= 32}>
               <Plus className="size-4" /> {t('add')}
             </Button>
           )}
-          {!directorKey && formOpen && (
+          {!directorAccess && formOpen && (
             <form className="flex flex-col gap-2 max-w-xl" onSubmit={savePreset}>
               <label className="text-sm font-medium">{t('name')}</label>
               <input

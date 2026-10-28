@@ -154,3 +154,43 @@ test('authorized director can change the key and refresh the optional QR link', 
   await expect(share.getByLabel('LAN link')).toHaveValue(new RegExp(`#director=${replacement}$`))
   expect(page.url()).not.toContain(replacement)
 })
+
+test('director can disable the credential entirely and re-enable it from the open LAN screen', async ({ page }) => {
+  await mockRace(page, race)
+  const secret = 'Race_Director_Key_For_Local_Mode_2026'
+  let keyRequired = true
+  const updates = []
+
+  await page.route('**/api/race-control/status', (route) =>
+    route.fulfill({ json: { success: true, enabled: true, keyRequired } })
+  )
+  await page.route('**/api/race-control/director/check', (route) => {
+    const valid = route.request().headers().authorization === `Bearer ${secret}`
+    return route.fulfill({ status: valid ? 200 : 403, json: { success: valid } })
+  })
+  await page.route('**/api/race-control/director/key-required', (route) => {
+    const body = route.request().postDataJSON()
+    updates.push({ required: body.keyRequired, key: route.request().headers().authorization })
+    keyRequired = body.keyRequired
+    return route.fulfill({ json: { success: true, keyRequired } })
+  })
+
+  await page.goto('/display/control')
+  await page.getByLabel(/director credential/i).fill(secret)
+  await page.getByRole('button', { name: /unlock/i }).click()
+  await expect(page.getByRole('status').filter({ hasText: /director authorized/i })).toBeVisible()
+  await page.getByLabel('Require race director key').click()
+  await expect(page.getByLabel('Require race director key')).not.toBeChecked()
+  await expect(page.getByText(/anyone on the network can control races/i)).toBeVisible()
+  expect(updates[0]).toEqual({ required: false, key: `Bearer ${secret}` })
+
+  await page.reload()
+  await expect(page.getByRole('status').filter({ hasText: /director authorized/i })).toBeVisible()
+  await expect(page.getByLabel('Require race director key')).not.toBeChecked()
+  await expect(page.getByLabel('Race director credential', { exact: true })).toHaveCount(0)
+  await page.getByLabel('Require race director key').click()
+  await expect(page.getByLabel('Race director credential', { exact: true })).toBeVisible()
+  expect(updates[1].required).toBe(true)
+  await page.reload()
+  await expect(page.getByLabel('Race director credential', { exact: true })).toBeVisible()
+})

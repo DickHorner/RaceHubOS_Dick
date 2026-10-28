@@ -15,6 +15,7 @@ export default function MobileRaceControl() {
   const { connected, socketConnected } = useDevice()
   const { session, elapsed, fetchSession, clearSession } = useSession()
   const [configured, setConfigured] = useState(null)
+  const [keyRequired, setKeyRequired] = useState(true)
   const [setupAvailable, setSetupAvailable] = useState(false)
   const [generatedSecret, setGeneratedSecret] = useState('')
   const [setupSecretInput, setSetupSecretInput] = useState('')
@@ -40,6 +41,7 @@ export default function MobileRaceControl() {
   const updating = useRef(false)
   const penaltyPending = useRef(false)
   const pendingDirectorKey = useRef(new URLSearchParams(window.location.hash.slice(1)).get('director'))
+  const directorAuthorized = Boolean(directorKey || (configured && !keyRequired))
 
   const refresh = useCallback(async () => {
     if (updating.current) return
@@ -119,6 +121,7 @@ export default function MobileRaceControl() {
       .then((response) => response.json())
       .then((result) => {
         setConfigured(result.enabled === true)
+        setKeyRequired(result.keyRequired !== false)
         setSetupAvailable(result.setupAvailable === true)
       })
       .catch(() => setConfigured(false))
@@ -212,7 +215,7 @@ export default function MobileRaceControl() {
 
   async function changeDirectorCredential(event) {
     event.preventDefault()
-    if (busy || !directorKey || !DIRECTOR_SECRET_PATTERN.test(replacementSecret)) return
+    if (busy || !directorAuthorized || !DIRECTOR_SECRET_PATTERN.test(replacementSecret)) return
     setError('')
     setCredentialChanged(false)
     setBusy(true)
@@ -239,8 +242,28 @@ export default function MobileRaceControl() {
     }
   }
 
+  async function changeKeyRequirement(nextRequired) {
+    if (!directorAuthorized || busy) return
+    setBusy(true)
+    setError('')
+    try {
+      const response = await fetch(`${API_URL}/api/race-control/director/key-required`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${directorKey}` },
+        body: JSON.stringify({ keyRequired: nextRequired }),
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error(result.error || t('keyRequirementError'))
+      setKeyRequired(result.keyRequired)
+    } catch (cause) {
+      setError(cause.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function control(action) {
-    if (!session?.id || !directorKey || busy) return
+    if (!session?.id || !directorAuthorized || busy) return
     if (action === 'stop' && !window.confirm(t('confirmStop'))) return
     setError('')
     setBusy(true)
@@ -262,7 +285,7 @@ export default function MobileRaceControl() {
 
   async function controlVsc(action) {
     const id = action === 'end' ? vsc.sessionId : session?.id
-    if (!id || !directorKey || busy) return
+    if (!id || !directorAuthorized || busy) return
     setError('')
     setBusy(true)
     try {
@@ -284,7 +307,7 @@ export default function MobileRaceControl() {
   }
 
   async function confirmTyres(sessionDriverId) {
-    if (!session?.id || !directorKey || busy) return
+    if (!session?.id || !directorAuthorized || busy) return
     setError('')
     setBusy(true)
     try {
@@ -304,7 +327,7 @@ export default function MobileRaceControl() {
   }
 
   async function changePenalty(action, penaltyId = null) {
-    if (!session?.id || !directorKey || busy || penaltyPending.current) return
+    if (!session?.id || !directorAuthorized || busy || penaltyPending.current) return
     penaltyPending.current = true
     setError('')
     setBusy(true)
@@ -343,7 +366,7 @@ export default function MobileRaceControl() {
   }
 
   async function confirmRepair(sessionDriverId, pitStopId) {
-    if (!session?.id || !directorKey || busy || !window.confirm(t('damageVerifyConfirm'))) return
+    if (!session?.id || !directorAuthorized || busy || !window.confirm(t('damageVerifyConfirm'))) return
     setError('')
     setBusy(true)
     try {
@@ -363,7 +386,7 @@ export default function MobileRaceControl() {
   }
 
   async function issueLink(driverId) {
-    if (!session?.id || !directorKey || busy) return
+    if (!session?.id || !directorAuthorized || busy) return
     setError('')
     setIssuedLink('')
     setBusy(true)
@@ -469,7 +492,7 @@ export default function MobileRaceControl() {
             )}
           </section>
         )}
-        {configured && !directorKey && (
+        {configured && keyRequired && !directorKey && (
           <form onSubmit={authorize} className="rounded-xl border border-border bg-card p-5 space-y-3">
             <label className="block text-sm font-medium" htmlFor="director-credential">
               {t('credential')}
@@ -489,26 +512,42 @@ export default function MobileRaceControl() {
           </form>
         )}
 
-        {directorKey && (
+        {directorAuthorized && (
           <>
             <div className="flex items-center justify-between gap-3">
               <span role="status" className="text-sm text-green-500">
                 {t('authorized')}
               </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setDirectorKey('')
-                  setIssuedLink('')
-                  setGeneratedSecret('')
-                  setCredentialChanged(false)
-                }}
-              >
-                {t('lock')}
-              </Button>
+              {keyRequired && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setDirectorKey('')
+                    setIssuedLink('')
+                    setGeneratedSecret('')
+                    setCredentialChanged(false)
+                  }}
+                >
+                  {t('lock')}
+                </Button>
+              )}
             </div>
-            <Soundboard directorKey={directorKey} />
+            <section className="rounded-xl border border-border bg-card p-5 space-y-3">
+              <label className="flex items-center gap-3 text-sm font-semibold">
+                <input
+                  type="checkbox"
+                  checked={keyRequired}
+                  disabled={busy}
+                  onChange={(event) => changeKeyRequirement(event.target.checked)}
+                />
+                {t('keyRequired')}
+              </label>
+              <p className="text-xs text-muted-foreground">
+                {keyRequired ? t('keyRequiredHint') : t('keyDisabledWarning')}
+              </p>
+            </section>
+            <Soundboard directorKey={directorKey} allowDirectorWithoutKey={!keyRequired} />
             <section className="rounded-xl border border-border bg-card p-5 space-y-2">
               <h2 className="text-sm font-semibold">{t('shareDirector')}</h2>
               <LanShareLink path="/display/control" directorKey={directorKey} />
