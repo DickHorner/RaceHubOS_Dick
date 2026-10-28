@@ -53,6 +53,7 @@
     "finished": "Sitzung beendet",
     "off": "Aus",
     "description": "Nur bei aktiviertem Audio-Empfang auf dem Rennleiter-PC. {driver}, {car}, {controller} und {lapTime} sind für Bestzeiten verfügbar. Bei fehlenden Daten entfällt die Ansage.",
-    "loadError": "Automatischer Sound konnte nicht geladen werden."
+    "loadError": "Automatischer Sound konnte nicht geladen werden.",
+    "lastSpoken": "Letzte Durchsage"
   }
 }
