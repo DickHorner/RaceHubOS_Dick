@@ -150,15 +150,16 @@ describe('championship points without a custom points schema', () => {
       { driverIndex: 1, finalPos: 2 },
       { driverIndex: 2, finalPos: 3 },
     ]);
-    const race = new SessionService({ emit() {} });
-    let startEvents = 0;
-    race.on('session:race_started', () => {
-      startEvents += 1;
+    const events = [];
+    const race = new SessionService({
+      emit(event) {
+        events.push(event);
+      },
     });
     try {
       await race.loadSession(session.id);
       await Promise.all([race.onRaceStart(), race.onRaceStart()]);
-      expect(startEvents).toBe(1);
+      expect(events.filter((event) => event === 'session:race_started')).toHaveLength(1);
 
       const saved = await prisma.session.findUnique({
         where: { id: session.id },
