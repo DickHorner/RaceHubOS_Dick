@@ -53,6 +53,7 @@
     "finished": "Session terminée",
     "off": "Désactivé",
     "description": "Lecture uniquement avec un récepteur audio actif sur le PC direction. {driver}, {car}, {controller} et {lapTime} sont disponibles pour les meilleurs tours. Sans données fiables, l'annonce est ignorée.",
-    "loadError": "Impossible de charger les sons automatiques."
+    "loadError": "Impossible de charger les sons automatiques.",
+    "lastSpoken": "Dernière annonce"
   }
 }
