@@ -22,6 +22,11 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: |
+          for file in packages/backend/src/__tests__/soundboardRouting.test.js packages/frontend/src/components/race/Soundboard.jsx packages/frontend/tests/soundboardAuto.unit.js packages/frontend/tests/soundboardRouting.spec.js; do
+            echo "PRETTIER DIFF $file"
+            npx prettier "$file" | diff -u "$file" - || true
+          done
       - run: npm run check -- --ci
       - run: node --test packages/frontend/tests/lapAnalysis.unit.js packages/frontend/tests/soundboardAuto.unit.js
       - run: npm run build
