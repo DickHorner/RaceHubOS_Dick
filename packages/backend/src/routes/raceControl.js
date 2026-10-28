@@ -147,7 +147,10 @@ export function remoteWriteGuard(req, res, next) {
 // Socket.IO command events are legacy controls and never accept driver tokens.
 export function mayControlSocket(socket) {
   const request = socket.handshake;
-  return isLoopback(request.address) && trustedOrigin(request.headers.origin, request.headers.host);
+  return (
+    (Boolean(directorSecret()) && !directorKeyRequired()) ||
+    (isLoopback(request.address) && trustedOrigin(request.headers.origin, request.headers.host))
+  );
 }
 
 function signDriverAccess(assignment, expiresAt) {
