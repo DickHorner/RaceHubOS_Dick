@@ -70,6 +70,10 @@ function directorSecret() {
   return Buffer.byteLength(secret) >= 32 ? secret : null;
 }
 
+function validNewDirectorSecret(value) {
+  return typeof value === 'string' && /^[A-Za-z0-9_-]{32,128}$/.test(value);
+}
+
 function bearer(req) {
   const match = /^Bearer ([^\s]+)$/.exec(req.get('authorization') || '');
   return match?.[1] || '';
@@ -223,6 +227,10 @@ router.post('/setup', async (req, res) => {
     });
   }
   if (setupInProgress) return res.status(409).json({ success: false, error: 'Race control setup is already running' });
+  const requested = req.body?.secret;
+  if (requested !== undefined && requested !== '' && !validNewDirectorSecret(requested)) {
+    return res.status(400).json({ success: false, error: 'Credential must be 32-128 letters, digits, - or _' });
+  }
 
   setupInProgress = true;
   try {
@@ -241,7 +249,7 @@ router.post('/setup', async (req, res) => {
     }
 
     if (envExists) await fs.chmod(directorEnvPath, 0o600);
-    const secret = randomBytes(32).toString('hex');
+    const secret = requested || randomBytes(32).toString('hex');
     const prefix = existing && !existing.endsWith('\n') ? '\n' : '';
     await fs.appendFile(directorEnvPath, `${prefix}RACE_CONTROL_SECRET=${secret}\n`, { mode: 0o600 });
     process.env.RACE_CONTROL_SECRET = secret;
@@ -260,6 +268,73 @@ router.post('/setup', async (req, res) => {
 router.get('/director/check', requireDirector, (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true });
+});
+
+// Existing director authorization is required to rotate the persisted credential.
+// A new key immediately invalidates previously issued driver access tokens.
+router.post('/director/credential', requireDirector, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const nextSecret = req.body?.secret;
+  if (!validNewDirectorSecret(nextSecret)) {
+    return res.status(400).json({ success: false, error: 'Credential must be 32-128 letters, digits, - or _' });
+  }
+  if (nextSecret === directorSecret()) {
+    return res.status(409).json({ success: false, error: 'Credential is unchanged' });
+  }
+  if (setupInProgress) {
+    return res.status(409).json({ success: false, error: 'Credential setup is already running' });
+  }
+
+  setupInProgress = true;
+  let temporaryPath;
+  try {
+    let existing;
+    try {
+      existing = await fs.readFile(directorEnvPath, 'utf8');
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      return res.status(409).json({ success: false, error: 'Credential is managed outside the server .env file' });
+    }
+
+    const matches = [
+      ...existing.matchAll(/^([ \t]*(?:export[ \t]+)?RACE_CONTROL_SECRET[ \t]*=[ \t]*)([^\r\n]*)/gm),
+    ];
+    const fileSecret = matches[0]?.[2]?.trim().replace(/^(['"])(.*)\1$/, '$2');
+    if (matches.length !== 1 || fileSecret !== directorSecret()) {
+      return res.status(409).json({ success: false, error: 'Credential is managed outside the server .env file' });
+    }
+
+    const entry = matches[0];
+    const updated =
+      existing.slice(0, entry.index) +
+      entry[1] +
+      nextSecret +
+      existing.slice(entry.index + entry[0].length);
+    temporaryPath = `${directorEnvPath}.${randomBytes(8).toString('hex')}.tmp`;
+    await fs.writeFile(temporaryPath, updated, { mode: 0o600, flag: 'wx' });
+    await fs.rename(temporaryPath, directorEnvPath);
+    temporaryPath = null;
+    process.env.RACE_CONTROL_SECRET = nextSecret;
+
+    const receiver = soundReceiver();
+    soundReceiverId = null;
+    soundRequests.clear();
+    receiver?.emit('soundboard:deactivate');
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[RaceControl] Credential update failed:', error);
+    res.status(500).json({ success: false, error: 'Could not save director credential' });
+  } finally {
+    if (temporaryPath) {
+      try {
+        await fs.unlink(temporaryPath);
+      } catch {
+        // The temporary file may never have been created.
+      }
+    }
+    setupInProgress = false;
+  }
 });
 
 router.post('/driver-link', requireDirector, async (req, res) => {

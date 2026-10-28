@@ -76,5 +76,12 @@
   "damageConfirm": "Confirmer la réparation",
   "damageVerifyConfirm": "As-tu personnellement vérifié l'arrêt de réparation ?",
   "damageConfirmError": "Impossible de confirmer la réparation.",
-  "shareDirector": "Partager le lien de direction"
+  "shareDirector": "Partager le lien de direction",
+  "setupCustomSecret": "Clé de direction personnalisée (facultatif)",
+  "secretRequirements": "32 à 128 caractères : lettres, chiffres, trait d'union ou souligné. Laisser vide pour générer une clé sécurisée.",
+  "changeSecret": "Définir une nouvelle clé de direction",
+  "saveSecret": "Changer la clé",
+  "changeSecretWarning": "Les anciens liens CHAOS et QR codes de direction deviennent invalides. Les autres appareils doivent se reconnecter.",
+  "secretChanged": "Clé de direction modifiée. La nouvelle clé est active immédiatement.",
+  "changeSecretError": "Impossible de modifier la clé de direction."
 }

@@ -76,5 +76,12 @@
   "damageConfirm": "Confirm repair",
   "damageVerifyConfirm": "Did you personally verify the actual repair stop?",
   "damageConfirmError": "Could not confirm repair.",
-  "shareDirector": "Share race director"
+  "shareDirector": "Share race director",
+  "setupCustomSecret": "Custom director credential (optional)",
+  "secretRequirements": "32–128 characters: letters, digits, hyphen or underscore. Leave empty to generate a secure key.",
+  "changeSecret": "Set a new director credential",
+  "saveSecret": "Change credential",
+  "changeSecretWarning": "Existing driver CHAOS links and previous director QR codes will stop working. Other director devices must unlock again.",
+  "secretChanged": "Director credential changed. The new key is active immediately.",
+  "changeSecretError": "Could not change director credential."
 }

@@ -76,5 +76,12 @@
   "damageConfirm": "Reparatur bestätigen",
   "damageVerifyConfirm": "Hast Du den tatsächlichen Reparaturstopp selbst überprüft?",
   "damageConfirmError": "Reparatur konnte nicht bestätigt werden.",
-  "shareDirector": "Rennleitungslink teilen"
+  "shareDirector": "Rennleitungslink teilen",
+  "setupCustomSecret": "Eigener Rennleiterschlüssel (optional)",
+  "secretRequirements": "32–128 Zeichen: Buchstaben, Ziffern, Bindestrich oder Unterstrich. Leer lassen, um einen sicheren Schlüssel erzeugen zu lassen.",
+  "changeSecret": "Neuen Rennleiterschlüssel festlegen",
+  "saveSecret": "Schlüssel ändern",
+  "changeSecretWarning": "Vorhandene Fahrer-CHAOS-Links und bisherige Rennleiter-QR-Codes werden dadurch ungültig. Andere Rennleitungsgeräte müssen neu entsperrt werden.",
+  "secretChanged": "Rennleiterschlüssel geändert. Der neue Schlüssel ist ab sofort aktiv.",
+  "changeSecretError": "Rennleiterschlüssel konnte nicht geändert werden."
 }
