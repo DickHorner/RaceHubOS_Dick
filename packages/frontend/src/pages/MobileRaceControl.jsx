@@ -545,7 +545,7 @@ export default function MobileRaceControl() {
                 {keyRequired ? t('keyRequiredHint') : t('keyDisabledWarning')}
               </p>
             </section>
-            <Soundboard directorKey={directorKey} />
+            <Soundboard directorKey={directorKey} allowDirectorWithoutKey={!keyRequired} />
             <section className="rounded-xl border border-border bg-card p-5 space-y-2">
               <h2 className="text-sm font-semibold">{t('shareDirector')}</h2>
               <LanShareLink path="/display/control" directorKey={directorKey} />
