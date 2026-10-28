@@ -85,10 +85,7 @@ export default function MobileRaceControl() {
     if (!credential) return
     // The fragment never reaches HTTP, and is immediately removed from history and the address bar.
     window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search)
-    if (credential.length < 32 || credential.length > 256) {
-      setError(t('wrongCredential'))
-      return
-    }
+    if (credential.length < 32 || credential.length > 256) return
     let active = true
     fetch(`${API_URL}/api/race-control/director/check`, {
       headers: { Authorization: `Bearer ${credential}` },
