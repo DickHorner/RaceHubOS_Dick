@@ -53,6 +53,7 @@
     "finished": "Session finished",
     "off": "Off",
     "description": "Plays only with an enabled director-PC audio receiver. {driver}, {car}, {controller} and {lapTime} are available for best laps. Missing event details suppress speech.",
-    "loadError": "Could not load automatic sound settings."
+    "loadError": "Could not load automatic sound settings.",
+    "lastSpoken": "Last announcement"
   }
 }
