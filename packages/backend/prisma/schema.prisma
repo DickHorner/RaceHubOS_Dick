@@ -140,6 +140,7 @@ model Session {
   tyreMismatchPercent Int       @default(0) // Optional virtual lap-time penalty, 0-30%
   virtualFuelRate Int?            // Virtual fuel burn: % per racing minute; null disables
   status         String          @default("draft") // draft | ready | active | paused | finishing | finished — @racehubos/shared
+  teamMembershipSnapshotted Boolean @default(false) // Historical team membership is known for this race
   maxDuration    Int?            // Session max duration in ms
   maxLaps        Int?
   gracePeriod    Int?            // Grace period after leader finishes (ms), default 30000
@@ -179,6 +180,7 @@ model SessionDriver {
   position        Int?
   gridPos         Int?
   finalPos        Int?
+  teamIdAtStart   String? // Team ID fixed at first GO; null means no team or legacy unknown
   lapsAtFinishing Int?     // Snapshot of laps when grace period started
   totalLaps       Int      @default(0)
   totalTime       Int      @default(0) // ms

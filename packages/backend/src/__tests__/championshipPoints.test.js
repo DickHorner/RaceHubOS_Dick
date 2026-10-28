@@ -2,6 +2,7 @@ import express from 'express';
 import request from 'supertest';
 import { prisma } from './setup.js';
 import { ChampionshipService } from '../services/ChampionshipService.js';
+import { SessionService } from '../services/SessionService.js';
 import championshipsRouter, { setChampionshipService } from '../routes/championships.js';
 
 describe('championship points without a custom points schema', () => {
@@ -27,6 +28,7 @@ describe('championship points without a custom points schema', () => {
     await prisma.session.deleteMany();
     await prisma.championship.deleteMany();
     await prisma.driver.deleteMany();
+    await prisma.team.deleteMany();
     await prisma.car.deleteMany();
     await prisma.track.deleteMany();
 
@@ -137,4 +139,88 @@ describe('championship points without a custom points schema', () => {
     expect(valid.status).toBe(200);
     expect(valid.body.data.name).toBe('Updated cup');
   });
+  it('snapshots teams at first GO and retains points after a driver transfers', async () => {
+    const red = await prisma.team.create({ data: { name: 'Red' } });
+    const blue = await prisma.team.create({ data: { name: 'Blue' } });
+    await prisma.driver.update({ where: { id: drivers[0].id }, data: { teamId: red.id } });
+    await prisma.driver.update({ where: { id: drivers[1].id }, data: { teamId: blue.id } });
+
+    const session = await addSession('race', 'active', [
+      { driverIndex: 0, finalPos: 1 },
+      { driverIndex: 1, finalPos: 2 },
+      { driverIndex: 2, finalPos: 3 },
+    ]);
+    const race = new SessionService({ emit() {} });
+    try {
+      await race.loadSession(session.id);
+      await race.onRaceStart();
+
+      const saved = await prisma.session.findUnique({
+        where: { id: session.id },
+        include: { drivers: true },
+      });
+      expect(saved.teamMembershipSnapshotted).toBe(true);
+      expect(saved.startedAt).not.toBeNull();
+      expect(saved.drivers.map((entry) => entry.teamIdAtStart)).toEqual([red.id, blue.id, null]);
+
+      await prisma.session.update({ where: { id: session.id }, data: { status: 'finished' } });
+      await prisma.driver.update({ where: { id: drivers[0].id }, data: { teamId: blue.id } });
+      const result = await service.getTeamStandings(championship.id);
+      expect(result.legacyRaces).toBe(0);
+      expect(result.standings.map((entry) => [entry.teamId, entry.totalPoints])).toEqual([
+        [red.id, 25],
+        [blue.id, 18],
+      ]);
+      expect(result.standings.some((entry) => entry.totalPoints === 15)).toBe(false);
+    } finally {
+      await race.prisma.$disconnect();
+    }
+  });
+
+  it('ranks tied team scores deterministically and excludes legacy or deleted races', async () => {
+    const a = await prisma.team.create({ data: { name: 'A' } });
+    const b = await prisma.team.create({ data: { name: 'B' } });
+    const first = await addSession('race', 'finished', [
+      { driverIndex: 0, finalPos: 1 },
+      { driverIndex: 1, finalPos: 2 },
+    ]);
+    const second = await addSession('race', 'finished', [
+      { driverIndex: 0, finalPos: 2 },
+      { driverIndex: 1, finalPos: 1 },
+    ]);
+    for (const session of [first, second]) {
+      await prisma.session.update({
+        where: { id: session.id },
+        data: { teamMembershipSnapshotted: true },
+      });
+      await prisma.sessionDriver.updateMany({
+        where: { sessionId: session.id, driverId: drivers[0].id },
+        data: { teamIdAtStart: a.id },
+      });
+      await prisma.sessionDriver.updateMany({
+        where: { sessionId: session.id, driverId: drivers[1].id },
+        data: { teamIdAtStart: b.id },
+      });
+    }
+    await addSession('race', 'finished', [{ driverIndex: 2, finalPos: 1 }]);
+    await addSession('race', 'finished', [{ driverIndex: 2, finalPos: 1 }], new Date());
+    await addSession('qualif', 'finished', [{ driverIndex: 2, finalPos: 1 }]);
+    await addSession('race', 'draft', [{ driverIndex: 2, finalPos: 1 }]);
+
+    const before = await service.getStandings(championship.id);
+    const result = await service.getTeamStandings(championship.id);
+    expect(result.legacyRaces).toBe(1);
+    expect(result.standings.map((entry) => [entry.teamId, entry.totalPoints])).toEqual(
+      [a.id, b.id].sort().map((id) => [id, 43])
+    );
+    expect(await service.getStandings(championship.id)).toEqual(before);
+
+    const response = await request(app).get(`/api/championships/${championship.id}/team-standings`);
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ success: true, legacyRaces: 1 });
+    expect(response.body.standings).toHaveLength(2);
+    const missing = await request(app).get('/api/championships/missing/team-standings');
+    expect(missing.status).toBe(404);
+  });
+
 });

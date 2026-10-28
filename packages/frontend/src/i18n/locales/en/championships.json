@@ -128,7 +128,12 @@
     "gap": "Gap",
     "gapLaps_one": "+{{count}} lap",
     "gapLaps_other": "+{{count}} laps",
-    "points": "{{count}} pts"
+    "points": "{{count}} pts",
+    "teamStandings": "Teams",
+    "teamShort": "Teams",
+    "unknownTeam": "Unknown team",
+    "legacyTeamWarning_one": "Team membership was not recorded for {{count}} older race; team standings are incomplete.",
+    "legacyTeamWarning_other": "Team membership was not recorded for {{count}} older races; team standings are incomplete."
   },
   "results": {
     "loading": "Loading...",

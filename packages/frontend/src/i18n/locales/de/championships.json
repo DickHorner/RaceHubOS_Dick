@@ -128,7 +128,12 @@
     "gap": "Abstand",
     "gapLaps_one": "+{{count}} Runde",
     "gapLaps_other": "+{{count}} Runden",
-    "points": "{{count}} Punkte"
+    "points": "{{count}} Punkte",
+    "teamStandings": "Teams",
+    "teamShort": "Teams",
+    "unknownTeam": "Unbekanntes Team",
+    "legacyTeamWarning_one": "Für {{count}} älteres Rennen ist die damalige Teamzugehörigkeit nicht bekannt; die Teamwertung ist unvollständig.",
+    "legacyTeamWarning_other": "Für {{count}} ältere Rennen ist die damalige Teamzugehörigkeit nicht bekannt; die Teamwertung ist unvollständig."
   },
   "results": {
     "loading": "Wird geladen …",

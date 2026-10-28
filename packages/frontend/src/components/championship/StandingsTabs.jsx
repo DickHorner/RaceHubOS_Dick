@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FlaskConical, Clock, Flag } from 'lucide-react'
+import { FlaskConical, Clock, Flag, Users } from 'lucide-react'
 import LapTime from '../race/LapTime'
 import { getImgUrl } from '../../utils/image'
 import { GAP_COLORS } from '../../lib/colors'
@@ -12,19 +12,25 @@ import { STANDARD_SESSION_TYPES, SessionType, sessionTypeFullKey, sessionTypeKey
  * Qualif tab: sorted by qualifBestTime
  * Race tab: sorted by raceTotalLaps desc, then raceTotalTime asc
  */
+const TEAM_TAB = 'teams'
+
 export default function StandingsTabs({ standings = {}, drivers = [], activeTab = SessionType.PRACTICE, onTabChange }) {
   const { t } = useTranslation('championships')
   const TAB_STYLE = {
     [SessionType.PRACTICE]: { icon: FlaskConical, color: 'purple' },
     [SessionType.QUALIF]: { icon: Clock, color: 'blue' },
     [SessionType.RACE]: { icon: Flag, color: 'green' },
+    [TEAM_TAB]: { icon: Users, color: 'teal' },
   }
-  const tabs = STANDARD_SESSION_TYPES.map((id) => ({
-    id,
-    label: t(sessionTypeFullKey(id)),
-    shortLabel: t(sessionTypeKey(id)),
-    ...TAB_STYLE[id],
-  }))
+  const tabs = [
+    ...STANDARD_SESSION_TYPES.map((id) => ({
+      id,
+      label: t(sessionTypeFullKey(id)),
+      shortLabel: t(sessionTypeKey(id)),
+      ...TAB_STYLE[id],
+    })),
+    { id: TEAM_TAB, label: t('standings.teamStandings'), shortLabel: t('standings.teamShort'), ...TAB_STYLE[TEAM_TAB] },
+  ]
 
   // Get driver info by ID
   const getDriver = (driverId) => {
@@ -33,6 +39,7 @@ export default function StandingsTabs({ standings = {}, drivers = [], activeTab 
 
   // Get sorted standings for current tab
   const sortedStandings = useMemo(() => {
+    if (activeTab === TEAM_TAB) return standings.teams || []
     if (activeTab === SessionType.PRACTICE) {
       // Practice standings: array of { driverId, lapTime, driver, car, ... }
       const practiceData = standings.practice || []
@@ -108,6 +115,7 @@ export default function StandingsTabs({ standings = {}, drivers = [], activeTab 
             purple: isActive ? 'text-purple-600 border-purple-600' : 'text-muted-foreground hover:text-purple-600',
             blue: isActive ? 'text-blue-600 border-blue-600' : 'text-muted-foreground hover:text-blue-600',
             green: isActive ? 'text-green-600 border-green-600' : 'text-muted-foreground hover:text-green-600',
+            teal: isActive ? 'text-teal-600 border-teal-600' : 'text-muted-foreground hover:text-teal-600',
           }
 
           return (
@@ -131,11 +139,33 @@ export default function StandingsTabs({ standings = {}, drivers = [], activeTab 
 
       {/* Standings List */}
       <div>
+        {activeTab === TEAM_TAB && standings.legacyRaces > 0 && (
+          <div role="status" className="px-4 py-2 text-xs text-amber-600">
+            {t('standings.legacyTeamWarning', { count: standings.legacyRaces })}
+          </div>
+        )}
         {sortedStandings.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground text-sm">{t('standings.noStandings')}</div>
         ) : (
           <div className="divide-y divide-border">
             {sortedStandings.map((standing, index) => {
+              if (activeTab === TEAM_TAB) {
+                return (
+                  <div key={standing.teamId} className="flex items-center gap-3 px-4 py-3">
+                    <span className="w-7 font-bold text-center">{standing.position}</span>
+                    <span
+                      className="size-3 shrink-0 rounded-full"
+                      style={{ backgroundColor: standing.team?.color || '#6B7280' }}
+                    />
+                    <span className="flex-1 min-w-0 text-sm font-medium truncate">
+                      {standing.team?.name || t('standings.unknownTeam')}
+                    </span>
+                    <span className="text-sm font-bold font-mono">
+                      {t('standings.points', { count: standing.totalPoints })}
+                    </span>
+                  </div>
+                )
+              }
               const driver = standing.driver || getDriver(standing.driverId)
               const gap = getGap(standing, index)
               const position = index + 1
