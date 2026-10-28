@@ -46,5 +46,13 @@
     "ready": "Receiver connected (speakers not verified)",
     "offline": "Connection lost – reconnecting",
     "error": "Receiver unavailable"
+  },
+  "auto": {
+    "title": "Automatic race sounds",
+    "bestlap": "New best lap",
+    "finished": "Session finished",
+    "off": "Off",
+    "description": "Plays only with an enabled director-PC audio receiver. {driver}, {car}, {controller} and {lapTime} are available for best laps. Missing event details suppress speech.",
+    "loadError": "Could not load automatic sound settings."
   }
 }
