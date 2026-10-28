@@ -27,5 +27,24 @@
   "invalidPreset": "Saisissez un nom et une annonce valide.",
   "selectFile": "Sélectionnez un fichier audio.",
   "fileTooLarge": "Le fichier dépasse 5 Mo.",
-  "limitReached": "Jusqu'à 32 boutons sonores peuvent être enregistrés."
+  "limitReached": "Jusqu'à 32 boutons sonores peuvent être enregistrés.",
+  "output": "Sortie audio",
+  "outputLocal": "PC RaceHubOS (ici)",
+  "outputDirector": "PC direction",
+  "receiverEnable": "Recevoir l'audio ici",
+  "receiverDisable": "Désactiver la réception",
+  "receiverReady": "Direction connectée",
+  "receiverOffline": "Direction indisponible",
+  "remoteStarted": "Lecture lancée sur le PC direction (haut-parleurs non vérifiés).",
+  "remoteError": "Lecture à distance échouée.",
+  "receiverError": "Récepteur audio indisponible.",
+  "receiverReplaced": "Un autre navigateur de direction a repris la sortie audio.",
+  "unlockError": "Impossible d'activer l'audio du navigateur.",
+  "receiverState": {
+    "off": "Réception distante désactivée",
+    "connecting": "Connexion du récepteur…",
+    "ready": "Récepteur connecté (haut-parleurs non vérifiés)",
+    "offline": "Connexion interrompue – reconnexion",
+    "error": "Récepteur indisponible"
+  }
 }
