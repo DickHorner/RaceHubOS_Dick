@@ -54,6 +54,31 @@ export function SessionProvider({ children }) {
     sessionRef.current = session
   }, [session])
   const announcedRef = useRef({ start: new Set(), finish: new Set(), leader: new Map(), startTimes: new Map() })
+  const pendingRaceVoiceRef = useRef({ start: null, finish: null })
+  const { raceEvents, raceEventsLoaded, announceRaceEvent } = voice
+
+  useEffect(() => {
+    if (!raceEventsLoaded) return
+
+    const pending = pendingRaceVoiceRef.current
+    const start = pending.start
+    const finish = pending.finish
+    pending.start = null
+    pending.finish = null
+
+    if (window.location.pathname.startsWith('/display/')) return
+    if (
+      start &&
+      raceEvents.start &&
+      sessionRef.current?.id === start.sessionId &&
+      sessionRef.current.status === SessionStatus.ACTIVE
+    ) {
+      void announceRaceEvent(`start:${start.key}`, i18n.t('voice:raceStarted'))
+    }
+    if (finish && raceEvents.finish && sessionRef.current?.id === finish.sessionId) {
+      void announceRaceEvent(`finish:${finish.key}`, i18n.t('voice:raceFinished'))
+    }
+  }, [raceEventsLoaded, raceEvents, announceRaceEvent])
 
   // Check data freshness
   useEffect(() => {
@@ -176,8 +201,12 @@ export function SessionProvider({ children }) {
       announcedRef.current.start.add(key)
       announcedRef.current.startTimes.set(data.sessionId, data.startedAt)
       announcedRef.current.leader.delete(data.sessionId)
-      if (!window.location.pathname.startsWith('/display/') && voiceRef.current.raceEventsRef.current.start) {
-        void voiceRef.current.announceRaceEvent(`start:${key}`, i18n.t('voice:raceStarted'))
+      if (window.location.pathname.startsWith('/display/')) return
+      const v = voiceRef.current
+      if (!v.raceEventsLoaded) {
+        pendingRaceVoiceRef.current.start = { sessionId: data.sessionId, key }
+      } else if (v.raceEvents.start) {
+        void v.announceRaceEvent(`start:${key}`, i18n.t('voice:raceStarted'))
       }
     })
 
@@ -218,9 +247,14 @@ export function SessionProvider({ children }) {
       try {
         const v = voiceRef.current
         const announceFinish =
-          data.sessionType === SessionType.RACE && data.startedAt && v.raceEventsRef.current.finish
+          data.sessionType === SessionType.RACE && data.startedAt
             ? () => {
-                void v.announceRaceEvent(`finish:${finishKey}`, i18n.t('voice:raceFinished'))
+                const currentVoice = voiceRef.current
+                if (!currentVoice.raceEventsLoaded) {
+                  pendingRaceVoiceRef.current.finish = { sessionId: data.sessionId, key: finishKey }
+                } else if (currentVoice.raceEvents.finish) {
+                  void currentVoice.announceRaceEvent(`finish:${finishKey}`, i18n.t('voice:raceFinished'))
+                }
               }
             : null
         const audio = new Audio('/sounds/race-finish.mp3')
