@@ -9,6 +9,7 @@ import { SessionStatus, SessionType, PenaltyKind, PenaltyStatus, TyreType, Damag
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 const DIRECTOR_SECRET_PATTERN = /^[A-Za-z0-9_-]{32,128}$/
+const DIRECTOR_STORAGE_KEY = 'racehubos:remembered-director-key'
 
 export default function MobileRaceControl() {
   const { t } = useTranslation('mobileControl')
@@ -23,6 +24,7 @@ export default function MobileRaceControl() {
   const [secretCopied, setSecretCopied] = useState(false)
   const [secretInput, setSecretInput] = useState('')
   const [directorKey, setDirectorKey] = useState('')
+  const [rememberDirector, setRememberDirector] = useState(() => Boolean(localStorage.getItem(DIRECTOR_STORAGE_KEY)))
   const [sessions, setSessions] = useState([])
   const [selectedId, setSelectedId] = useState('')
   const [loading, setLoading] = useState(true)
@@ -39,7 +41,9 @@ export default function MobileRaceControl() {
   const [penaltyReason, setPenaltyReason] = useState('')
   const updating = useRef(false)
   const penaltyPending = useRef(false)
-  const pendingDirectorKey = useRef(new URLSearchParams(window.location.hash.slice(1)).get('director'))
+  const pendingDirectorKey = useRef(
+    new URLSearchParams(window.location.hash.slice(1)).get('director') || localStorage.getItem(DIRECTOR_STORAGE_KEY)
+  )
 
   const refresh = useCallback(async () => {
     if (updating.current) return
@@ -91,6 +95,10 @@ export default function MobileRaceControl() {
     window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search)
     if (credential.length < 32 || credential.length > 256) {
       pendingDirectorKey.current = null
+      if (localStorage.getItem(DIRECTOR_STORAGE_KEY) === credential) {
+        localStorage.removeItem(DIRECTOR_STORAGE_KEY)
+        setRememberDirector(false)
+      }
       return
     }
     let active = true
@@ -107,6 +115,10 @@ export default function MobileRaceControl() {
       .catch(() => {
         if (!active) return
         pendingDirectorKey.current = null
+        if (localStorage.getItem(DIRECTOR_STORAGE_KEY) === credential) {
+          localStorage.removeItem(DIRECTOR_STORAGE_KEY)
+          setRememberDirector(false)
+        }
         setError(t('wrongCredential'))
       })
     return () => {
@@ -228,6 +240,14 @@ export default function MobileRaceControl() {
       const result = await response.json()
       if (!response.ok || !result.success) throw new Error(result.error || t('changeSecretError'))
       setDirectorKey(replacementSecret)
+      if (rememberDirector) {
+        try {
+          localStorage.setItem(DIRECTOR_STORAGE_KEY, replacementSecret)
+        } catch {
+          setRememberDirector(false)
+          setError(t('rememberError'))
+        }
+      }
       setReplacementSecret('')
       setGeneratedSecret('')
       setIssuedLink('')
@@ -500,6 +520,12 @@ export default function MobileRaceControl() {
                 size="sm"
                 onClick={() => {
                   setDirectorKey('')
+                  try {
+                    localStorage.removeItem(DIRECTOR_STORAGE_KEY)
+                    setRememberDirector(false)
+                  } catch {
+                    setError(t('rememberError'))
+                  }
                   setIssuedLink('')
                   setGeneratedSecret('')
                   setCredentialChanged(false)
@@ -508,6 +534,26 @@ export default function MobileRaceControl() {
                 {t('lock')}
               </Button>
             </div>
+            <section className="rounded-xl border border-border bg-card p-4 space-y-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={rememberDirector}
+                  onChange={(event) => {
+                    try {
+                      if (event.target.checked) localStorage.setItem(DIRECTOR_STORAGE_KEY, directorKey)
+                      else localStorage.removeItem(DIRECTOR_STORAGE_KEY)
+                      setRememberDirector(event.target.checked)
+                      setError('')
+                    } catch {
+                      setError(t('rememberError'))
+                    }
+                  }}
+                />
+                {t('rememberDirector')}
+              </label>
+              <p className="text-xs text-muted-foreground">{t('rememberDirectorWarning')}</p>
+            </section>
             <Soundboard directorKey={directorKey} />
             <section className="rounded-xl border border-border bg-card p-5 space-y-2">
               <h2 className="text-sm font-semibold">{t('shareDirector')}</h2>
