@@ -1,0 +1,14 @@
+{
+  "loading": "Finding LAN addresses…",
+  "unavailable": "Could not determine LAN addresses.",
+  "noLan": "No private IPv4 address found on the RaceHubOS server. No localhost QR code will be created.",
+  "address": "Race PC LAN address",
+  "chooseAddress": "Select a LAN address (for example Wi-Fi rather than Docker/VPN).",
+  "qrLabel": "QR code for LAN link",
+  "link": "LAN link",
+  "copy": "Copy link",
+  "copied": "Link copied",
+  "manualCopy": "Copy this LAN link:",
+  "lanHint": "For devices on the same LAN. Reachability depends on the network, firewall and selected interface.",
+  "linksTitle": "Driver and race-director links"
+}
