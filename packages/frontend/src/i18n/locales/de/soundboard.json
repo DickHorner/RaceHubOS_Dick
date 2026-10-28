@@ -27,5 +27,24 @@
   "invalidPreset": "Bitte Namen und gültigen Ansagetext eingeben.",
   "selectFile": "Bitte eine Audiodatei auswählen.",
   "fileTooLarge": "Datei ist größer als 5 MB.",
-  "limitReached": "Maximal 32 Soundboard-Schaltflächen möglich."
+  "limitReached": "Maximal 32 Soundboard-Schaltflächen möglich.",
+  "output": "Ausgabe",
+  "outputLocal": "RaceHubOS-PC (hier)",
+  "outputDirector": "Rennleiter-PC",
+  "receiverEnable": "Hier Audio empfangen",
+  "receiverDisable": "Empfang deaktivieren",
+  "receiverReady": "Rennleiter verbunden",
+  "receiverOffline": "Rennleiter nicht verfügbar",
+  "remoteStarted": "Wiedergabe am Rennleiter gestartet (Lautsprecher nicht verifiziert).",
+  "remoteError": "Fernwiedergabe fehlgeschlagen.",
+  "receiverError": "Empfänger konnte nicht aktiviert werden.",
+  "receiverReplaced": "Ein anderer Rennleiter-Browser übernimmt die Audioausgabe.",
+  "unlockError": "Browser-Audio konnte nicht freigeschaltet werden.",
+  "receiverState": {
+    "off": "Fernempfang aus",
+    "connecting": "Empfänger verbindet …",
+    "ready": "Empfänger verbunden (Lautsprecher nicht verifiziert)",
+    "offline": "Verbindung unterbrochen – wird erneut hergestellt",
+    "error": "Empfänger nicht verfügbar"
+  }
 }
