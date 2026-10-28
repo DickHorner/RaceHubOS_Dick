@@ -85,9 +85,13 @@ function equals(a, b) {
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
+function directorKeyRequired() {
+  return process.env.RACE_CONTROL_REQUIRE_KEY !== 'false';
+}
+
 function isDirector(req) {
   const secret = directorSecret();
-  return Boolean(secret && equals(bearer(req), secret));
+  return Boolean(secret && (!directorKeyRequired() || equals(bearer(req), secret)));
 }
 
 function requireDirector(req, res, next) {
@@ -202,6 +206,7 @@ router.get('/status', (req, res) => {
   res.json({
     success: true,
     enabled: Boolean(directorSecret()),
+    keyRequired: directorKeyRequired(),
     setupAvailable: !process.env.RACE_CONTROL_SECRET && local,
   });
 });
@@ -268,6 +273,62 @@ router.post('/setup', async (req, res) => {
 router.get('/director/check', requireDirector, (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ success: true });
+});
+
+router.post('/director/key-required', requireDirector, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const { keyRequired } = req.body || {};
+  if (typeof keyRequired !== 'boolean') {
+    return res.status(400).json({ success: false, error: 'keyRequired must be a boolean' });
+  }
+  if (keyRequired === directorKeyRequired()) return res.json({ success: true, keyRequired });
+  if (setupInProgress) return res.status(409).json({ success: false, error: 'Credential setup is already running' });
+
+  setupInProgress = true;
+  let temporaryPath;
+  try {
+    let existing;
+    try {
+      existing = await fs.readFile(directorEnvPath, 'utf8');
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      return res.status(409).json({ success: false, error: 'Race control config file is missing' });
+    }
+
+    const matches = [
+      ...existing.matchAll(/^([ \t]*(?:export[ \t]+)?RACE_CONTROL_REQUIRE_KEY[ \t]*=[ \t]*)([^\r\n]*)/gm),
+    ];
+    const saved = matches[0]?.[2]?.trim().replace(/^(['"])(.*)\1$/, '$2');
+    if (matches.length > 1 || (saved !== undefined ? saved !== 'false' : true) !== directorKeyRequired()) {
+      return res.status(409).json({ success: false, error: 'Race control key policy is managed externally' });
+    }
+    const requiredValue = String(keyRequired);
+    const updated = matches.length
+      ? existing.slice(0, matches[0].index) +
+        matches[0][1] +
+        requiredValue +
+        existing.slice(matches[0].index + matches[0][0].length)
+      : existing + (existing && !existing.endsWith('\n') ? '\n' : '') + `RACE_CONTROL_REQUIRE_KEY=${requiredValue}\n`;
+    temporaryPath = `${directorEnvPath}.${randomBytes(8).toString('hex')}.tmp`;
+    await fs.writeFile(temporaryPath, updated, { mode: 0o600, flag: 'wx' });
+    await fs.rename(temporaryPath, directorEnvPath);
+    temporaryPath = null;
+    process.env.RACE_CONTROL_REQUIRE_KEY = requiredValue;
+    console.info(`[RaceControl] Race director key ${keyRequired ? 'required' : 'disabled'} by operator`);
+    res.json({ success: true, keyRequired });
+  } catch (error) {
+    console.error('[RaceControl] Director key policy update failed:', error);
+    res.status(500).json({ success: false, error: 'Could not save race director key policy' });
+  } finally {
+    if (temporaryPath) {
+      try {
+        await fs.unlink(temporaryPath);
+      } catch {
+        // The temporary file may never have been created.
+      }
+    }
+    setupInProgress = false;
+  }
 });
 
 // Existing director authorization is required to rotate the persisted credential.
