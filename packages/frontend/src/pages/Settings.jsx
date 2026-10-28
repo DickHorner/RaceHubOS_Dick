@@ -55,6 +55,8 @@ export default function Settings() {
     saveBestLapEnabled,
     podiumEnabled,
     savePodiumEnabled,
+    raceEvents,
+    saveRaceEvent,
     minLaps: bestLapVoiceMinLaps,
     saveMinLaps,
     voiceId: bestLapVoiceId,
@@ -705,7 +707,25 @@ export default function Settings() {
             </button>
           </div>
 
-          {(bestLapEnabled || podiumEnabled) && (
+          {['start', 'leader', 'finish'].map((event) => (
+            <div key={event} className="flex items-center justify-between">
+              <p className="text-sm font-medium">{t(`appearance.raceVoice.${event}`)}</p>
+              <button
+                type="button"
+                role="switch"
+                aria-label={t(`appearance.raceVoice.${event}`)}
+                aria-checked={raceEvents[event]}
+                onClick={() => saveRaceEvent(event, !raceEvents[event])}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${raceEvents[event] ? 'bg-orange-600' : 'bg-muted'}`}
+              >
+                <span
+                  className={`inline-block size-4 transform rounded-full bg-white shadow-sm transition-transform ${raceEvents[event] ? 'translate-x-6' : 'translate-x-1'}`}
+                />
+              </button>
+            </div>
+          ))}
+
+          {(bestLapEnabled || podiumEnabled || Object.values(raceEvents).some(Boolean)) && (
             <div className="flex items-center gap-2 pl-7">
               {/* One voice per interface language, the language's default voice unless chosen */}
               <Select

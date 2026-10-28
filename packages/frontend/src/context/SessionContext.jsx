@@ -49,6 +49,36 @@ export function SessionProvider({ children }) {
   // Ref for voice access from socket listeners
   const voiceRef = useRef(voice)
   voiceRef.current = voice
+  const sessionRef = useRef(session)
+  useEffect(() => {
+    sessionRef.current = session
+  }, [session])
+  const announcedRef = useRef({ start: new Set(), finish: new Set(), leader: new Map(), startTimes: new Map() })
+  const pendingRaceVoiceRef = useRef({ start: null, finish: null })
+  const { raceEvents, raceEventsLoaded, announceRaceEvent } = voice
+
+  useEffect(() => {
+    if (!raceEventsLoaded) return
+
+    const pending = pendingRaceVoiceRef.current
+    const start = pending.start
+    const finish = pending.finish
+    pending.start = null
+    pending.finish = null
+
+    if (window.location.pathname.startsWith('/display/')) return
+    if (
+      start &&
+      raceEvents.start &&
+      sessionRef.current?.id === start.sessionId &&
+      sessionRef.current.status === SessionStatus.ACTIVE
+    ) {
+      void announceRaceEvent(`start:${start.key}`, i18n.t('voice:raceStarted'))
+    }
+    if (finish && raceEvents.finish && sessionRef.current?.id === finish.sessionId) {
+      void announceRaceEvent(`finish:${finish.key}`, i18n.t('voice:raceFinished'))
+    }
+  }, [raceEventsLoaded, raceEvents, announceRaceEvent])
 
   // Check data freshness
   useEffect(() => {
@@ -73,8 +103,41 @@ export function SessionProvider({ children }) {
     })
     socketRef.current = socket
 
-    // Leaderboard updates
+    // Only announce an observed change from one unambiguous race leader to another.
     socket.on('session:leaderboard', (data) => {
+      const rows = Array.isArray(data) ? data : data?.leaderboard
+      const race = sessionRef.current
+      if (
+        race?.type === SessionType.RACE &&
+        race.status === SessionStatus.ACTIVE &&
+        Array.isArray(rows) &&
+        rows.length > 0 &&
+        rows.every((row) => row?.sessionId === race.id)
+      ) {
+        const leaders = rows.filter((row) => row.position === 1)
+        const next =
+          leaders.length === 1 && leaders[0].id && leaders[0].driver?.name && leaders[0].totalLaps > 0
+            ? leaders[0]
+            : null
+        const previous = announcedRef.current.leader.get(race.id)
+        if (next && (!previous || next.id === previous.id || next.totalLaps > previous.laps)) {
+          if (
+            previous &&
+            previous.id !== next.id &&
+            next.totalLaps > previous.laps &&
+            voiceRef.current.raceEventsRef.current.leader &&
+            !window.location.pathname.startsWith('/display/')
+          ) {
+            const epoch = announcedRef.current.startTimes.get(race.id) || race.startedAt || ''
+            void voiceRef.current.announceRaceEvent(
+              `leader:${race.id}:${epoch}:${next.id}:${next.totalLaps}`,
+              i18n.t('voice:leaderChange', { name: next.driver.name })
+            )
+          }
+          announcedRef.current.leader.set(race.id, { id: next.id, laps: next.totalLaps })
+        }
+      }
+
       if (Array.isArray(data)) {
         setLeaderboard(data)
       } else if (data.leaderboard && Array.isArray(data.leaderboard)) {
@@ -130,8 +193,28 @@ export function SessionProvider({ children }) {
       })
     })
 
+    socket.on('session:race_started', (data) => {
+      if (sessionRef.current?.id !== data?.sessionId || sessionRef.current.type !== SessionType.RACE || !data.startedAt)
+        return
+      const key = `${data.sessionId}:${data.startedAt}`
+      if (announcedRef.current.start.has(key)) return
+      announcedRef.current.start.add(key)
+      announcedRef.current.startTimes.set(data.sessionId, data.startedAt)
+      announcedRef.current.leader.delete(data.sessionId)
+      if (window.location.pathname.startsWith('/display/')) return
+      const v = voiceRef.current
+      if (!v.raceEventsLoaded) {
+        pendingRaceVoiceRef.current.start = { sessionId: data.sessionId, key }
+      } else if (v.raceEvents.start) {
+        void v.announceRaceEvent(`start:${key}`, i18n.t('voice:raceStarted'))
+      }
+    })
+
     // Session finished
     socket.on('session:finished', (data) => {
+      const finishKey = `${data.sessionId}:${data.startedAt || ''}`
+      const firstFinish = !announcedRef.current.finish.has(finishKey)
+      announcedRef.current.finish.add(finishKey)
       setSession((prev) => {
         if (prev?.id !== data.sessionId) return prev
         const drivers = data.leaderboard?.length > 0 ? data.leaderboard : prev.drivers
@@ -154,20 +237,38 @@ export function SessionProvider({ children }) {
       })
       window.dispatchEvent(new CustomEvent('session:finished', { detail: data }))
 
-      // Spectator screens must not play the finish sound and podium commentary.
-      if (window.location.pathname.startsWith('/display/')) return
+      // Spectator screens and repeated socket events must not play race audio.
+      if (!firstFinish || window.location.pathname.startsWith('/display/')) return
 
       // Skip podium/voice for balancing sessions
       if (data.sessionType === SessionType.BALANCING) return
 
       // Play finish music then announce podium
       try {
+        const v = voiceRef.current
+        const announceFinish =
+          data.sessionType === SessionType.RACE && data.startedAt
+            ? () => {
+                const currentVoice = voiceRef.current
+                if (!currentVoice.raceEventsLoaded) {
+                  pendingRaceVoiceRef.current.finish = { sessionId: data.sessionId, key: finishKey }
+                } else if (currentVoice.raceEvents.finish) {
+                  void currentVoice.announceRaceEvent(`finish:${finishKey}`, i18n.t('voice:raceFinished'))
+                }
+              }
+            : null
         const audio = new Audio('/sounds/race-finish.mp3')
         audio.volume = 0.7
-        audio.play().catch(() => {})
+        const hasPodium = v.podiumEnabledRef.current && data.leaderboard?.length > 0
+        if (!hasPodium && announceFinish) {
+          audio.onended = announceFinish
+          audio.onerror = announceFinish
+        }
+        audio.play().catch(() => {
+          if (!hasPodium) announceFinish?.()
+        })
 
-        const v = voiceRef.current
-        if (v.podiumEnabledRef.current && data.leaderboard?.length > 0) {
+        if (hasPodium) {
           const isQualif = data.sessionType === SessionType.QUALIF
           const sorted = [...data.leaderboard]
             .filter((d) => d.driver && (d.totalLaps > 0 || d.bestLapTime))
@@ -193,9 +294,13 @@ export function SessionProvider({ children }) {
             })
 
             const speakNext = (index) => {
-              if (index >= queue.length) return
+              if (index >= queue.length) {
+                announceFinish?.()
+                return
+              }
               const utterance = v.speak(queue[index], { rate: 1.0, force: true })
               if (utterance) utterance.onend = () => setTimeout(() => speakNext(index + 1), 500)
+              else speakNext(index + 1)
             }
             speakNext(0)
           }, delay)

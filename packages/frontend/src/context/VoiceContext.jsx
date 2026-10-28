@@ -6,10 +6,13 @@ import { speechLocale } from '../lib/speech'
 const API_URL = import.meta.env.VITE_API_URL || ''
 
 const VoiceContext = createContext(null)
+const DEFAULT_RACE_EVENTS = { start: false, leader: false, finish: false }
 
 export function VoiceProvider({ children }) {
   const [bestLapEnabled, setBestLapEnabled] = useState(true)
   const [podiumEnabled, setPodiumEnabled] = useState(true)
+  const [raceEvents, setRaceEvents] = useState(DEFAULT_RACE_EVENTS)
+  const [raceEventsLoaded, setRaceEventsLoaded] = useState(false)
   const [minLaps, setMinLaps] = useState(3)
   // Chosen voice per interface language; a language without one uses its default voice
   const [voiceIds, setVoiceIds] = useState({})
@@ -22,6 +25,10 @@ export function VoiceProvider({ children }) {
   bestLapEnabledRef.current = bestLapEnabled
   const podiumEnabledRef = useRef(podiumEnabled)
   podiumEnabledRef.current = podiumEnabled
+  const raceEventsRef = useRef(raceEvents)
+  useEffect(() => {
+    raceEventsRef.current = raceEvents
+  }, [raceEvents])
   const minLapsRef = useRef(minLaps)
   minLapsRef.current = minLaps
   const voiceIdsRef = useRef(voiceIds)
@@ -41,6 +48,19 @@ export function VoiceProvider({ children }) {
         if (d.success && d.data !== null) setPodiumEnabled(d.data)
       })
       .catch(() => {})
+    fetch(`${API_URL}/api/preferences/raceVoice:events`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success && d.data && typeof d.data === 'object' && !Array.isArray(d.data)) {
+          setRaceEvents({
+            start: d.data.start === true,
+            leader: d.data.leader === true,
+            finish: d.data.finish === true,
+          })
+        }
+      })
+      .catch(() => {})
+      .finally(() => setRaceEventsLoaded(true))
     fetch(`${API_URL}/api/preferences/bestLapVoice:minLaps`)
       .then((r) => r.json())
       .then((d) => {
@@ -70,6 +90,18 @@ export function VoiceProvider({ children }) {
   const savePodiumEnabled = useCallback((value) => {
     setPodiumEnabled(value)
     fetch(`${API_URL}/api/preferences/podiumVoice:enabled`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value }),
+    }).catch(() => {})
+  }, [])
+
+  const saveRaceEvent = useCallback((event, enabled) => {
+    if (!Object.hasOwn(DEFAULT_RACE_EVENTS, event)) return
+    const value = { ...raceEventsRef.current, [event]: enabled === true }
+    raceEventsRef.current = value
+    setRaceEvents(value)
+    fetch(`${API_URL}/api/preferences/raceVoice:events`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ value }),
@@ -126,6 +158,28 @@ export function VoiceProvider({ children }) {
     [getVoice]
   )
 
+  // An event may be received by several race-control tabs. Mark it while
+  // holding an origin-wide lock, before another tab can speak it.
+  const announceRaceEvent = useCallback(
+    async (key, text) => {
+      if (!navigator.locks?.request) return null
+      try {
+        return await navigator.locks.request('racehubos-race-commentary', () => {
+          const previous = JSON.parse(localStorage.getItem('racehubos-race-commentary') || '[]')
+          if (!Array.isArray(previous) || previous.includes(key)) return null
+          const utterance = speak(text)
+          if (utterance) {
+            localStorage.setItem('racehubos-race-commentary', JSON.stringify([...previous.slice(-127), key]))
+          }
+          return utterance
+        })
+      } catch {
+        return null
+      }
+    },
+    [speak]
+  )
+
   // Format time for speech
   const formatTimeVoice = useCallback((ms) => {
     if (!ms) return ''
@@ -146,6 +200,10 @@ export function VoiceProvider({ children }) {
         saveBestLapEnabled,
         podiumEnabled,
         savePodiumEnabled,
+        raceEvents,
+        raceEventsLoaded,
+        saveRaceEvent,
+        raceEventsRef,
         minLaps,
         saveMinLaps,
         voiceId: voiceIds[resolvedLanguage] || '',
@@ -154,6 +212,7 @@ export function VoiceProvider({ children }) {
         podiumEnabledRef,
         minLapsRef,
         speak,
+        announceRaceEvent,
         getVoice,
         formatTimeVoice,
       }}

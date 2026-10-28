@@ -62,7 +62,12 @@
     "adminMode": "Administratormodus",
     "adminModeDesc": "Anzeigen, Test, Simulator",
     "language": "Sprache",
-    "languageDesc": "Sprache der Oberfläche"
+    "languageDesc": "Sprache der Oberfläche",
+    "raceVoice": {
+      "start": "Rennstart ansagen",
+      "leader": "Führungswechsel ansagen",
+      "finish": "Rennende ansagen"
+    }
   },
   "logs": {
     "title": "Protokolle",
