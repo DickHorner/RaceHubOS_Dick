@@ -26,7 +26,16 @@ test('speech interpolation uses only measured payload fields and never invents a
     autoSpeechText('{driver} / {car} / {controller} / {lapTime}', 'bestlap', lap, (ms) => `${ms}ms`),
     'Alice / BMW M4 / 1 / 8501ms'
   )
-  assert.equal(autoSpeechText('{driver}', 'bestlap', { controller: 0 }, () => ''), null)
-  assert.equal(autoSpeechText('Finished', 'finished', {}, () => ''), 'Finished')
-  assert.equal(autoSpeechText('Good job {driver}', 'finished', {}, () => ''), null)
+  assert.equal(
+    autoSpeechText('{driver}', 'bestlap', { controller: 0 }, () => ''),
+    null
+  )
+  assert.equal(
+    autoSpeechText('Finished', 'finished', {}, () => ''),
+    'Finished'
+  )
+  assert.equal(
+    autoSpeechText('Good job {driver}', 'finished', {}, () => ''),
+    null
+  )
 })

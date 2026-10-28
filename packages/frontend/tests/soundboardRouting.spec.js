@@ -151,15 +151,19 @@ test('director auto cues map verified best lap and finish to saved speech and HT
     await page.goto('/race')
     await page.getByRole('button', { name: 'Soundboard' }).click()
     await page.getByRole('combobox', { name: 'New best lap' }).selectOption('auto-voice')
-    await expect.poll(async () => {
-      const response = await page.request.get('/api/preferences/soundboard:auto')
-      return (await response.json()).data?.bestlap
-    }).toBe('auto-voice')
+    await expect
+      .poll(async () => {
+        const response = await page.request.get('/api/preferences/soundboard:auto')
+        return (await response.json()).data?.bestlap
+      })
+      .toBe('auto-voice')
     await page.getByRole('combobox', { name: 'Session finished' }).selectOption('auto-clip')
-    await expect.poll(async () => {
-      const response = await page.request.get('/api/preferences/soundboard:auto')
-      return (await response.json()).data
-    }).toEqual({ bestlap: 'auto-voice', finished: 'auto-clip' })
+    await expect
+      .poll(async () => {
+        const response = await page.request.get('/api/preferences/soundboard:auto')
+        return (await response.json()).data
+      })
+      .toEqual({ bestlap: 'auto-voice', finished: 'auto-clip' })
 
     await director.addInitScript(() => {
       window.__autoSpoken = []
@@ -208,7 +212,10 @@ test('director auto cues map verified best lap and finish to saved speech and HT
       route.fulfill({ json: { success: true, ready: true } })
     )
     director.on('request', (request) => {
-      if (request.method() === 'GET' && /\/api\/preferences\/(soundboard:auto|soundboard:presets)$/.test(request.url())) {
+      if (
+        request.method() === 'GET' &&
+        /\/api\/preferences\/(soundboard:auto|soundboard:presets)$/.test(request.url())
+      ) {
         preferenceReads += 1
       }
     })

@@ -635,7 +635,9 @@ export default function Soundboard({ directorKey = '' }) {
             </p>
           )}
           {directorKey && autoPreview && (
-            <p className="text-xs text-muted-foreground">{t('auto.lastSpoken')}: {autoPreview}</p>
+            <p className="text-xs text-muted-foreground">
+              {t('auto.lastSpoken')}: {autoPreview}
+            </p>
           )}
           {remoteStatus && (
             <p role="status" className="text-xs text-green-600">

@@ -121,7 +121,6 @@ describe('soundboard director output routing', () => {
     expect(events.filter((event) => event.event === 'soundboard:play')).toHaveLength(1);
   });
 
-
   it('forwards race sound events only to the selected, explicitly registered receiver', async () => {
     const { director, receiver, events, sockets, emitAuto } = setup();
     const other = { ...receiver, id: 'receiver-two-12345' };
@@ -131,9 +130,7 @@ describe('soundboard director output routing', () => {
 
     await director('/api/race-control/director/soundboard/receiver').send({ socketId: receiver.id }).expect(200);
     emitAuto({ type: 'bestlap', data: { sessionId: 'race-1' } });
-    expect(events).toEqual([
-      { event: 'soundboard:auto', data: { type: 'bestlap', data: { sessionId: 'race-1' } } },
-    ]);
+    expect(events).toEqual([{ event: 'soundboard:auto', data: { type: 'bestlap', data: { sessionId: 'race-1' } } }]);
     await director('/api/race-control/director/soundboard/release').send({ socketId: receiver.id }).expect(200);
     emitAuto({ type: 'finished', data: { sessionId: 'race-1' } });
     expect(events).toHaveLength(1);
