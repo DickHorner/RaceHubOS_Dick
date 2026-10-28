@@ -66,6 +66,7 @@ test('director credential and individual driver links stay out of the URL', asyn
   )
   expect(page.url()).not.toContain('test-secret')
   expect(page.url()).not.toContain('signed-driver-token')
+  expect(await page.evaluate(() => localStorage.getItem('racehubos:remembered-director-key'))).toBeNull()
 })
 test('first-run setup on race PC generates a key and unlocks director controls', async ({ page }) => {
   await mockRace(page, race)
@@ -142,6 +143,7 @@ test('authorized director can change the key and refresh the optional QR link', 
   await page.getByLabel(/director credential/i).fill(original)
   await page.getByRole('button', { name: /unlock/i }).click()
   await expect(page.getByText('Share race director')).toBeVisible()
+  await page.getByLabel('Keep director controls unlocked on this browser').check()
   await page.getByLabel('Set a new director credential').fill('short')
   await expect(page.getByRole('button', { name: 'Change credential' })).toBeDisabled()
   await page.getByLabel('Set a new director credential').fill(replacement)
@@ -149,8 +151,60 @@ test('authorized director can change the key and refresh the optional QR link', 
   await expect(page.getByText('Director credential changed. The new key is active immediately.')).toBeVisible()
   expect(oldAuthorization).toBe(`Bearer ${original}`)
   expect(received).toEqual({ secret: replacement })
+  expect(await page.evaluate(() => localStorage.getItem('racehubos:remembered-director-key'))).toBe(replacement)
   const share = page.getByTestId('lan-share-panel')
   await share.getByLabel('Include director credential in QR code').check()
   await expect(share.getByLabel('LAN link')).toHaveValue(new RegExp(`#director=${replacement}$`))
   expect(page.url()).not.toContain(replacement)
+})
+
+
+test('director access is remembered only by opt-in, revalidated and cleared on lock', async ({ page }) => {
+  await mockRace(page, race)
+  const secret = 'Remembered_Director_Key_123456789'
+  const checked = []
+  await page.route('**/api/race-control/status', (route) =>
+    route.fulfill({ json: { success: true, enabled: true } })
+  )
+  await page.route('**/api/race-control/director/check', (route) => {
+    checked.push(route.request().headers().authorization)
+    const permitted = checked.at(-1) === `Bearer ${secret}`
+    return route.fulfill({ status: permitted ? 200 : 403, json: { success: permitted } })
+  })
+  await page.goto('/display/control')
+  await page.getByLabel(/director credential/i).fill(secret)
+  await page.getByRole('button', { name: /unlock/i }).click()
+  await expect(page.getByRole('status').filter({ hasText: /director authorized/i })).toBeVisible()
+  const remember = page.getByLabel('Keep director controls unlocked on this browser')
+  await expect(remember).not.toBeChecked()
+  expect(await page.evaluate(() => localStorage.getItem('racehubos:remembered-director-key'))).toBeNull()
+
+  await remember.check()
+  expect(await page.evaluate(() => localStorage.getItem('racehubos:remembered-director-key'))).toBe(secret)
+  await page.reload()
+  await expect(page.getByRole('status').filter({ hasText: /director authorized/i })).toBeVisible()
+  expect(checked).toEqual([`Bearer ${secret}`, `Bearer ${secret}`])
+
+  await page.getByRole('button', { name: 'Lock' }).click()
+  expect(await page.evaluate(() => localStorage.getItem('racehubos:remembered-director-key'))).toBeNull()
+  await page.reload()
+  await expect(page.getByLabel(/director credential/i)).toBeVisible()
+  expect(checked).toHaveLength(2)
+})
+
+test('expired remembered director key is discarded before manual login', async ({ page }) => {
+  await mockRace(page, race)
+  const secret = 'Expired_Remembered_Director_Key_12345'
+  await page.route('**/api/race-control/status', (route) =>
+    route.fulfill({ json: { success: true, enabled: true } })
+  )
+  await page.route('**/api/race-control/director/check', (route) =>
+    route.fulfill({ status: 403, json: { success: false } })
+  )
+  await page.goto('/display/control')
+  await page.evaluate((key) => localStorage.setItem('racehubos:remembered-director-key', key), secret)
+  await page.reload()
+  await expect(page.getByText('Invalid director credential')).toBeVisible()
+  await expect(page.getByLabel(/director credential/i)).toBeVisible()
+  expect(await page.evaluate(() => localStorage.getItem('racehubos:remembered-director-key'))).toBeNull()
 })
