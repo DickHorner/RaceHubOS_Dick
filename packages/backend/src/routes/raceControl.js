@@ -379,49 +379,59 @@ router.post('/soundboard/:action', requireLocalOrDirector, async (req, res) => {
 
   const socket = soundReceiver();
   if (!socket) return res.status(503).json({ success: false, error: 'Director audio receiver is offline' });
-  if (action === 'play' && now - lastSoundPlayAt < 200) {
-    return res.status(429).json({ success: false, error: 'Sound requests are too frequent' });
-  }
 
-  let preset;
-  if (action === 'play') {
-    try {
-      const stored = await sessionService.prisma.preference.findUnique({ where: { key: 'soundboard:presets' } });
-      const presets = stored ? JSON.parse(stored.value) : [];
-      const found = Array.isArray(presets) ? presets.slice(0, 32).find((item) => item?.id === presetId) : null;
-      if (!found ||
+  // Reserve the request ID before the asynchronous preset lookup. Concurrent
+  // retries must never send the same sound twice.
+  const result = (async () => {
+    let preset;
+    if (action === 'play') {
+      try {
+        const stored = await sessionService.prisma.preference.findUnique({ where: { key: 'soundboard:presets' } });
+        const presets = stored ? JSON.parse(stored.value) : [];
+        const found = Array.isArray(presets) ? presets.slice(0, 32).find((item) => item?.id === presetId) : null;
+        if (
+          !found ||
           (found.kind === 'clip' && (typeof found.url !== 'string' || !SOUND_URL.test(found.url))) ||
           (found.kind === 'speech' && (typeof found.text !== 'string' || !found.text.trim() || found.text.length > 300)) ||
-          !['clip', 'speech'].includes(found.kind)) {
-        return res.status(400).json({ success: false, error: 'Unknown or invalid soundboard preset' });
+          !['clip', 'speech'].includes(found.kind) ||
+          typeof found.label !== 'string' ||
+          !found.label ||
+          found.label.length > 60
+        ) {
+          return { code: 400, body: { success: false, error: 'Unknown or invalid soundboard preset' } };
+        }
+        preset = found.kind === 'clip'
+          ? { id: found.id, label: found.label, kind: 'clip', url: found.url }
+          : { id: found.id, label: found.label, kind: 'speech', text: found.text };
+      } catch (error) {
+        console.error('[RaceControl] Soundboard preset lookup failed:', error);
+        return { code: 500, body: { success: false, error: 'Could not load soundboard preset' } };
       }
-      preset = found.kind === 'clip'
-        ? { id: found.id, label: found.label, kind: 'clip', url: found.url }
-        : { id: found.id, label: found.label, kind: 'speech', text: found.text };
-      if (typeof preset.label !== 'string' || !preset.label || preset.label.length > 60) {
-        return res.status(400).json({ success: false, error: 'Invalid soundboard preset label' });
+      const time = Date.now();
+      if (time - lastSoundPlayAt < 200) {
+        return { code: 429, body: { success: false, error: 'Sound requests are too frequent' } };
       }
-    } catch (error) {
-      console.error('[RaceControl] Soundboard preset lookup failed:', error);
-      return res.status(500).json({ success: false, error: 'Could not load soundboard preset' });
+      lastSoundPlayAt = time;
     }
-    lastSoundPlayAt = now;
-  }
 
-  const result = new Promise((resolve) => {
-    socket.timeout(7000).emit(`soundboard:${action}`, { requestId, ...(preset ? { preset } : {}) }, (error, answer) => {
-      if (error) {
-        resolve({ code: 504, body: { success: false, error: 'Audio playback was not confirmed' } });
-        return;
-      }
-      const expected = action === 'play' ? 'started' : 'stopped';
-      if (answer?.status === expected) {
-        resolve({ code: 200, body: { success: true, status: answer.status } });
-      } else {
-        resolve({ code: 409, body: { success: false, error: answer?.status || 'Audio playback rejected' } });
-      }
+    if (!socket.connected) return { code: 503, body: { success: false, error: 'Director audio receiver is offline' } };
+
+    return new Promise((resolve) => {
+      socket.timeout(7000).emit(`soundboard:${action}`, { requestId, ...(preset ? { preset } : {}) }, (error, answer) => {
+        if (error) {
+          resolve({ code: 504, body: { success: false, error: 'Audio playback was not confirmed' } });
+          return;
+        }
+        const expected = action === 'play' ? 'started' : 'stopped';
+        if (answer?.status === expected) {
+          resolve({ code: 200, body: { success: true, status: answer.status } });
+        } else {
+          resolve({ code: 409, body: { success: false, error: answer?.status || 'Audio playback rejected' } });
+        }
+      });
     });
-  });
+  })();
+
   soundRequests.set(requestId, { time: now, result });
   if (soundRequests.size > 64) soundRequests.delete(soundRequests.keys().next().value);
   const reply = await result;
