@@ -48,12 +48,14 @@ test('director QR defaults to LAN-only and includes full credential only when op
   const plain = 'http://192.168.178.42:5175/display/control'
   await expect(panel.getByLabel('LAN link')).toHaveValue(plain)
   await expect(panel.locator('svg')).toHaveCount(1)
+  const qrWithoutKey = await panel.locator('svg path').last().getAttribute('d')
   await expect(panel.locator('a')).toHaveAttribute('href', plain)
   await panel.getByLabel('Include director credential in QR code').check()
   const protectedLink = `${plain}#director=${secret}`
   await expect(panel.getByLabel('LAN link')).toHaveValue(protectedLink)
   await expect(panel.getByLabel('LAN link')).toHaveAttribute('type', 'password')
   await expect(panel.locator('a')).toHaveAttribute('href', protectedLink)
+  expect(await panel.locator('svg path').last().getAttribute('d')).not.toBe(qrWithoutKey)
   await expect(panel.locator('a')).not.toContainText(secret)
   await expect(panel.getByText(/grants full race-director control/)).toBeVisible()
   expect(page.url()).not.toContain(secret)
@@ -94,6 +96,7 @@ test('multiple LAN interfaces require selection; driver CHAOS fragment is preser
   await expect(director.getByLabel('LAN link')).toHaveValue('http://192.168.178.42:5175/display/control')
 
   await page.getByRole('button', { name: 'Driver One' }).click()
+  await expect(page.getByTestId('lan-share-panel')).toHaveCount(2)
   const driver = page.getByTestId('lan-share-panel').last()
   await driver.getByLabel('Race PC LAN address').selectOption('10.0.0.8')
   await expect(driver.locator('a')).toHaveAttribute(
@@ -107,8 +110,6 @@ test('multiple LAN interfaces require selection; driver CHAOS fragment is preser
 test('without a private LAN address no localhost QR is fabricated', async ({ page }) => {
   await setup(page, [])
   await authorize(page)
-  const panel = page.getByTestId('lan-share-panel').first()
-  await expect(panel.getByRole('alert')).toContainText('No private IPv4 address')
-  await expect(panel.locator('svg')).toHaveCount(0)
-  await expect(panel.locator('a')).toHaveCount(0)
+  await expect(page.getByRole('alert')).toContainText('No private IPv4 address')
+  await expect(page.getByTestId('lan-share-panel')).toHaveCount(0)
 })
