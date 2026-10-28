@@ -651,6 +651,53 @@ export class ChampionshipService {
   }
 
   /**
+   * Team points use the same finished-race scoring as the driver standings.
+   * Races predating team snapshots cannot be attributed reliably.
+   */
+  async getTeamStandings(championshipId) {
+    const championship = await this.prisma.championship.findUnique({
+      where: { id: championshipId, deletedAt: null },
+      include: {
+        sessions: {
+          where: { type: SessionType.RACE, status: SessionStatus.FINISHED, deletedAt: null },
+          include: {
+            drivers: { where: { deletedAt: null } },
+          },
+        },
+      },
+    });
+
+    if (!championship) return null;
+
+    const teamPoints = new Map();
+    let legacyRaces = 0;
+
+    for (const session of championship.sessions) {
+      if (!session.teamMembershipSnapshotted) {
+        legacyRaces += 1;
+        continue;
+      }
+
+      const points = this.getPointsForSession(session);
+      for (const entry of session.drivers) {
+        if (!entry.driverId || !entry.teamIdAtStart) continue;
+        const totalPoints = (teamPoints.get(entry.teamIdAtStart) || 0) + (points[entry.finalPos] || 0);
+        teamPoints.set(entry.teamIdAtStart, totalPoints);
+      }
+    }
+
+    const teamIds = [...teamPoints.keys()];
+    const teams = teamIds.length ? await this.prisma.team.findMany({ where: { id: { in: teamIds } } }) : [];
+    const teamsById = new Map(teams.map((team) => [team.id, team]));
+    const standings = [...teamPoints.entries()]
+      .map(([teamId, totalPoints]) => ({ teamId, team: teamsById.get(teamId) || null, totalPoints }))
+      .sort((a, b) => b.totalPoints - a.totalPoints || a.teamId.localeCompare(b.teamId))
+      .map((entry, index) => ({ position: index + 1, ...entry }));
+
+    return { standings, legacyRaces };
+  }
+
+  /**
    * Get points distribution for a session type
    */
   getPointsForSession(session) {

@@ -875,6 +875,18 @@ router.put('/:id/participants', async (req, res) => {
 
 // GET /api/championships/:id/standings - Récupère le classement d'un championnat
 // Query param: ?type=qualif|race|practice (required)
+// GET /api/championships/:id/team-standings - Finished race points by historical team
+router.get('/:id/team-standings', async (req, res) => {
+  try {
+    const result = await championshipService.getTeamStandings(req.params.id);
+    if (!result) return res.status(404).json({ success: false, error: 'Championship not found' });
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('Error fetching team standings:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch team standings' });
+  }
+});
+
 router.get('/:id/standings', async (req, res) => {
   try {
     const { id } = req.params;

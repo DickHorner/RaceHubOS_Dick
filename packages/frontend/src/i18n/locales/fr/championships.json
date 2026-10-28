@@ -128,7 +128,12 @@
     "gap": "Écart",
     "gapLaps_one": "+{{count}} tour",
     "gapLaps_other": "+{{count}} tours",
-    "points": "{{count}} pts"
+    "points": "{{count}} pts",
+    "teamStandings": "Équipes",
+    "teamShort": "Équipes",
+    "unknownTeam": "Équipe inconnue",
+    "legacyTeamWarning_one": "L'équipe n'a pas été enregistrée pour {{count}} ancienne course ; le classement des équipes est incomplet.",
+    "legacyTeamWarning_other": "L'équipe n'a pas été enregistrée pour {{count}} anciennes courses ; le classement des équipes est incomplet."
   },
   "results": {
     "loading": "Chargement...",

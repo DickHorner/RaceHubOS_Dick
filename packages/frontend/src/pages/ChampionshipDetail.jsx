@@ -51,7 +51,7 @@ export default function ChampionshipDetail() {
   const [showChampionshipConfig, setShowChampionshipConfig] = useState(false)
   const [showBracket, setShowBracket] = useState(false)
   const [showResults, setShowResults] = useState(false)
-  const [standings, setStandings] = useState({ practice: [], qualif: [], race: [] })
+  const [standings, setStandings] = useState({ practice: [], qualif: [], race: [], teams: [], legacyRaces: 0 })
   const [viewedLeaderboard, setViewedLeaderboard] = useState(null) // leaderboard for non-active sessions
 
   useEffect(() => {
@@ -101,12 +101,19 @@ export default function ChampionshipDetail() {
 
   const fetchStandings = useCallback(async () => {
     try {
-      const [p, q, r] = await Promise.all([
+      const [p, q, r, teams] = await Promise.all([
         fetch(`${API_URL}/api/championships/${id}/standings?type=practice`).then((r) => r.json()),
         fetch(`${API_URL}/api/championships/${id}/standings?type=qualif`).then((r) => r.json()),
         fetch(`${API_URL}/api/championships/${id}/standings?type=race`).then((r) => r.json()),
+        fetch(`${API_URL}/api/championships/${id}/team-standings`).then((r) => r.json()),
       ])
-      setStandings({ practice: p.standings || [], qualif: q.standings || [], race: r.standings || [] })
+      setStandings({
+        practice: p.standings || [],
+        qualif: q.standings || [],
+        race: r.standings || [],
+        teams: teams.standings || [],
+        legacyRaces: teams.legacyRaces || 0,
+      })
     } catch (err) {
       console.error('Error:', err)
     }
