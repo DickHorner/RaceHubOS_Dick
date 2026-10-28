@@ -73,10 +73,10 @@ test('stored clips play locally or travel by HTTP to the sole enabled director r
     await installAudioSpy(director)
     await page.goto('/race')
     await page.getByRole('button', { name: 'Soundboard' }).click()
-    await expect(page.getByRole('button', { name: 'Race clip' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Race clip', exact: true })).toBeVisible()
 
     // R -> R: existing local output, without a registered director receiver.
-    await page.getByRole('button', { name: 'Race clip' }).click()
+    await page.getByRole('button', { name: 'Race clip', exact: true }).click()
     await expect.poll(() => page.evaluate(() => window.__routingAudio.length)).toBe(1)
     await expect((await page.request.get('/api/race-control/soundboard/status')).json()).resolves.toMatchObject({
       ready: false,
@@ -88,7 +88,7 @@ test('stored clips play locally or travel by HTTP to the sole enabled director r
     await page.evaluate(() => {
       window.__routingAudio = []
     })
-    await page.getByRole('button', { name: 'Race clip' }).click()
+    await page.getByRole('button', { name: 'Race clip', exact: true }).click()
     await expect(page.getByRole('alert')).toContainText('offline')
     expect(await page.evaluate(() => window.__routingAudio)).toEqual([])
 
@@ -99,7 +99,7 @@ test('stored clips play locally or travel by HTTP to the sole enabled director r
 
     // R -> D: director receives the audio bytes from the original server,
     // and the race PC never constructs a local Audio instance.
-    await page.getByRole('button', { name: 'Race clip' }).click()
+    await page.getByRole('button', { name: 'Race clip', exact: true }).click()
     await expect(page.getByText('Director playback started (speakers not verified).')).toBeVisible()
     await expect.poll(() => director.evaluate(() => window.__routingAudio.length)).toBe(1)
     expect(await page.evaluate(() => window.__routingAudio)).toEqual([])
