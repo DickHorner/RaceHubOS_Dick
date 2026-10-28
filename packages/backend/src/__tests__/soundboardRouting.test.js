@@ -123,7 +123,7 @@ describe('soundboard director output routing', () => {
 
 
   it('forwards race sound events only to the selected, explicitly registered receiver', async () => {
-    const { app, director, receiver, events, sockets, emitAuto } = setup();
+    const { director, receiver, events, sockets, emitAuto } = setup();
     const other = { ...receiver, id: 'receiver-two-12345' };
     sockets.set(other.id, other);
     emitAuto({ type: 'bestlap', data: { sessionId: 'race-1' } });
