@@ -629,33 +629,39 @@ export class SessionService extends EventEmitter {
     } else if (!this.sessionConfig.startedAt) {
       // First start - set startedAt
       const startedAt = new Date(now);
-      if (this.currentPhase === SessionType.RACE && this.sessionConfig.championshipId) {
-        const assigned = this.sessionDrivers.filter((entry) => entry.driverId);
-        const memberships = await this.prisma.driver.findMany({
-          where: { id: { in: assigned.map((entry) => entry.driverId) } },
-          select: { id: true, teamId: true },
-        });
-        const teamsByDriver = new Map(memberships.map((driver) => [driver.id, driver.teamId]));
-
-        await this.prisma.$transaction(async (tx) => {
-          for (const entry of assigned) {
-            await tx.sessionDriver.update({
-              where: { id: entry.id },
-              data: { teamIdAtStart: teamsByDriver.get(entry.driverId) ?? null },
-            });
-          }
-          await tx.session.update({
-            where: { id: this.activeSessionId },
-            data: { startedAt, teamMembershipSnapshotted: true },
-          });
-        });
-      } else {
-        await this.prisma.session.update({
-          where: { id: this.activeSessionId },
-          data: { startedAt },
-        });
-      }
+      // Preserve the existing in-memory GO guard while the snapshot is being saved.
       this.sessionConfig.startedAt = startedAt;
+      try {
+        if (this.currentPhase === SessionType.RACE && this.sessionConfig.championshipId) {
+          const assigned = this.sessionDrivers.filter((entry) => entry.driverId);
+          const memberships = await this.prisma.driver.findMany({
+            where: { id: { in: assigned.map((entry) => entry.driverId) } },
+            select: { id: true, teamId: true },
+          });
+          const teamsByDriver = new Map(memberships.map((driver) => [driver.id, driver.teamId]));
+
+          await this.prisma.$transaction(async (tx) => {
+            for (const entry of assigned) {
+              await tx.sessionDriver.update({
+                where: { id: entry.id },
+                data: { teamIdAtStart: teamsByDriver.get(entry.driverId) ?? null },
+              });
+            }
+            await tx.session.update({
+              where: { id: this.activeSessionId },
+              data: { startedAt, teamMembershipSnapshotted: true },
+            });
+          });
+        } else {
+          await this.prisma.session.update({
+            where: { id: this.activeSessionId },
+            data: { startedAt },
+          });
+        }
+      } catch (error) {
+        this.sessionConfig.startedAt = null;
+        throw error;
+      }
 
       this.emit('session:race_started', {
         sessionId: this.activeSessionId,

@@ -151,9 +151,14 @@ describe('championship points without a custom points schema', () => {
       { driverIndex: 2, finalPos: 3 },
     ]);
     const race = new SessionService({ emit() {} });
+    let startEvents = 0;
+    race.on('session:race_started', () => {
+      startEvents += 1;
+    });
     try {
       await race.loadSession(session.id);
-      await race.onRaceStart();
+      await Promise.all([race.onRaceStart(), race.onRaceStart()]);
+      expect(startEvents).toBe(1);
 
       const saved = await prisma.session.findUnique({
         where: { id: session.id },
@@ -161,7 +166,11 @@ describe('championship points without a custom points schema', () => {
       });
       expect(saved.teamMembershipSnapshotted).toBe(true);
       expect(saved.startedAt).not.toBeNull();
-      expect(saved.drivers.map((entry) => entry.teamIdAtStart)).toEqual([red.id, blue.id, null]);
+      expect(saved.drivers.sort((a, b) => a.controller - b.controller).map((entry) => entry.teamIdAtStart)).toEqual([
+        red.id,
+        blue.id,
+        null,
+      ]);
 
       await prisma.session.update({ where: { id: session.id }, data: { status: 'finished' } });
       await prisma.driver.update({ where: { id: drivers[0].id }, data: { teamId: blue.id } });
