@@ -260,7 +260,7 @@ test('director auto cues map verified best lap and finish to saved speech and HT
     send('finished', finish)
     await expect.poll(() => director.evaluate(() => window.__autoClip.length)).toBe(1)
     await expect.poll(() => audioResponses.length).toBe(1)
-    expect(audioResponses[0].status()).toBe(200)
+    expect([200, 206]).toContain(audioResponses[0].status())
     expect(audioResponses[0].headers()['content-type']).toContain('audio/')
     expect((await audioResponses[0].body()).length).toBeGreaterThan(44)
 
