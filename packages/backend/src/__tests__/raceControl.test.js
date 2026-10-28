@@ -2,7 +2,12 @@ import { jest } from '@jest/globals';
 import fs from 'node:fs/promises';
 import express from 'express';
 import request from 'supertest';
-import raceControl, { setRaceControlServices, remoteWriteGuard, mayControlSocket, lanAddresses } from '../routes/raceControl.js';
+import raceControl, {
+  setRaceControlServices,
+  remoteWriteGuard,
+  mayControlSocket,
+  lanAddresses,
+} from '../routes/raceControl.js';
 import { SessionService } from '../services/SessionService.js';
 
 const secret = 'this-is-a-long-private-race-director-secret-123456';

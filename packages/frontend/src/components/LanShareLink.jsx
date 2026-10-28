@@ -67,9 +67,24 @@ export default function LanShareLink({ path, inputId, directorKey = '' }) {
     }
   }
 
-  if (loading) return <p role="status" className="text-xs text-muted-foreground">{t('loading')}</p>
-  if (error) return <p role="alert" className="text-xs text-destructive">{t('unavailable')}</p>
-  if (!addresses.length) return <p role="alert" className="text-xs text-destructive">{t('noLan')}</p>
+  if (loading)
+    return (
+      <p role="status" className="text-xs text-muted-foreground">
+        {t('loading')}
+      </p>
+    )
+  if (error)
+    return (
+      <p role="alert" className="text-xs text-destructive">
+        {t('unavailable')}
+      </p>
+    )
+  if (!addresses.length)
+    return (
+      <p role="alert" className="text-xs text-destructive">
+        {t('noLan')}
+      </p>
+    )
 
   return (
     <div className="space-y-3 rounded-lg border p-3" data-testid="lan-share-panel">
@@ -97,10 +112,14 @@ export default function LanShareLink({ path, inputId, directorKey = '' }) {
       {isDirector && (
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-xs">
-            <input type="checkbox" checked={includeKey} onChange={(event) => {
-              setIncludeKey(event.target.checked)
-              setCopied(false)
-            }} />
+            <input
+              type="checkbox"
+              checked={includeKey}
+              onChange={(event) => {
+                setIncludeKey(event.target.checked)
+                setCopied(false)
+              }}
+            />
             {t('includeKey')}
           </label>
           {includeKey && !directorKey && (

@@ -22,9 +22,7 @@ async function setup(page, addresses) {
   await page.route('**/api/race-control/lan-addresses', (route) =>
     route.fulfill({ json: { success: true, data: addresses } })
   )
-  await page.route('**/api/race-control/status', (route) =>
-    route.fulfill({ json: { success: true, enabled: true } })
-  )
+  await page.route('**/api/race-control/status', (route) => route.fulfill({ json: { success: true, enabled: true } }))
   await page.route('**/api/race-control/director/check', (route) => {
     const allowed = route.request().headers().authorization === `Bearer ${secret}`
     return route.fulfill({ status: allowed ? 200 : 403, json: { success: allowed } })
@@ -32,12 +30,8 @@ async function setup(page, addresses) {
   await page.route('**/api/race-control/vsc', (route) =>
     route.fulfill({ json: { success: true, data: { status: 'inactive', active: false } } })
   )
-  await page.route('**/api/sessions?*', (route) =>
-    route.fulfill({ json: { success: true, data: [race] } })
-  )
-  await page.route('**/api/sessions/race-1', (route) =>
-    route.fulfill({ json: { success: true, data: race } })
-  )
+  await page.route('**/api/sessions?*', (route) => route.fulfill({ json: { success: true, data: [race] } }))
+  await page.route('**/api/sessions/race-1', (route) => route.fulfill({ json: { success: true, data: race } }))
 }
 
 async function authorize(page) {
@@ -67,7 +61,9 @@ test('director QR defaults to LAN-only and includes full credential only when op
   await expect(panel.getByLabel('LAN link')).toHaveValue(plain)
 })
 
-test('scanned director credential is checked and removed from browser history before authorization', async ({ page }) => {
+test('scanned director credential is checked and removed from browser history before authorization', async ({
+  page,
+}) => {
   await setup(page, [{ name: 'Wi-Fi', address: '192.168.178.42' }])
   let validated = ''
   page.on('request', (request) => {
