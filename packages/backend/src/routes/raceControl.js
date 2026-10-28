@@ -14,7 +14,8 @@ let controlQueue = Promise.resolve();
 let soundReceiverId = null;
 let lastSoundPlayAt = 0;
 const soundRequests = new Map();
-const SOUND_URL = /^\/api\/upload\/sounds\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.(mp3|ogg|wav)$/;
+const SOUND_URL =
+  /^\/api\/upload\/sounds\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.(mp3|ogg|wav)$/;
 const SOUND_REQUEST_ID = /^[a-f0-9]{32}$/;
 
 export function setRaceControlServices(session, sync) {
@@ -392,7 +393,8 @@ router.post('/soundboard/:action', requireLocalOrDirector, async (req, res) => {
         if (
           !found ||
           (found.kind === 'clip' && (typeof found.url !== 'string' || !SOUND_URL.test(found.url))) ||
-          (found.kind === 'speech' && (typeof found.text !== 'string' || !found.text.trim() || found.text.length > 300)) ||
+          (found.kind === 'speech' &&
+            (typeof found.text !== 'string' || !found.text.trim() || found.text.length > 300)) ||
           !['clip', 'speech'].includes(found.kind) ||
           typeof found.label !== 'string' ||
           !found.label ||
@@ -400,9 +402,10 @@ router.post('/soundboard/:action', requireLocalOrDirector, async (req, res) => {
         ) {
           return { code: 400, body: { success: false, error: 'Unknown or invalid soundboard preset' } };
         }
-        preset = found.kind === 'clip'
-          ? { id: found.id, label: found.label, kind: 'clip', url: found.url }
-          : { id: found.id, label: found.label, kind: 'speech', text: found.text };
+        preset =
+          found.kind === 'clip'
+            ? { id: found.id, label: found.label, kind: 'clip', url: found.url }
+            : { id: found.id, label: found.label, kind: 'speech', text: found.text };
       } catch (error) {
         console.error('[RaceControl] Soundboard preset lookup failed:', error);
         return { code: 500, body: { success: false, error: 'Could not load soundboard preset' } };
@@ -417,18 +420,20 @@ router.post('/soundboard/:action', requireLocalOrDirector, async (req, res) => {
     if (!socket.connected) return { code: 503, body: { success: false, error: 'Director audio receiver is offline' } };
 
     return new Promise((resolve) => {
-      socket.timeout(7000).emit(`soundboard:${action}`, { requestId, ...(preset ? { preset } : {}) }, (error, answer) => {
-        if (error) {
-          resolve({ code: 504, body: { success: false, error: 'Audio playback was not confirmed' } });
-          return;
-        }
-        const expected = action === 'play' ? 'started' : 'stopped';
-        if (answer?.status === expected) {
-          resolve({ code: 200, body: { success: true, status: answer.status } });
-        } else {
-          resolve({ code: 409, body: { success: false, error: answer?.status || 'Audio playback rejected' } });
-        }
-      });
+      socket
+        .timeout(7000)
+        .emit(`soundboard:${action}`, { requestId, ...(preset ? { preset } : {}) }, (error, answer) => {
+          if (error) {
+            resolve({ code: 504, body: { success: false, error: 'Audio playback was not confirmed' } });
+            return;
+          }
+          const expected = action === 'play' ? 'started' : 'stopped';
+          if (answer?.status === expected) {
+            resolve({ code: 200, body: { success: true, status: answer.status } });
+          } else {
+            resolve({ code: 409, body: { success: false, error: answer?.status || 'Audio playback rejected' } });
+          }
+        });
     });
   })();
 
