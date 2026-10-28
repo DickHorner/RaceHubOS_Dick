@@ -75,5 +75,6 @@
   "damageNoPit": "Kein passendes CU-Boxenintervall protokolliert – keine Bestätigung möglich.",
   "damageConfirm": "Reparatur bestätigen",
   "damageVerifyConfirm": "Hast Du den tatsächlichen Reparaturstopp selbst überprüft?",
-  "damageConfirmError": "Reparatur konnte nicht bestätigt werden."
+  "damageConfirmError": "Reparatur konnte nicht bestätigt werden.",
+  "shareDirector": "Rennleitungslink teilen"
 }
