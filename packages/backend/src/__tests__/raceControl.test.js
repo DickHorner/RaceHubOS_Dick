@@ -349,11 +349,7 @@ describe('race director and driver-scoped chaos access', () => {
     const rename = jest.spyOn(fs, 'rename').mockResolvedValue();
 
     await request(app).post(url).send({ keyRequired: false }).expect(403);
-    await request(app)
-      .post(url)
-      .set('Authorization', `Bearer ${secret}`)
-      .send({ keyRequired: 'false' })
-      .expect(400);
+    await request(app).post(url).set('Authorization', `Bearer ${secret}`).send({ keyRequired: 'false' }).expect(400);
 
     const disabled = await request(app)
       .post(url)
