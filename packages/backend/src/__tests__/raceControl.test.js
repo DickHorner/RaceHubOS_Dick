@@ -50,12 +50,16 @@ async function issueToken(app) {
 
 describe('race director and driver-scoped chaos access', () => {
   const previousSecret = process.env.RACE_CONTROL_SECRET;
+  const previousRequirement = process.env.RACE_CONTROL_REQUIRE_KEY;
   beforeEach(() => {
     process.env.RACE_CONTROL_SECRET = secret;
+    process.env.RACE_CONTROL_REQUIRE_KEY = 'true';
   });
   afterEach(() => {
     if (previousSecret === undefined) delete process.env.RACE_CONTROL_SECRET;
     else process.env.RACE_CONTROL_SECRET = previousSecret;
+    if (previousRequirement === undefined) delete process.env.RACE_CONTROL_REQUIRE_KEY;
+    else process.env.RACE_CONTROL_REQUIRE_KEY = previousRequirement;
     jest.restoreAllMocks();
   });
 
@@ -335,6 +339,64 @@ describe('race director and driver-scoped chaos access', () => {
     expect(process.env.RACE_CONTROL_SECRET).toBe(secret);
     expect(rename).not.toHaveBeenCalled();
     await request(app).get('/api/race-control/director/check').set('Authorization', `Bearer ${secret}`).expect(200);
+  });
+
+  test('director can turn the key requirement off and back on without erasing the signing secret', async () => {
+    const { app } = setup();
+    const url = '/api/race-control/director/key-required';
+    const read = jest.spyOn(fs, 'readFile').mockResolvedValue(`RACE_CONTROL_SECRET=${secret}\n`);
+    const write = jest.spyOn(fs, 'writeFile').mockResolvedValue();
+    const rename = jest.spyOn(fs, 'rename').mockResolvedValue();
+
+    await request(app).post(url).send({ keyRequired: false }).expect(403);
+    await request(app)
+      .post(url)
+      .set('Authorization', `Bearer ${secret}`)
+      .send({ keyRequired: 'false' })
+      .expect(400);
+
+    const disabled = await request(app)
+      .post(url)
+      .set('Authorization', `Bearer ${secret}`)
+      .send({ keyRequired: false })
+      .expect(200);
+    expect(disabled.body).toEqual({ success: true, keyRequired: false });
+    expect(write.mock.calls[0][1]).toBe(`RACE_CONTROL_SECRET=${secret}\nRACE_CONTROL_REQUIRE_KEY=false\n`);
+    expect(rename).toHaveBeenCalledTimes(1);
+    expect(process.env.RACE_CONTROL_REQUIRE_KEY).toBe('false');
+
+    const status = await request(app).get('/api/race-control/status').expect(200);
+    expect(status.body).toMatchObject({ enabled: true, keyRequired: false });
+    await request(app).get('/api/race-control/director/check').expect(200);
+    await request(app)
+      .post('/api/race-control/driver-link')
+      .send({ sessionId: 'race-1', driverId: 'driver-1' })
+      .expect(200);
+
+    read.mockResolvedValue(`RACE_CONTROL_SECRET=${secret}\nRACE_CONTROL_REQUIRE_KEY=false\n`);
+    await request(app).post(url).send({ keyRequired: true }).expect(200);
+    expect(write.mock.calls[1][1]).toBe(`RACE_CONTROL_SECRET=${secret}\nRACE_CONTROL_REQUIRE_KEY=true\n`);
+    await request(app).get('/api/race-control/director/check').expect(403);
+    await request(app).get('/api/race-control/director/check').set('Authorization', `Bearer ${secret}`).expect(200);
+  });
+
+  test('failed save and externally managed settings never disable authentication', async () => {
+    const { app } = setup();
+    const url = '/api/race-control/director/key-required';
+    const read = jest.spyOn(fs, 'readFile').mockResolvedValue('RACE_CONTROL_REQUIRE_KEY=false\n');
+    const write = jest.spyOn(fs, 'writeFile').mockResolvedValue();
+    const rename = jest.spyOn(fs, 'rename').mockResolvedValue();
+
+    await request(app).post(url).set('Authorization', `Bearer ${secret}`).send({ keyRequired: false }).expect(409);
+    expect(write).not.toHaveBeenCalled();
+    read.mockResolvedValue(`RACE_CONTROL_SECRET=${secret}\n`);
+    write.mockRejectedValueOnce(new Error('disk full'));
+    jest.spyOn(fs, 'unlink').mockResolvedValue();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    await request(app).post(url).set('Authorization', `Bearer ${secret}`).send({ keyRequired: false }).expect(500);
+    expect(rename).not.toHaveBeenCalled();
+    expect(process.env.RACE_CONTROL_REQUIRE_KEY).toBe('true');
+    await request(app).get('/api/race-control/director/check').expect(403);
   });
 
   test('missing server secret disables the new feature', async () => {
