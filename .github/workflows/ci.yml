@@ -23,7 +23,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check -- --ci
-      - run: node --test packages/frontend/tests/lapAnalysis.unit.js
+      - run: node --test packages/frontend/tests/lapAnalysis.unit.js packages/frontend/tests/soundboardAuto.unit.js
       - run: npm run build
       - run: npm run prisma:generate -w @racehubos/backend
       - run: npx playwright install chromium
