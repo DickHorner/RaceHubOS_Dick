@@ -1,0 +1,14 @@
+{
+  "loading": "Recherche des adresses LAN…",
+  "unavailable": "Impossible de récupérer les adresses LAN.",
+  "noLan": "Aucune adresse IPv4 privée trouvée sur le serveur RaceHubOS. Aucun QR code localhost n’est généré.",
+  "address": "Adresse LAN du PC de course",
+  "chooseAddress": "Choisir une adresse LAN (Wi-Fi plutôt que Docker/VPN).",
+  "qrLabel": "QR code du lien LAN",
+  "link": "Lien LAN",
+  "copy": "Copier le lien",
+  "copied": "Lien copié",
+  "manualCopy": "Copier ce lien LAN :",
+  "lanHint": "Pour les appareils du même réseau local. L’accès dépend du réseau, du pare-feu et de l’interface choisie.",
+  "linksTitle": "Liens pilotes et direction de course"
+}
