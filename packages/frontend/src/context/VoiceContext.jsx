@@ -12,6 +12,7 @@ export function VoiceProvider({ children }) {
   const [bestLapEnabled, setBestLapEnabled] = useState(true)
   const [podiumEnabled, setPodiumEnabled] = useState(true)
   const [raceEvents, setRaceEvents] = useState(DEFAULT_RACE_EVENTS)
+  const [raceEventsLoaded, setRaceEventsLoaded] = useState(false)
   const [minLaps, setMinLaps] = useState(3)
   // Chosen voice per interface language; a language without one uses its default voice
   const [voiceIds, setVoiceIds] = useState({})
@@ -59,6 +60,7 @@ export function VoiceProvider({ children }) {
         }
       })
       .catch(() => {})
+      .finally(() => setRaceEventsLoaded(true))
     fetch(`${API_URL}/api/preferences/bestLapVoice:minLaps`)
       .then((r) => r.json())
       .then((d) => {
@@ -199,6 +201,7 @@ export function VoiceProvider({ children }) {
         podiumEnabled,
         savePodiumEnabled,
         raceEvents,
+        raceEventsLoaded,
         saveRaceEvent,
         raceEventsRef,
         minLaps,
