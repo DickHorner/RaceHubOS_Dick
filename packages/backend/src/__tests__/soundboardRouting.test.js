@@ -27,10 +27,13 @@ function setup() {
     },
   };
   const sockets = new Map([[receiver.id, receiver]]);
-  setRaceControlServices({
-    io: { sockets: { sockets } },
-    prisma: { preference: { findUnique: jest.fn(async () => ({ value: JSON.stringify([clip, speech]) })) } },
-  }, null);
+  setRaceControlServices(
+    {
+      io: { sockets: { sockets } },
+      prisma: { preference: { findUnique: jest.fn(async () => ({ value: JSON.stringify([clip, speech]) })) } },
+    },
+    null
+  );
   const app = express();
   app.use(express.json());
   app.use('/api/race-control', raceControl);
@@ -55,12 +58,8 @@ describe('soundboard director output routing', () => {
       .post('/api/race-control/director/soundboard/receiver')
       .send({ socketId: receiver.id })
       .expect(403);
-    await director('/api/race-control/director/soundboard/receiver')
-      .send({ socketId: 'missing-receiver' })
-      .expect(409);
-    await director('/api/race-control/director/soundboard/receiver')
-      .send({ socketId: receiver.id })
-      .expect(200);
+    await director('/api/race-control/director/soundboard/receiver').send({ socketId: 'missing-receiver' }).expect(409);
+    await director('/api/race-control/director/soundboard/receiver').send({ socketId: receiver.id }).expect(200);
     await request(app).get('/api/race-control/soundboard/status').expect(200, { success: true, ready: true });
     await request(app)
       .post('/api/race-control/soundboard/play')
@@ -100,6 +99,17 @@ describe('soundboard director output routing', () => {
       .expect(200);
     expect(stop.body.status).toBe('stopped');
     expect(events.at(-1).event).toBe('soundboard:stop');
+  });
+
+  it('coalesces simultaneous retries for the same sound request', async () => {
+    const { app, director, receiver, events } = setup();
+    await director('/api/race-control/director/soundboard/receiver').send({ socketId: receiver.id }).expect(200);
+    const responses = await Promise.all([
+      request(app).post('/api/race-control/soundboard/play').send({ presetId: clip.id, requestId: '7'.repeat(32) }),
+      request(app).post('/api/race-control/soundboard/play').send({ presetId: clip.id, requestId: '7'.repeat(32) }),
+    ]);
+    expect(responses.map((response) => response.status)).toEqual([200, 200]);
+    expect(events.filter((event) => event.event === 'soundboard:play')).toHaveLength(1);
   });
 
   it('reports muted or unreachable output without silent local fallback', async () => {
