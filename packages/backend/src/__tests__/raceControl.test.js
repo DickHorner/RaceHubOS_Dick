@@ -448,6 +448,21 @@ describe('legacy write boundaries', () => {
     expect(next).toHaveBeenCalledTimes(1);
   });
 
+  test('open mode allows network HTTP writes and Socket.IO controls without the key', () => {
+    const previous = process.env.RACE_CONTROL_REQUIRE_KEY;
+    process.env.RACE_CONTROL_REQUIRE_KEY = 'false';
+    try {
+      const res = response();
+      const next = jest.fn();
+      remoteWriteGuard(requestFor({ address: '192.168.1.5' }), res, next);
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(mayControlSocket({ handshake: { address: '192.168.1.5', headers: {} } })).toBe(true);
+    } finally {
+      if (previous === undefined) delete process.env.RACE_CONTROL_REQUIRE_KEY;
+      else process.env.RACE_CONTROL_REQUIRE_KEY = previous;
+    }
+  });
+
   test('loopback browser writes require a trusted Origin', () => {
     let res = response(),
       next = jest.fn();
