@@ -87,5 +87,11 @@
   "saveSecret": "Change credential",
   "changeSecretWarning": "Existing driver CHAOS links and previous director QR codes will stop working. Other director devices must unlock again.",
   "secretChanged": "Director credential changed. The new key is active immediately.",
-  "changeSecretError": "Could not change director credential."
+  "changeSecretError": "Could not change director credential.",
+  "recoverSecret": "Reset director credential",
+  "recoveryOnRacePc": "To reset, open this page via localhost directly on the race PC. The previous credential is not required.",
+  "recoveryKeepsData": "Sessions, drivers and race data are preserved. The new credential takes effect immediately; no restart needed.",
+  "recoveryConfirm": "I confirm that previous director and driver links will stop working.",
+  "recoveryError": "Could not reset the director credential. Check server configuration write permissions and try again.",
+  "recoveryConfigError": "The credential configuration is managed externally or contains conflicting entries. Local recovery was not performed."
 }

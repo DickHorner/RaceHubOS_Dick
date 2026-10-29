@@ -87,5 +87,11 @@
   "saveSecret": "Changer la clé",
   "changeSecretWarning": "Les anciens liens CHAOS et QR codes de direction deviennent invalides. Les autres appareils doivent se reconnecter.",
   "secretChanged": "Clé de direction modifiée. La nouvelle clé est active immédiatement.",
-  "changeSecretError": "Impossible de modifier la clé de direction."
+  "changeSecretError": "Impossible de modifier la clé de direction.",
+  "recoverSecret": "Réinitialiser le code de direction",
+  "recoveryOnRacePc": "Pour réinitialiser, ouvrir cette page via localhost directement sur le PC de course. L’ancien code n’est pas nécessaire.",
+  "recoveryKeepsData": "Les sessions, pilotes et données de course sont conservés. Le nouveau code est actif immédiatement, sans redémarrage.",
+  "recoveryConfirm": "Je confirme que les anciens liens de direction et de pilotes seront invalidés.",
+  "recoveryError": "Impossible de réinitialiser le code. Vérifier les droits d’écriture de la configuration du serveur et réessayer.",
+  "recoveryConfigError": "Le code est géré hors du fichier de configuration ou les entrées sont incohérentes. La récupération locale n’a pas été effectuée."
 }

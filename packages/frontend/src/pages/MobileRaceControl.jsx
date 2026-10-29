@@ -17,6 +17,9 @@ export default function MobileRaceControl() {
   const [configured, setConfigured] = useState(null)
   const [keyRequired, setKeyRequired] = useState(true)
   const [setupAvailable, setSetupAvailable] = useState(false)
+  const [recoveryAvailable, setRecoveryAvailable] = useState(false)
+  const [recovering, setRecovering] = useState(false)
+  const [recoveryConfirmed, setRecoveryConfirmed] = useState(false)
   const [generatedSecret, setGeneratedSecret] = useState('')
   const [setupSecretInput, setSetupSecretInput] = useState('')
   const [replacementSecret, setReplacementSecret] = useState('')
@@ -123,6 +126,7 @@ export default function MobileRaceControl() {
         setConfigured(result.enabled === true)
         setKeyRequired(result.keyRequired !== false)
         setSetupAvailable(result.setupAvailable === true)
+        setRecoveryAvailable(result.recoveryAvailable === true)
       })
       .catch(() => setConfigured(false))
   }, [])
@@ -178,6 +182,38 @@ export default function MobileRaceControl() {
       setSecretCopied(false)
       setConfigured(true)
       setSetupAvailable(false)
+    } catch (cause) {
+      setError(cause.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function recoverCredential(event) {
+    event.preventDefault()
+    if (busy || !recoveryAvailable || !recoveryConfirmed) return
+    setBusy(true)
+    setError('')
+    try {
+      const response = await fetch(`${API_URL}/api/race-control/recover`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmed: true, secret: setupSecretInput }),
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success || !result.secret) {
+        throw new Error(t(result.code === 'recoveryConfigError' ? 'recoveryConfigError' : 'recoveryError'))
+      }
+      setDirectorKey(result.secret)
+      setGeneratedSecret(result.secret)
+      setSecretCopied(false)
+      setSetupSecretInput('')
+      setSecretInput('')
+      setIssuedLink('')
+      setConfigured(true)
+      setSetupAvailable(false)
+      setRecovering(false)
+      setRecoveryConfirmed(false)
     } catch (cause) {
       setError(cause.message)
     } finally {
@@ -445,7 +481,7 @@ export default function MobileRaceControl() {
                   autoComplete="new-password"
                   minLength={32}
                   maxLength={128}
-                  pattern="[A-Za-z0-9_-]{32,128}"
+                  pattern="[A-Za-z0-9_\-]{32,128}"
                   value={setupSecretInput}
                   onChange={(event) => setSetupSecretInput(event.target.value)}
                   className="w-full rounded-md border border-border bg-background px-3 py-2"
@@ -512,6 +548,76 @@ export default function MobileRaceControl() {
           </form>
         )}
 
+        {configured !== null && !directorAuthorized && !setupAvailable && (
+          <section className="rounded-xl border border-border bg-card p-5 space-y-3">
+            <Button
+              type="button"
+              variant="outline"
+              data-testid="director-recovery-open"
+              disabled={busy || !recoveryAvailable}
+              onClick={() => setRecovering(true)}
+            >
+              {t('recoverSecret')}
+            </Button>
+            <p className="text-sm text-muted-foreground">{t('recoveryOnRacePc')}</p>
+            {recovering && (
+              <form onSubmit={recoverCredential} className="space-y-3" data-testid="director-recovery-form">
+                <label className="block text-sm font-medium" htmlFor="recovery-director-key">
+                  {t('setupCustomSecret')}
+                </label>
+                <input
+                  id="recovery-director-key"
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={32}
+                  maxLength={128}
+                  pattern="[A-Za-z0-9_\-]{32,128}"
+                  value={setupSecretInput}
+                  onChange={(event) => setSetupSecretInput(event.target.value)}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2"
+                />
+                <p className="text-xs text-muted-foreground">{t('secretRequirements')}</p>
+                <p className="text-sm text-amber-600">{t('changeSecretWarning')}</p>
+                <p className="text-sm text-muted-foreground">{t('recoveryKeepsData')}</p>
+                <label className="flex items-center gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    data-testid="director-recovery-confirm"
+                    checked={recoveryConfirmed}
+                    onChange={(event) => setRecoveryConfirmed(event.target.checked)}
+                  />
+                  {t('recoveryConfirm')}
+                </label>
+                <div className="flex flex-wrap gap-3">
+                  <Button
+                    type="submit"
+                    data-testid="director-recovery-submit"
+                    disabled={
+                      busy ||
+                      !recoveryConfirmed ||
+                      (setupSecretInput !== '' && !DIRECTOR_SECRET_PATTERN.test(setupSecretInput))
+                    }
+                  >
+                    {t('recoverSecret')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => {
+                      setRecovering(false)
+                      setRecoveryConfirmed(false)
+                      setSetupSecretInput('')
+                    }}
+                  >
+                    {t('common:cancel')}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </section>
+        )}
+
         {directorAuthorized && (
           <>
             <div className="flex items-center justify-between gap-3">
@@ -562,7 +668,7 @@ export default function MobileRaceControl() {
                 autoComplete="new-password"
                 minLength={32}
                 maxLength={128}
-                pattern="[A-Za-z0-9_-]{32,128}"
+                pattern="[A-Za-z0-9_\-]{32,128}"
                 required
                 value={replacementSecret}
                 onChange={(event) => {

@@ -163,13 +163,189 @@ describe('race director and driver-scoped chaos access', () => {
   test('unconfigured status offers setup only on the race PC', async () => {
     const { app } = setup();
     delete process.env.RACE_CONTROL_SECRET;
+    jest.spyOn(fs, 'readFile').mockRejectedValue(Object.assign(new Error('missing'), { code: 'ENOENT' }));
 
     const local = await request(app).get('/api/race-control/status').set('Host', 'localhost:3001').expect(200);
-    expect(local.body).toMatchObject({ success: true, enabled: false, setupAvailable: true });
+    expect(local.body).toMatchObject({ success: true, enabled: false, setupAvailable: true, recoveryAvailable: true });
     expect(local.body.secret).toBeUndefined();
 
     const remoteHost = await request(app).get('/api/race-control/status').set('Host', '192.168.0.10:3001').expect(200);
     expect(remoteHost.body.setupAvailable).toBe(false);
+    expect(remoteHost.body.recoveryAvailable).toBe(false);
+  });
+
+  test.each(['', 'not-loaded'])('status directs an existing file entry to recovery (%s)', async (value) => {
+    const { app } = setup();
+    delete process.env.RACE_CONTROL_SECRET;
+    jest.spyOn(fs, 'readFile').mockResolvedValue(`RACE_CONTROL_SECRET=${value}\n`);
+    const status = await request(app).get('/api/race-control/status').set('Host', 'localhost:3001').expect(200);
+    expect(status.body).toMatchObject({ enabled: false, setupAvailable: false, recoveryAvailable: true });
+  });
+
+  test('local recovery needs no old key and invalidates old links without touching the race', async () => {
+    const { app, session, sync } = setup();
+    const token = await issueToken(app);
+    jest
+      .spyOn(fs, 'readFile')
+      .mockResolvedValue(`SITE_NAME=test\r\nexport RACE_CONTROL_SECRET="${secret}"\r\nMODE=home\r\n`);
+    const write = jest.spyOn(fs, 'writeFile').mockResolvedValue();
+    const rename = jest.spyOn(fs, 'rename').mockResolvedValue();
+    session.prisma.session.findUnique.mockClear();
+    const response = await request(app)
+      .post('/api/race-control/recover')
+      .set('Host', 'localhost:3001')
+      .set('Origin', 'http://localhost:5173')
+      .send({ confirmed: true })
+      .expect(200);
+    const replacement = response.body.secret;
+    expect(replacement).toMatch(/^[a-f0-9]{64}$/);
+    expect(response.headers['cache-control']).toBe('no-store');
+    expect(write).toHaveBeenCalledWith(
+      expect.stringMatching(/\.tmp$/),
+      `SITE_NAME=test\r\nexport RACE_CONTROL_SECRET=${replacement}\r\nMODE=home\r\n`,
+      { mode: 0o600, flag: 'wx' }
+    );
+    expect(rename).toHaveBeenCalledTimes(1);
+    expect(process.env.RACE_CONTROL_SECRET).toBe(replacement);
+    await request(app).get('/api/race-control/director/check').set('Authorization', `Bearer ${secret}`).expect(403);
+    await request(app)
+      .get('/api/race-control/director/check')
+      .set('Authorization', `Bearer ${replacement}`)
+      .expect(200);
+    await request(app).post('/api/race-control/chaos').set('Authorization', `Bearer ${token}`).expect(403);
+    expect(session.prisma.session.findUnique).not.toHaveBeenCalled();
+    expect(session.pauseSession).not.toHaveBeenCalled();
+    expect(session.stopSession).not.toHaveBeenCalled();
+    expect(sync.isConnected).not.toHaveBeenCalled();
+  });
+
+  test.each(['', 'short', undefined])('recovers an unusable file-backed key (%s)', async (value) => {
+    const { app } = setup();
+    if (value === undefined) delete process.env.RACE_CONTROL_SECRET;
+    else process.env.RACE_CONTROL_SECRET = value;
+    jest.spyOn(fs, 'readFile').mockResolvedValue(`RACE_CONTROL_SECRET=${value || ''}\n`);
+    jest.spyOn(fs, 'writeFile').mockResolvedValue();
+    jest.spyOn(fs, 'rename').mockResolvedValue();
+    const replacement = 'Recovered_Key_2026'.padEnd(40, 'A');
+    await request(app)
+      .post('/api/race-control/recover')
+      .set('Host', 'localhost:3001')
+      .set('Origin', 'http://localhost:5173')
+      .send({ confirmed: true, secret: replacement })
+      .expect(200);
+    expect(process.env.RACE_CONTROL_SECRET).toBe(replacement);
+  });
+
+  test('recovery rejects remote addresses, foreign origins, missing confirmation and invalid keys', async () => {
+    const { app } = setup();
+    const write = jest.spyOn(fs, 'writeFile').mockResolvedValue();
+    const url = '/api/race-control/recover';
+    for (const [host, origin] of [
+      ['192.168.0.10:3001', 'http://192.168.0.10:3001'],
+      ['localhost:3001', 'https://evil.test'],
+      ['localhost:3001', 'null'],
+      ['localhost:3001', 'http://192.168.0.10:5173'],
+    ]) {
+      await request(app).post(url).set('Host', host).set('Origin', origin).send({ confirmed: true }).expect(403);
+    }
+    await request(app).post(url).set('Host', 'localhost:3001').send({ confirmed: true }).expect(403);
+    await request(app)
+      .post(url)
+      .set('Host', 'localhost:3001')
+      .set('Origin', 'http://localhost:5173')
+      .send({ confirmed: false })
+      .expect(400);
+    for (const value of ['short', 'a'.repeat(129), 'a'.repeat(32) + '\nBAD=1', 42]) {
+      await request(app)
+        .post(url)
+        .set('Host', 'localhost:3001')
+        .set('Origin', 'http://localhost:5173')
+        .send({ confirmed: true, secret: value })
+        .expect(400);
+    }
+    const remoteApp = express();
+    remoteApp.use(express.json());
+    remoteApp.use((req, res, next) => {
+      Object.defineProperty(req.socket, 'remoteAddress', { value: '192.168.0.25', configurable: true });
+      next();
+    });
+    remoteApp.use('/api/race-control', raceControl);
+    await request(remoteApp)
+      .post(url)
+      .set('Host', 'localhost:3001')
+      .set('Origin', 'http://localhost:5173')
+      .set('X-Forwarded-For', '127.0.0.1')
+      .send({ confirmed: true })
+      .expect(403);
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  test('recovery refuses external and duplicate entries; write errors preserve the old key', async () => {
+    const { app } = setup();
+    const read = jest.spyOn(fs, 'readFile');
+    const write = jest.spyOn(fs, 'writeFile').mockResolvedValue();
+    const rename = jest.spyOn(fs, 'rename').mockResolvedValue();
+    const unlink = jest.spyOn(fs, 'unlink').mockResolvedValue();
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    const recover = () =>
+      request(app)
+        .post('/api/race-control/recover')
+        .set('Host', 'localhost:3001')
+        .set('Origin', 'http://localhost:5173')
+        .send({ confirmed: true });
+    for (const contents of [
+      '',
+      'RACE_CONTROL_SECRET=external\n',
+      `RACE_CONTROL_SECRET=${secret}\nRACE_CONTROL_SECRET=${secret}\n`,
+    ]) {
+      read.mockResolvedValue(contents);
+      const response = await recover().expect(409);
+      expect(response.body.code).toBe('recoveryConfigError');
+    }
+    read.mockRejectedValueOnce(Object.assign(new Error('missing'), { code: 'ENOENT' }));
+    await recover().expect(409);
+    expect(write).not.toHaveBeenCalled();
+    read.mockResolvedValue(`RACE_CONTROL_SECRET=${secret}\n`);
+    write.mockRejectedValueOnce(Object.assign(new Error('denied'), { code: 'EACCES' }));
+    await recover().expect(500);
+    expect(rename).not.toHaveBeenCalled();
+    rename.mockRejectedValueOnce(new Error('rename failed'));
+    await recover().expect(500);
+    expect(unlink).toHaveBeenCalledTimes(2);
+    expect(process.env.RACE_CONTROL_SECRET).toBe(secret);
+  });
+
+  test('recovery and rotation cannot overlap', async () => {
+    const { app } = setup();
+    let release;
+    jest.spyOn(fs, 'readFile').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        })
+    );
+    jest.spyOn(fs, 'writeFile').mockResolvedValue();
+    jest.spyOn(fs, 'rename').mockResolvedValue();
+    const first = request(app)
+      .post('/api/race-control/recover')
+      .set('Host', 'localhost:3001')
+      .set('Origin', 'http://localhost:5173')
+      .send({ confirmed: true })
+      .then((r) => r);
+    while (!release) await new Promise((resolve) => setImmediate(resolve));
+    await request(app)
+      .post('/api/race-control/recover')
+      .set('Host', 'localhost:3001')
+      .set('Origin', 'http://localhost:5173')
+      .send({ confirmed: true })
+      .expect(409);
+    await request(app)
+      .post('/api/race-control/director/credential')
+      .set('Authorization', `Bearer ${secret}`)
+      .send({ secret: 'Another_Key_2026'.padEnd(40, 'a') })
+      .expect(409);
+    release(`RACE_CONTROL_SECRET=${secret}\n`);
+    expect((await first).status).toBe(200);
   });
 
   test('an invalid preconfigured secret does not offer first-run setup', async () => {

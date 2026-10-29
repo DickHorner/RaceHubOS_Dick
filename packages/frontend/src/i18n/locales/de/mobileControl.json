@@ -87,5 +87,11 @@
   "saveSecret": "Schlüssel ändern",
   "changeSecretWarning": "Vorhandene Fahrer-CHAOS-Links und bisherige Rennleiter-QR-Codes werden dadurch ungültig. Andere Rennleitungsgeräte müssen neu entsperrt werden.",
   "secretChanged": "Rennleiterschlüssel geändert. Der neue Schlüssel ist ab sofort aktiv.",
-  "changeSecretError": "Rennleiterschlüssel konnte nicht geändert werden."
+  "changeSecretError": "Rennleiterschlüssel konnte nicht geändert werden.",
+  "recoverSecret": "Rennleitercode zurücksetzen",
+  "recoveryOnRacePc": "Zum Zurücksetzen direkt am Renn-PC diese Seite über localhost öffnen. Der bisherige Code ist nicht erforderlich.",
+  "recoveryKeepsData": "Sessions, Fahrer und Renndaten bleiben erhalten. Der neue Code gilt sofort; kein Neustart nötig.",
+  "recoveryConfirm": "Ich bestätige, dass bisherige Rennleiter- und Fahrerlinks ungültig werden.",
+  "recoveryError": "Rennleitercode konnte nicht zurückgesetzt werden. Prüfe die Schreibrechte der Serverkonfiguration und versuche es erneut.",
+  "recoveryConfigError": "Die Schlüsselkonfiguration ist extern verwaltet oder enthält widersprüchliche Einträge. Die lokale Wiederherstellung wurde nicht ausgeführt."
 }
