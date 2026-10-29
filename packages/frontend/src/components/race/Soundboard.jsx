@@ -631,7 +631,7 @@ export default function Soundboard({ directorKey = '', allowDirectorWithoutKey =
               onClick={() => void playSelected(preset)}
               className={`relative flex min-h-36 flex-col items-center justify-center gap-4 rounded-2xl border-2 p-4 text-foreground shadow-[0_7px_0_0_rgba(0,0,0,0.2)] transition-[transform,box-shadow,background-color] active:translate-y-1 active:shadow-none focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-44 ${PAD_STYLES[index % PAD_STYLES.length]} ${playingId === preset.id ? 'translate-y-1 ring-4 ring-primary/40 shadow-none' : ''}`}
             >
-              <span className="absolute right-3 top-3 text-xs font-black tabular-nums opacity-50">
+              <span aria-hidden="true" className="absolute right-3 top-3 text-xs font-black tabular-nums opacity-50">
                 {String(index + 1).padStart(2, '0')}
               </span>
               {preset.kind === 'speech' ? (
