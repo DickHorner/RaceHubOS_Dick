@@ -576,6 +576,7 @@ router.patch('/:id/status', async (req, res) => {
       success: false,
       error: error.message,
       runningSessions: error.runningSessions,
+      recoveryUrl: error.recoveryUrl,
     });
   }
 });
@@ -613,6 +614,7 @@ router.post('/:id/start', async (req, res) => {
       success: false,
       error: error.message,
       runningSessions: error.runningSessions,
+      recoveryUrl: error.recoveryUrl,
     });
   }
 });

@@ -93,5 +93,21 @@
   "recoveryKeepsData": "Sessions, drivers and race data are preserved. The new credential takes effect immediately; no restart needed.",
   "recoveryConfirm": "I confirm that previous director and driver links will stop working.",
   "recoveryError": "Could not reset the director credential. Check server configuration write permissions and try again.",
-  "recoveryConfigError": "The credential configuration is managed externally or contains conflicting entries. Local recovery was not performed."
+  "recoveryConfigError": "The credential configuration is managed externally or contains conflicting entries. Local recovery was not performed.",
+  "sessionRecoveryTitle": "Review blocking sessions",
+  "sessionRecoveryHelp": "Review sessions stored as running and explicitly resolve an orphaned entry. Lap data is preserved. This data repair sends no stop or reset command to the CU.",
+  "sessionRecoveryRefresh": "Refresh list",
+  "sessionRecoveryLoadError": "Could not load running sessions.",
+  "sessionRecoveryConflict": "The assignment or status changed, or another operation is in progress. Refresh the list and review again.",
+  "sessionRecoveryError": "Could not resolve the entry. Refresh the list; check the server log if the error persists.",
+  "sessionRecoverySuccess": "“{{name}}” was marked incomplete. All race data is preserved.",
+  "sessionRecoveryBoundHelp": "The session currently bound to the race PC is protected. Check whether the other entries are orphaned yourself.",
+  "sessionRecoveryUnknown": "The server has no bound session. After a restart, this does not establish which session was actually running. Review each entry before selecting it.",
+  "sessionRecoveryEmpty": "No sessions are stored as running.",
+  "sessionRecoverySelect": "Select the affected session",
+  "sessionRecoveryBound": "Currently bound to the race PC — cannot be resolved here.",
+  "sessionRecoveryDetails": "View session and lap data",
+  "sessionRecoveryConfirm": "I verified that “{{name}}” is orphaned. Correct its running status to incomplete and preserve all race data.",
+  "sessionRecoveryApply": "Resolve orphaned entry",
+  "sessionRecoveryAudit": "Running status manually corrected from “{{status}}” to “Incomplete” on {{date}}. This is not a normal race finish; lap data was preserved."
 }

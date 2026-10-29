@@ -208,6 +208,20 @@ export default function SessionDetail() {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
+      {session.recoveredAt && (
+        <p
+          role="status"
+          className="m-4 rounded-lg border border-amber-500/40 bg-card p-4 text-sm"
+          data-testid="session-recovery-audit"
+        >
+          {t('mobileControl:sessionRecoveryAudit', {
+            date: formatDate(session.recoveredAt, i18n.language),
+            status: t(`glossary:sessionStatus.${session.recoveredFromStatus}`, {
+              defaultValue: session.recoveredFromStatus,
+            }),
+          })}
+        </p>
+      )}
       <div className="border-b px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => navigate('/history')}>

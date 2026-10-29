@@ -8,6 +8,7 @@ import { FilterHeader } from '@/components/ui/filter-header'
 import { Badge } from '@/components/ui/badge'
 import { sessionBadgeClass } from '@/lib/colors'
 import { sessionTypeOptions } from '../utils/sessionTypes'
+import { SessionStatus } from '@racehubos/shared'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -192,6 +193,7 @@ export default function SessionsList() {
               { value: 'draft', label: t('glossary:sessionStatus.draft') },
               { value: 'active', label: t('glossary:sessionStatus.active') },
               { value: 'finished', label: t('glossary:sessionStatus.finished') },
+              { value: SessionStatus.INTERRUPTED, label: t('glossary:sessionStatus.interrupted') },
             ]}
             onChange={(v) => setFilters((f) => ({ ...f, status: v }))}
           />

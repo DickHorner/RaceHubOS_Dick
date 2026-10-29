@@ -288,6 +288,32 @@ router.get('/director/check', requireDirector, (req, res) => {
   res.json({ success: true });
 });
 
+router.get('/director/session-recovery', requireDirector, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    res.json({ success: true, data: await sessionService.getSessionRecovery() });
+  } catch (error) {
+    console.error('[RaceControl] Session recovery lookup failed:', error);
+    res.status(500).json({ success: false, error: 'Could not load running sessions' });
+  }
+});
+
+router.post('/director/session-recovery/:sessionId', requireDirector, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (req.body?.confirmed !== true) {
+    return res.status(400).json({ success: false, error: 'Session recovery confirmation is required' });
+  }
+  try {
+    const data = await sessionService.recoverSession(req.params.sessionId, req.body.expectedStatus);
+    res.json({ success: true, data });
+  } catch (error) {
+    if (!error.status) console.error('[RaceControl] Session recovery failed:', error);
+    res
+      .status(error.status || 500)
+      .json({ success: false, error: error.status ? error.message : 'Could not recover session' });
+  }
+});
+
 router.post('/director/key-required', requireDirector, async (req, res) => {
   res.set('Cache-Control', 'no-store');
   const { keyRequired } = req.body || {};

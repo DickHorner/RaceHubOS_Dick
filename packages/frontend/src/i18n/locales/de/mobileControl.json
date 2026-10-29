@@ -93,5 +93,21 @@
   "recoveryKeepsData": "Sessions, Fahrer und Renndaten bleiben erhalten. Der neue Code gilt sofort; kein Neustart nötig.",
   "recoveryConfirm": "Ich bestätige, dass bisherige Rennleiter- und Fahrerlinks ungültig werden.",
   "recoveryError": "Rennleitercode konnte nicht zurückgesetzt werden. Prüfe die Schreibrechte der Serverkonfiguration und versuche es erneut.",
-  "recoveryConfigError": "Die Schlüsselkonfiguration ist extern verwaltet oder enthält widersprüchliche Einträge. Die lokale Wiederherstellung wurde nicht ausgeführt."
+  "recoveryConfigError": "Die Schlüsselkonfiguration ist extern verwaltet oder enthält widersprüchliche Einträge. Die lokale Wiederherstellung wurde nicht ausgeführt.",
+  "sessionRecoveryTitle": "Blockierende Sessions prüfen",
+  "sessionRecoveryHelp": "Prüfe laufend gespeicherte Sessions und löse gezielt einen verwaisten Zustand auf. Rundendaten bleiben erhalten. Diese Datenkorrektur sendet keinen Stopp oder Reset an die CU.",
+  "sessionRecoveryRefresh": "Liste aktualisieren",
+  "sessionRecoveryLoadError": "Laufende Sessions konnten nicht geladen werden.",
+  "sessionRecoveryConflict": "Die Zuordnung oder der Status hat sich geändert, oder ein anderer Vorgang läuft. Liste aktualisieren und erneut prüfen.",
+  "sessionRecoveryError": "Der Zustand konnte nicht aufgelöst werden. Liste aktualisieren; bei erneutem Fehler das Serverprotokoll prüfen.",
+  "sessionRecoverySuccess": "„{{name}}“ wurde als unvollständig markiert. Alle Renndaten bleiben erhalten.",
+  "sessionRecoveryBoundHelp": "Die aktuell am Renn-PC zugeordnete Session ist gesperrt. Prüfe selbst, ob die übrigen Einträge verwaist sind.",
+  "sessionRecoveryUnknown": "Der Server hat keine Session zugeordnet. Nach einem Neustart lässt sich daraus nicht ableiten, welche Session tatsächlich lief. Prüfe jeden Eintrag vor der Auswahl.",
+  "sessionRecoveryEmpty": "Keine laufend gespeicherte Session vorhanden.",
+  "sessionRecoverySelect": "Betroffene Session auswählen",
+  "sessionRecoveryBound": "Aktuell am Renn-PC zugeordnet – hier nicht auflösbar.",
+  "sessionRecoveryDetails": "Session und Rundendaten ansehen",
+  "sessionRecoveryConfirm": "Ich habe geprüft, dass „{{name}}“ verwaist ist. Den Laufstatus als unvollständig korrigieren und alle Renndaten erhalten.",
+  "sessionRecoveryApply": "Verwaisten Zustand auflösen",
+  "sessionRecoveryAudit": "Laufstatus am {{date}} manuell von „{{status}}“ auf „Unvollständig“ korrigiert. Kein regulärer Rennabschluss; Rundendaten erhalten."
 }
