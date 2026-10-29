@@ -3,6 +3,7 @@ import EventEmitter from 'events';
 import {
   SESSION_TYPES,
   SessionStatus,
+  RUNNING_SESSION_STATUSES,
   SessionType,
   DamageStatus,
   PenaltyKind,
@@ -30,7 +31,6 @@ import {
 import { sessionName } from '../lib/sessionNames.js';
 
 const DEFAULT_GRACE_PERIOD_MS = 30000;
-const RUNNING_STATUSES = [SessionStatus.ACTIVE, SessionStatus.PAUSED, SessionStatus.FINISHING];
 
 function penaltyError(message, status) {
   return Object.assign(new Error(message), { status });
@@ -284,13 +284,13 @@ export class SessionService extends EventEmitter {
   // ==================== Session Lifecycle ====================
 
   async assertNoOtherRunningSession(sessionId) {
-    const running = await this.prisma.session.findMany({
-      where: { status: { in: RUNNING_STATUSES }, deletedAt: null },
+    let running = await this.prisma.session.findMany({
+      where: { status: { in: RUNNING_SESSION_STATUSES }, deletedAt: null },
       select: { id: true, name: true, status: true },
       take: 2,
     });
     if (this.isActive() && !running.some((session) => session.id === this.activeSessionId)) {
-      running.push({ id: this.activeSessionId, name: null, status: this.sessionStatus });
+      running = [...running, { id: this.activeSessionId, name: null, status: this.sessionStatus }];
     }
     if (running.length > 1 || running.some((session) => session.id !== sessionId)) {
       const details = running
@@ -1956,7 +1956,7 @@ export class SessionService extends EventEmitter {
       throw new Error('trackId or championshipId required');
     }
 
-    if (RUNNING_STATUSES.includes(initialStatus)) {
+    if (RUNNING_SESSION_STATUSES.includes(initialStatus)) {
       throw penaltyError('Sessions cannot be created directly in a running state', 400);
     }
 
@@ -2050,7 +2050,7 @@ export class SessionService extends EventEmitter {
       throw new Error(`Session ${sessionId} not found`);
     }
 
-    if (this.startingSessionId || (RUNNING_STATUSES.includes(session.status) && this.activeSessionId !== sessionId)) {
+    if (this.startingSessionId || (RUNNING_SESSION_STATUSES.includes(session.status) && this.activeSessionId !== sessionId)) {
       throw penaltyError(`Session ${sessionId} must be loaded as the current session before it can be reset`, 409);
     }
 
