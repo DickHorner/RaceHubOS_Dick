@@ -23,6 +23,9 @@ async function setup(page, addresses) {
     route.fulfill({ json: { success: true, data: addresses } })
   )
   await page.route('**/api/race-control/status', (route) => route.fulfill({ json: { success: true, enabled: true } }))
+  await page.route('**/api/race-control/director/session-recovery', (route) =>
+    route.fulfill({ json: { success: true, data: { boundSessionId: race.id, sessions: [race] } } })
+  )
   await page.route('**/api/race-control/director/check', (route) => {
     const allowed = route.request().headers().authorization === `Bearer ${secret}`
     return route.fulfill({ status: allowed ? 200 : 403, json: { success: allowed } })
