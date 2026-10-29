@@ -34,7 +34,15 @@ const SESSION_TYPE_ICONS = {
 }
 
 import { CONTROLLER_COLORS } from '../../lib/colors'
-import { SessionStatus, SessionType, WeatherCondition, sessionTypeAbbrKey, validDamageConfig } from '@racehubos/shared'
+import {
+  SessionStatus,
+  SessionType,
+  WeatherCondition,
+  sessionTypeAbbrKey,
+  validDamageConfig,
+  validVirtualFuelRate,
+  VIRTUAL_FUEL_MAX_RATE,
+} from '@racehubos/shared'
 
 export default function SessionSection({
   session,
@@ -72,6 +80,9 @@ export default function SessionSection({
   const [sessionConflict, setSessionConflict] = useState(false)
   const [damageError, setDamageError] = useState('')
   const [weatherError, setWeatherError] = useState('')
+  const [fuelError, setFuelError] = useState(null)
+  const [fuelBusy, setFuelBusy] = useState(false)
+  const fuelPending = useRef(false)
   const [sharedLink, setSharedLink] = useState(null)
   const [editingName, setEditingName] = useState(false)
   const [inlineName, setInlineName] = useState('')
@@ -136,6 +147,29 @@ export default function SessionSection({
       if (result?.success === false) setWeatherError(result.error || t('sessionSection.weather.invalid'))
     } catch (error) {
       setWeatherError(error.message)
+    }
+  }
+
+  async function saveVirtualFuel(rate) {
+    if (fuelPending.current || session.status !== SessionStatus.DRAFT) return
+    if (!validVirtualFuelRate(rate)) {
+      setFuelError({ sessionId: session.id, message: t('sessionSection.virtualFuel.invalid') })
+      return
+    }
+    setFuelError(null)
+    if (rate === (session.virtualFuelRate ?? null)) return
+    fuelPending.current = true
+    setFuelBusy(true)
+    try {
+      const result = await onSaveConfig({ virtualFuelRate: rate })
+      if (result?.success === false) {
+        setFuelError({ sessionId: session.id, message: t('sessionSection.virtualFuel.saveError') })
+      }
+    } catch {
+      setFuelError({ sessionId: session.id, message: t('sessionSection.virtualFuel.saveError') })
+    } finally {
+      fuelPending.current = false
+      setFuelBusy(false)
     }
   }
 
@@ -449,6 +483,67 @@ export default function SessionSection({
         </div>
         {sharedLink && <LanShareLink key={sharedLink} path={sharedLink} />}
       </div>
+
+      {session.type !== SessionType.BALANCING && (
+        <fieldset
+          className="m-4 rounded-lg border border-border bg-card p-4 space-y-3"
+          data-testid="virtual-fuel-config"
+        >
+          <legend className="px-1 text-sm font-semibold">{t('sessionSection.virtualFuel.title')}</legend>
+          <label className="flex min-h-11 items-center gap-3 text-sm font-medium">
+            <input
+              type="checkbox"
+              data-testid="virtual-fuel-enabled"
+              checked={session.virtualFuelRate != null}
+              disabled={!canEdit || fuelBusy || !onSaveConfig}
+              onChange={(event) => saveVirtualFuel(event.target.checked ? 1 : null)}
+            />
+            {t('sessionSection.virtualFuel.enabled')}
+          </label>
+          <label className="block text-sm" htmlFor={`virtual-fuel-rate-${session.id}`}>
+            {t('sessionSection.virtualFuel.rate')}
+          </label>
+          <Input
+            id={`virtual-fuel-rate-${session.id}`}
+            data-testid="virtual-fuel-rate"
+            key={`${session.id}-virtual-fuel-${session.virtualFuelRate}-${session.status}`}
+            type="number"
+            min="1"
+            max={VIRTUAL_FUEL_MAX_RATE}
+            step="1"
+            defaultValue={session.virtualFuelRate ?? ''}
+            disabled={!canEdit || fuelBusy || session.virtualFuelRate == null || !onSaveConfig}
+            onBlur={(event) => saveVirtualFuel(Number(event.target.value))}
+            aria-describedby={`virtual-fuel-hint-${session.id}`}
+            className="min-h-11 max-w-48"
+          />
+          <p id={`virtual-fuel-hint-${session.id}`} className="text-sm text-muted-foreground">
+            {t('sessionSection.virtualFuel.hint')}
+          </p>
+          {!canEdit && <p className="text-sm text-muted-foreground">{t('sessionSection.virtualFuel.locked')}</p>}
+          {fuelBusy && (
+            <p role="status" className="text-sm">
+              {t('sessionSection.virtualFuel.saving')}
+            </p>
+          )}
+          {fuelError?.sessionId === session.id && (
+            <div className="space-y-2">
+              <p role="alert" className="text-sm text-destructive" data-testid="virtual-fuel-error">
+                {fuelError.message}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11"
+                data-testid="virtual-fuel-reload"
+                onClick={() => window.location.reload()}
+              >
+                {t('sessionSection.virtualFuel.reload')}
+              </Button>
+            </div>
+          )}
+        </fieldset>
+      )}
 
       {/* Session config + Controllers table */}
       {canEdit && (
@@ -1004,7 +1099,9 @@ export default function SessionSection({
                     setStarting(false)
                   }
                 }}
-                disabled={!deviceConnected || hasIncompleteConfig || starting}
+                disabled={
+                  !deviceConnected || hasIncompleteConfig || starting || fuelBusy || fuelError?.sessionId === session.id
+                }
               >
                 {starting ? (
                   <>

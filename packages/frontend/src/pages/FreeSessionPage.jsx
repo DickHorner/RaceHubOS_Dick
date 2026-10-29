@@ -287,6 +287,7 @@ export default function FreeSessionPage() {
         data.maxDuration !== undefined ||
         data.maxLaps !== undefined ||
         data.gracePeriod !== undefined ||
+        data.virtualFuelRate !== undefined ||
         data.weatherSeed !== undefined ||
         data.weatherInitial !== undefined ||
         data.weatherRainChance !== undefined ||
@@ -304,6 +305,7 @@ export default function FreeSessionPage() {
             maxDuration: data.maxDuration,
             maxLaps: data.maxLaps,
             gracePeriod: data.gracePeriod,
+            virtualFuelRate: data.virtualFuelRate,
             weatherSeed: data.weatherSeed,
             weatherInitial: data.weatherInitial,
             weatherRainChance: data.weatherRainChance,
@@ -350,7 +352,8 @@ export default function FreeSessionPage() {
           }
         }
       }
-      await loadSession(session.id)
+      const reloaded = await loadSession(session.id)
+      if (data.virtualFuelRate !== undefined && !reloaded?.success) return { success: false }
       return { success: true }
     } catch (err) {
       console.error('Error saving session config:', err)

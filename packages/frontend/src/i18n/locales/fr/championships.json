@@ -96,7 +96,18 @@
     "damageDeadline": "Délai (s de course)",
     "damagePitMinimum": "Intervalle aux stands (s)",
     "damageHint": "Un seul dommage par pilote. La pause arrête le délai ; CU réelle : confirmation du directeur.",
-    "damageInvalid": "Valeurs invalides ou intervalle aux stands supérieur au délai."
+    "damageInvalid": "Valeurs invalides ou intervalle aux stands supérieur au délai.",
+    "virtualFuel": {
+      "title": "Carburant virtuel",
+      "enabled": "Activer la consommation virtuelle",
+      "rate": "Consommation (% par minute de course)",
+      "hint": "Le niveau virtuel est calculé à partir des temps au tour. La jauge et la programmation du carburant de la CU restent indépendantes.",
+      "locked": "La consommation se règle uniquement avant le départ.",
+      "invalid": "Saisir un nombre entier de 1 à 100.",
+      "saveError": "L’enregistrement de la consommation n’a pas pu être confirmé.",
+      "saving": "Enregistrement de la consommation…",
+      "reload": "Recharger la page"
+    }
   },
   "bracket": {
     "loading": "Chargement...",

@@ -257,6 +257,7 @@ export default function ChampionshipDetail() {
           data.maxDuration !== undefined ||
           data.maxLaps !== undefined ||
           data.gracePeriod !== undefined ||
+          data.virtualFuelRate !== undefined ||
           data.weatherSeed !== undefined ||
           data.weatherInitial !== undefined ||
           data.weatherRainChance !== undefined ||
@@ -274,6 +275,7 @@ export default function ChampionshipDetail() {
               maxDuration: data.maxDuration,
               maxLaps: data.maxLaps,
               gracePeriod: data.gracePeriod,
+              virtualFuelRate: data.virtualFuelRate,
               weatherSeed: data.weatherSeed,
               weatherInitial: data.weatherInitial,
               weatherRainChance: data.weatherRainChance,
@@ -304,7 +306,8 @@ export default function ChampionshipDetail() {
           })
         }
         fetchSessions()
-        await loadSession(selectedSession.id)
+        const reloaded = await loadSession(selectedSession.id)
+        if (data.virtualFuelRate !== undefined && !reloaded?.success) return { success: false }
         return { success: true }
       } catch (err) {
         console.error('Error:', err)

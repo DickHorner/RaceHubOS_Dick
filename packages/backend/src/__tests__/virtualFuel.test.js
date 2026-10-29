@@ -248,10 +248,24 @@ describe('virtual fuel event persistence', () => {
     app.use('/api/sessions', sessionsRouter);
 
     await request(app).put(`/api/sessions/${data.session.id}`).send({ virtualFuelRate: 150 }).expect(400);
+    for (const rate of [0, 101, 1.5, -1]) {
+      await request(app).put(`/api/sessions/${data.session.id}`).send({ virtualFuelRate: rate }).expect(400);
+    }
+    const maximum = await request(app)
+      .put(`/api/sessions/${data.session.id}`)
+      .send({ virtualFuelRate: 100 })
+      .expect(200);
+    expect(maximum.body.data).toMatchObject({ virtualFuelRate: 100, fuelMode: 'OFF' });
+    const disabled = await request(app)
+      .put(`/api/sessions/${data.session.id}`)
+      .send({ virtualFuelRate: null })
+      .expect(200);
+    expect(disabled.body.data).toMatchObject({ virtualFuelRate: null, fuelMode: 'OFF' });
     const updated = await request(app).put(`/api/sessions/${data.session.id}`).send({ virtualFuelRate: 8 }).expect(200);
     expect(updated.body.data.virtualFuelRate).toBe(8);
     await prisma.session.update({ where: { id: data.session.id }, data: { status: 'active' } });
     await request(app).put(`/api/sessions/${data.session.id}`).send({ virtualFuelRate: 7 }).expect(409);
+    await request(app).put(`/api/sessions/${data.session.id}`).send({ virtualFuelRate: null }).expect(409);
     const unchanged = await prisma.session.findUnique({ where: { id: data.session.id } });
     expect(unchanged.virtualFuelRate).toBe(8);
 
