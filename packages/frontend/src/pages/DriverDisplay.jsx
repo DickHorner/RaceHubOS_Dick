@@ -7,6 +7,7 @@ import { useSession } from '../context/SessionContext'
 import { DriverBadge } from '../components/DriverDisplays'
 import LapTime from '../components/race/LapTime'
 import GapDisplay from '../components/race/GapDisplay'
+import PitFuelStatus from '../components/race/PitFuelStatus'
 import { Button } from '@/components/ui/button'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
@@ -66,6 +67,7 @@ export default function DriverDisplay() {
     window.addEventListener('session:finished', refresh)
     window.addEventListener('session:damage_changed', refresh)
     window.addEventListener('session:tyre_changed', refresh)
+    window.addEventListener('session:pit_stop', refresh)
     document.addEventListener('visibilitychange', onVisible)
     return () => {
       clearInterval(interval)
@@ -73,6 +75,7 @@ export default function DriverDisplay() {
       window.removeEventListener('session:finished', refresh)
       window.removeEventListener('session:damage_changed', refresh)
       window.removeEventListener('session:tyre_changed', refresh)
+      window.removeEventListener('session:pit_stop', refresh)
       document.removeEventListener('visibilitychange', onVisible)
     }
   }, [refresh])
@@ -117,7 +120,6 @@ export default function DriverDisplay() {
       ? cuStatus?.fuel?.[assignment.controller]
       : null
   const fuelLevel = Number.isInteger(fuel) && fuel >= 0 && fuel <= 15 ? fuel : null
-  const virtualFuelUnits = live?.virtualFuelUnits ?? assignment?.virtualFuelUnits ?? null
 
   const damageStatus = live?.damageStatus ?? assignment?.damageStatus ?? DamageStatus.NONE
   const damageDeadline = live?.damageDeadlineElapsedMs ?? assignment?.damageDeadlineElapsedMs
@@ -246,19 +248,9 @@ export default function DriverDisplay() {
                     <p className="text-2xl font-bold tabular-nums">
                       {fuelLevel === null ? t('unavailable') : `${fuelLevel} / 15`}
                     </p>
-                    {session.virtualFuelRate != null && (
-                      <div className="mt-3 border-t border-border pt-3">
-                        <p className="text-sm text-muted-foreground">{t('virtualFuel')}</p>
-                        <p className="text-2xl font-bold tabular-nums">
-                          {Number.isInteger(virtualFuelUnits)
-                            ? `${Math.round(virtualFuelUnits / 100)} %`
-                            : t('unavailable')}
-                        </p>
-                        <p className="text-xs text-muted-foreground">{t('virtualFuelNote')}</p>
-                      </div>
-                    )}
                   </div>
                 </section>
+                <PitFuelStatus session={session} sessionDriverId={assignment.id} entries={entries} />
                 {session.type === SessionType.RACE && session.weatherSeed != null && (
                   <section className="rounded-xl border border-border bg-card p-5 space-y-3">
                     <h2 className="font-semibold">{t('tyreTitle')}</h2>

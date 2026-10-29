@@ -149,6 +149,24 @@
       "active": "Repair pending",
       "repaired": "Repaired",
       "dnf": "DNF – not repaired"
+    },
+    "pitStatus": {
+      "title": "Pit stops & virtual fuel",
+      "note": "Only saved, completed pit cycles are counted. CU pit signals do not prove refuelling; virtual fuel does not program the CU.",
+      "off": "Virtual consumption is disabled.",
+      "rate": "Virtual consumption: {{rate}} % per race minute",
+      "level": "Virtual fuel: {{percent}} %",
+      "unavailable": "Virtual fuel: unavailable",
+      "controller": "Controller {{number}}",
+      "noStops": "No completed pit stop recorded.",
+      "refuels": "Virtual refuels ({{count}})",
+      "noRefuels": "No virtual refuel recorded.",
+      "refilled": "Virtual tank refilled to 100 % at this event.",
+      "source": {
+        "cu": "CU pit signal (observed)",
+        "simulator": "Simulator"
+      },
+      "unknownSource": "Source unknown"
     }
   }
 }
