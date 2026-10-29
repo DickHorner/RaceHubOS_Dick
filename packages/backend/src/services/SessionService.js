@@ -530,7 +530,8 @@ export class SessionService extends EventEmitter {
   /**
    * Pause session
    */
-  async pauseSession() {
+  async pauseSession(sessionId) {
+    if (sessionId !== undefined) this.assertCurrentSession(sessionId);
     if (!this.activeSessionId) return null;
 
     if (!this.syncService?.isConnected()) throw new Error('Control Unit disconnected');
@@ -566,7 +567,8 @@ export class SessionService extends EventEmitter {
    * Resume session
    * Puts CU in lights mode. Pause closes and chrono resumes at GO (via onRaceStart)
    */
-  async resumeSession() {
+  async resumeSession(sessionId) {
+    if (sessionId !== undefined) this.assertCurrentSession(sessionId);
     if (!this.activeSessionId || this.sessionStatus !== SessionStatus.PAUSED) return null;
 
     if (!this.syncService?.isConnected()) throw new Error('Control Unit disconnected');
@@ -591,7 +593,8 @@ export class SessionService extends EventEmitter {
   /**
    * Stop session manually
    */
-  async stopSession() {
+  async stopSession(sessionId) {
+    if (sessionId !== undefined) this.assertCurrentSession(sessionId);
     if (!this.activeSessionId) return null;
 
     const sessionId = this.activeSessionId;
@@ -1942,6 +1945,10 @@ export class SessionService extends EventEmitter {
       throw new Error('trackId or championshipId required');
     }
 
+    if (RUNNING_STATUSES.includes(initialStatus)) {
+      throw penaltyError('Sessions cannot be created directly in a running state', 400);
+    }
+
     // Create session
     const session = await this.prisma.session.create({
       data: {
@@ -2032,13 +2039,15 @@ export class SessionService extends EventEmitter {
       throw new Error(`Session ${sessionId} not found`);
     }
 
-    // Stop if this is the active session
-    if (this.activeSessionId === sessionId) {
-      await this.resetForNewSession();
+    if (this.startingSessionId || (RUNNING_STATUSES.includes(session.status) && this.activeSessionId !== sessionId)) {
+      throw penaltyError(`Session ${sessionId} must be loaded as the current session before it can be reset`, 409);
     }
 
-    // Send stop signal to CU/Simulator
-    await this.syncService?.stopRace();
+    // Resetting another draft must not stop the CU used by the running session.
+    if (this.activeSessionId === sessionId) {
+      await this.resetForNewSession();
+      await this.syncService?.stopRace();
+    }
 
     // Soft delete laps (keep for stats)
     await this.prisma.lap.updateMany({
