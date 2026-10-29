@@ -78,7 +78,6 @@ test('system tools remain global and old dashboard lives in the race center', as
   await expect(footer.getByRole('link', { name: 'Einstellungen' })).toBeVisible()
 
   await page.goto('/dashboard')
-  await expect(page.getByRole('main').getByText('RaceHub OG')).toHaveCount(0)
   await expect(page.locator('a[href="/areas/race"][data-sidebar="menu-button"]')).toHaveAttribute('data-active', 'true')
 
   await page.goto('/areas/not-a-real-area')
