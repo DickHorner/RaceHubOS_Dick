@@ -57,7 +57,8 @@
     "active": "Läuft",
     "paused": "Pausiert",
     "finishing": "Wird beendet",
-    "finished": "Beendet"
+    "finished": "Beendet",
+    "interrupted": "Unvollständig"
   },
   "championshipStatus": {
     "planned": "Geplant",

@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 import {
   Play,
   Pause,
@@ -68,6 +69,7 @@ export default function SessionSection({
 
   const [starting, setStarting] = useState(false)
   const [startError, setStartError] = useState('')
+  const [sessionConflict, setSessionConflict] = useState(false)
   const [damageError, setDamageError] = useState('')
   const [weatherError, setWeatherError] = useState('')
   const [sharedLink, setSharedLink] = useState(null)
@@ -988,10 +990,14 @@ export default function SessionSection({
               <Button
                 onClick={async () => {
                   setStartError('')
+                  setSessionConflict(false)
                   setStarting(true)
                   try {
                     const result = await onStart()
-                    if (result?.success === false) setStartError(result.error || 'Failed to start session')
+                    if (result?.success === false) {
+                      setStartError(result.error || 'Failed to start session')
+                      setSessionConflict(Boolean(result.runningSessions?.length))
+                    }
                   } catch (error) {
                     setStartError(error.message)
                   } finally {
@@ -1015,6 +1021,15 @@ export default function SessionSection({
           {startError && (
             <span role="alert" className="text-sm text-red-600 dark:text-red-400">
               {startError}
+              {sessionConflict && (
+                <Link
+                  to="/display/control#session-recovery"
+                  className="block py-2 underline"
+                  data-testid="session-conflict-recovery-link"
+                >
+                  {t('mobileControl:sessionRecoveryTitle')}
+                </Link>
+              )}
             </span>
           )}
           {isLights && (

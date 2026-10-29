@@ -93,5 +93,21 @@
   "recoveryKeepsData": "Les sessions, pilotes et données de course sont conservés. Le nouveau code est actif immédiatement, sans redémarrage.",
   "recoveryConfirm": "Je confirme que les anciens liens de direction et de pilotes seront invalidés.",
   "recoveryError": "Impossible de réinitialiser le code. Vérifier les droits d’écriture de la configuration du serveur et réessayer.",
-  "recoveryConfigError": "Le code est géré hors du fichier de configuration ou les entrées sont incohérentes. La récupération locale n’a pas été effectuée."
+  "recoveryConfigError": "Le code est géré hors du fichier de configuration ou les entrées sont incohérentes. La récupération locale n’a pas été effectuée.",
+  "sessionRecoveryTitle": "Examiner les sessions bloquantes",
+  "sessionRecoveryHelp": "Examiner les sessions enregistrées en cours et résoudre explicitement une entrée orpheline. Les tours sont conservés. Cette correction n’envoie ni arrêt ni réinitialisation à la CU.",
+  "sessionRecoveryRefresh": "Actualiser la liste",
+  "sessionRecoveryLoadError": "Impossible de charger les sessions en cours.",
+  "sessionRecoveryConflict": "L’affectation ou le statut a changé, ou une autre opération est en cours. Actualiser la liste et vérifier à nouveau.",
+  "sessionRecoveryError": "Impossible de résoudre cette entrée. Actualiser la liste ; consulter le journal du serveur si l’erreur persiste.",
+  "sessionRecoverySuccess": "« {{name}} » a été marquée incomplète. Toutes les données de course sont conservées.",
+  "sessionRecoveryBoundHelp": "La session actuellement liée au PC de course est protégée. Vérifier soi-même si les autres entrées sont orphelines.",
+  "sessionRecoveryUnknown": "Le serveur n’a aucune session liée. Après un redémarrage, cela ne permet pas de déterminer quelle session était réellement en cours. Vérifier chaque entrée avant de la sélectionner.",
+  "sessionRecoveryEmpty": "Aucune session enregistrée en cours.",
+  "sessionRecoverySelect": "Sélectionner la session concernée",
+  "sessionRecoveryBound": "Actuellement liée au PC de course — résolution impossible ici.",
+  "sessionRecoveryDetails": "Voir la session et les tours",
+  "sessionRecoveryConfirm": "J’ai vérifié que « {{name}} » est orpheline. Corriger son statut en incomplète et conserver toutes les données de course.",
+  "sessionRecoveryApply": "Résoudre l’entrée orpheline",
+  "sessionRecoveryAudit": "Statut corrigé manuellement de « {{status}} » à « Incomplète » le {{date}}. Il ne s’agit pas d’une fin de course normale ; les tours sont conservés."
 }

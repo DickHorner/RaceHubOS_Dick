@@ -29,6 +29,7 @@ import {
   rankRaceDrivers,
 } from '@racehubos/shared';
 import { sessionName } from '../lib/sessionNames.js';
+import { backupDatabase } from '../lib/backupDatabase.js';
 
 const DEFAULT_GRACE_PERIOD_MS = 30000;
 
@@ -58,6 +59,8 @@ export class SessionService extends EventEmitter {
     this.activeSessionId = null;
     this.startingSessionId = null;
     this.loadingSessionId = null;
+    this.recoveringSessionId = null;
+    this.resettingSessionId = null;
     this.activeTrackId = null;
     this.currentPhase = SessionType.PRACTICE;
     this.sessionConfig = null;
@@ -301,6 +304,7 @@ export class SessionService extends EventEmitter {
         409
       );
       error.runningSessions = running;
+      error.recoveryUrl = '/display/control#session-recovery';
       throw error;
     }
     return running;
@@ -319,7 +323,12 @@ export class SessionService extends EventEmitter {
    * Load session from DB
    */
   async loadSession(sessionId) {
-    if (this.loadingSessionId || (this.startingSessionId && this.startingSessionId !== sessionId)) {
+    if (
+      this.loadingSessionId ||
+      this.recoveringSessionId ||
+      this.resettingSessionId ||
+      (this.startingSessionId && this.startingSessionId !== sessionId)
+    ) {
       throw penaltyError('Another session is being loaded or started; try again after it completes.', 409);
     }
     this.loadingSessionId = sessionId;
@@ -493,7 +502,13 @@ export class SessionService extends EventEmitter {
    * Note: startedAt is set later by onRaceStart() when CU goes to racing (GO!)
    */
   async startSession(sessionId) {
-    if (this.startingSessionId || this.loadingSessionId || this._finishing) {
+    if (
+      this.startingSessionId ||
+      this.loadingSessionId ||
+      this.recoveringSessionId ||
+      this.resettingSessionId ||
+      this._finishing
+    ) {
       throw penaltyError('Another session transition is already in progress.', 409);
     }
     this.startingSessionId = sessionId;
@@ -613,6 +628,53 @@ export class SessionService extends EventEmitter {
     // Note: finishSession() already calls stopRace() and emits session:finished
 
     return { sessionId };
+  }
+
+  async getSessionRecovery() {
+    const sessions = await this.prisma.session.findMany({
+      where: { status: { in: RUNNING_SESSION_STATUSES }, deletedAt: null },
+      select: { id: true, name: true, type: true, status: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    return { boundSessionId: this.activeSessionId, sessions };
+  }
+
+  async recoverSession(sessionId, expectedStatus) {
+    if (!RUNNING_SESSION_STATUSES.includes(expectedStatus)) throw penaltyError('Invalid recovery status', 400);
+    if (
+      this.startingSessionId ||
+      this.loadingSessionId ||
+      this.recoveringSessionId ||
+      this.resettingSessionId ||
+      this._finishing
+    ) {
+      throw penaltyError('Another session transition is already in progress.', 409);
+    }
+    if (sessionId === this.activeSessionId) throw penaltyError('The bound session cannot be recovered', 409);
+    this.recoveringSessionId = sessionId;
+    try {
+      const session = await this.prisma.session.findUnique({ where: { id: sessionId } });
+      if (!session || session.deletedAt) throw penaltyError('Session not found', 404);
+      if (session.status !== expectedStatus) throw penaltyError('Session status has changed; refresh the list', 409);
+      // This is a rare, explicit repair. Snapshot before changing any record.
+      backupDatabase({ reason: `session-recovery-${sessionId}-${Date.now()}` });
+      const recoveredAt = new Date();
+      const updated = await this.prisma.session.updateMany({
+        where: { id: sessionId, status: expectedStatus, deletedAt: null },
+        data: { status: SessionStatus.INTERRUPTED, recoveredAt, recoveredFromStatus: expectedStatus },
+      });
+      if (updated.count !== 1) throw penaltyError('Session status has changed; refresh the list', 409);
+      this.emit('session:status_changed', {
+        sessionId,
+        championshipId: session.championshipId,
+        status: SessionStatus.INTERRUPTED,
+        previousStatus: expectedStatus,
+        timestamp: recoveredAt.toISOString(),
+      });
+      return { sessionId, status: SessionStatus.INTERRUPTED, recoveredAt, recoveredFromStatus: expectedStatus };
+    } finally {
+      this.recoveringSessionId = null;
+    }
   }
 
   /**
@@ -2042,6 +2104,24 @@ export class SessionService extends EventEmitter {
    * - Qualif/Race: hard delete laps
    */
   async resetSession(sessionId) {
+    if (
+      this.startingSessionId ||
+      this.loadingSessionId ||
+      this.recoveringSessionId ||
+      this.resettingSessionId ||
+      this._finishing
+    ) {
+      throw penaltyError('Another session transition is already in progress.', 409);
+    }
+    this.resettingSessionId = sessionId;
+    try {
+      return await this.resetSessionData(sessionId);
+    } finally {
+      this.resettingSessionId = null;
+    }
+  }
+
+  async resetSessionData(sessionId) {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },
     });
@@ -2050,10 +2130,7 @@ export class SessionService extends EventEmitter {
       throw new Error(`Session ${sessionId} not found`);
     }
 
-    if (
-      this.startingSessionId ||
-      (RUNNING_SESSION_STATUSES.includes(session.status) && this.activeSessionId !== sessionId)
-    ) {
+    if (RUNNING_SESSION_STATUSES.includes(session.status) && this.activeSessionId !== sessionId) {
       throw penaltyError(`Session ${sessionId} must be loaded as the current session before it can be reset`, 409);
     }
 

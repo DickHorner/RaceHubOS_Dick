@@ -139,7 +139,9 @@ model Session {
   weatherAdvanceDuringPause Boolean @default(false) // Weather clock can continue while racing is paused
   tyreMismatchPercent Int       @default(0) // Optional virtual lap-time penalty, 0-30%
   virtualFuelRate Int?            // Virtual fuel burn: % per racing minute; null disables
-  status         String          @default("draft") // draft | ready | active | paused | finishing | finished — @racehubos/shared
+  status         String          @default("draft") // draft | ready | active | paused | finishing | finished | interrupted — @racehubos/shared
+  recoveredAt    DateTime?       // Explicit operator recovery; never a race finish
+  recoveredFromStatus String?    // Previous running status retained for audit
   teamMembershipSnapshotted Boolean @default(false) // Historical team membership is known for this race
   maxDuration    Int?            // Session max duration in ms
   maxLaps        Int?

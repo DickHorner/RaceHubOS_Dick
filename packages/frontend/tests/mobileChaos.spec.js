@@ -27,6 +27,163 @@ async function mockRace(page, session) {
   await page.route('**/api/sessions/race-1', (route) => route.fulfill({ json: { success: true, data: session } }))
 }
 
+test('session recovery protects the bound session and only resolves the confirmed orphan on mobile', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await mockRace(page, race)
+  await page.route('**/api/race-control/status', (route) =>
+    route.fulfill({ json: { success: true, enabled: true, keyRequired: false } })
+  )
+  const orphan = { id: 'orphan-1', name: 'Old practice', type: 'practice', status: 'paused' }
+  let rows = [race, orphan]
+  await page.route('**/api/race-control/director/session-recovery', (route) =>
+    route.fulfill({ json: { success: true, data: { boundSessionId: race.id, sessions: rows } } })
+  )
+  let submitted
+  let calls = 0
+  await page.route('**/api/race-control/director/session-recovery/orphan-1', (route) => {
+    calls++
+    submitted = route.request().postDataJSON()
+    rows = [race]
+    return route.fulfill({ json: { success: true, data: { sessionId: orphan.id, status: 'interrupted' } } })
+  })
+  await page.goto('/display/control#session-recovery')
+  await expect(page.getByTestId('session-recovery-choice-race-1')).toBeDisabled()
+  await expect(page.getByTestId('session-recovery-choice-orphan-1')).not.toBeChecked()
+  await page.getByTestId('session-recovery-choice-orphan-1').check()
+  await expect(page.getByTestId('session-recovery-submit')).toBeDisabled()
+  expect(calls).toBe(0)
+  await page.getByTestId('session-recovery-confirm').check()
+  await page.getByTestId('session-recovery-submit').click()
+  await expect(page.getByTestId('session-recovery-notice')).toContainText('Old practice')
+  await expect(page.getByTestId('session-recovery-choice-orphan-1')).toHaveCount(0)
+  await expect(page.getByTestId('session-recovery-choice-race-1')).toBeDisabled()
+  expect(submitted).toEqual({ confirmed: true, expectedStatus: 'paused' })
+  expect(calls).toBe(1)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+})
+
+test('after restart session recovery requires a fresh confirmation for each selection', async ({ page }) => {
+  await mockRace(page, race)
+  await page.route('**/api/race-control/status', (route) =>
+    route.fulfill({ json: { success: true, enabled: true, keyRequired: false } })
+  )
+  await page.route('**/api/race-control/director/session-recovery', (route) =>
+    route.fulfill({
+      json: {
+        success: true,
+        data: {
+          boundSessionId: null,
+          sessions: [race, { ...race, id: 'old-2', name: 'Other heat', status: 'paused' }],
+        },
+      },
+    })
+  )
+  await page.goto('/display/control#session-recovery')
+  const panel = page.getByTestId('session-recovery-panel')
+  await expect(panel.getByText(/does not establish which session was actually running/i)).toBeVisible()
+  await expect(panel.getByRole('radio', { checked: true })).toHaveCount(0)
+  await page.getByTestId('session-recovery-choice-race-1').check()
+  await page.getByTestId('session-recovery-confirm').check()
+  await expect(page.getByTestId('session-recovery-submit')).toBeEnabled()
+  await page.getByTestId('session-recovery-choice-old-2').check()
+  await expect(page.getByTestId('session-recovery-confirm')).not.toBeChecked()
+  await expect(page.getByTestId('session-recovery-submit')).toBeDisabled()
+})
+
+test('session recovery reports concurrent changes and refreshes the bound-session protection', async ({ page }) => {
+  await mockRace(page, race)
+  await page.route('**/api/race-control/status', (route) =>
+    route.fulfill({ json: { success: true, enabled: true, keyRequired: false } })
+  )
+  let boundSessionId = null
+  await page.route('**/api/race-control/director/session-recovery', (route) =>
+    route.fulfill({ json: { success: true, data: { boundSessionId, sessions: [race] } } })
+  )
+  await page.route('**/api/race-control/director/session-recovery/race-1', (route) => {
+    boundSessionId = race.id
+    return route.fulfill({ status: 409, json: { success: false } })
+  })
+  await page.goto('/display/control#session-recovery')
+  await page.getByTestId('session-recovery-choice-race-1').check()
+  await page.getByTestId('session-recovery-confirm').check()
+  await page.getByTestId('session-recovery-submit').click()
+  await expect(page.getByTestId('session-recovery-error')).toContainText('Refresh the list')
+  await expect(page.getByTestId('session-recovery-notice')).toHaveCount(0)
+  await page.getByTestId('session-recovery-refresh').click()
+  await expect(page.getByTestId('session-recovery-choice-race-1')).toBeDisabled()
+  await expect(page.getByTestId('session-recovery-submit')).toHaveCount(0)
+})
+
+test('session detail distinguishes recovery from a normal race finish', async ({ page }) => {
+  await mockRace(page, {
+    ...race,
+    status: 'interrupted',
+    recoveredAt: '2026-10-29T15:00:00Z',
+    recoveredFromStatus: 'active',
+    laps: [],
+    penalties: [],
+    pitStops: [],
+  })
+  await page.goto('/sessions/race-1')
+  await expect(page.getByTestId('session-recovery-audit')).toContainText('not a normal race finish')
+  await expect(page.getByTestId('session-recovery-audit')).toContainText('Incomplete')
+})
+
+test('blocked race start links directly to session recovery', async ({ page }) => {
+  // This UI fixture supplies its own device state; live CU broadcasts must not
+  // overwrite it while the test exercises the HTTP conflict response.
+  await page.routeWebSocket('**/socket.io/**', (socket) => socket.close())
+  await page.route('**/socket.io/**', (route) => route.abort())
+  await page.route('**/api/preferences/**', (route) => route.fulfill({ json: { success: true, data: null } }))
+  await page.route('**/api/records/track/**', (route) =>
+    route.fulfill({ json: { success: true, data: { practice: [], qualif: [], race: [] } } })
+  )
+  const track = { id: 'recovery-track', name: 'Recovery circuit' }
+  const car = { ...participant.car, id: 'recovery-car' }
+  const draft = {
+    ...race,
+    status: 'draft',
+    trackId: track.id,
+    track,
+    drivers: [{ ...participant, carId: car.id, car }],
+  }
+  await mockRace(page, draft)
+  await page.route('**/api/tracks', (route) => route.fulfill({ json: { success: true, data: [track] } }))
+  await page.route('**/api/drivers', (route) => route.fulfill({ json: { success: true, data: [participant.driver] } }))
+  await page.route('**/api/cars', (route) => route.fulfill({ json: { success: true, data: [car] } }))
+  await page.route('**/api/bluetooth/status', (route) =>
+    route.fulfill({ json: { connected: true, deviceType: 'simulator' } })
+  )
+  await page.route('**/api/sessions/race-1/leaderboard', (route) =>
+    route.fulfill({ json: { success: true, data: [] } })
+  )
+  await page.route('**/api/sync/load-session/race-1', (route) => route.fulfill({ json: { success: true } }))
+  await page.route('**/api/sessions/race-1/start', (route) =>
+    route.fulfill({
+      status: 409,
+      json: {
+        success: false,
+        error: 'Another session is already running',
+        runningSessions: [{ id: 'old-1', status: 'active' }],
+      },
+    })
+  )
+  await page.addInitScript(() => {
+    localStorage.setItem('racehubos-free-track', 'recovery-track')
+    localStorage.setItem('racehubos-free-type', 'race')
+  })
+  await page.goto('/race')
+  await expect(page.getByTestId('session-section')).toBeVisible({ timeout: 15000 })
+  await expect(page.getByTestId('session-section').getByRole('button', { name: 'Start', exact: true })).toBeEnabled()
+  await page.getByTestId('session-section').getByRole('button', { name: 'Start', exact: true }).click()
+  await expect(page.getByTestId('session-conflict-recovery-link')).toHaveAttribute(
+    'href',
+    '/display/control#session-recovery'
+  )
+})
+
 test('development proxy preserves the LAN host for recovery checks', async ({ request }) => {
   const status = await request.get('/api/race-control/status', { headers: { Host: '192.168.0.10:5175' } })
   expect(status.ok()).toBe(true)

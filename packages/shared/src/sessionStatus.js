@@ -6,6 +6,7 @@ export const SessionStatus = Object.freeze({
   PAUSED: 'paused',
   FINISHING: 'finishing',
   FINISHED: 'finished',
+  INTERRUPTED: 'interrupted',
 });
 
 export const SESSION_STATUSES = Object.freeze(Object.values(SessionStatus));

@@ -4,6 +4,7 @@ import { useDevice } from '../context/DeviceContext'
 import { useSession } from '../context/SessionContext'
 import { Button } from '@/components/ui/button'
 import Soundboard from '../components/race/Soundboard'
+import SessionRecovery from '../components/race/SessionRecovery'
 import LanShareLink from '../components/LanShareLink'
 import { SessionStatus, SessionType, PenaltyKind, PenaltyStatus, TyreType, DamageStatus } from '@racehubos/shared'
 
@@ -654,6 +655,7 @@ export default function MobileRaceControl() {
               </p>
             </section>
             <Soundboard directorKey={directorKey} allowDirectorWithoutKey={!keyRequired} />
+            <SessionRecovery directorKey={directorKey} />
             <section className="rounded-xl border border-border bg-card p-5 space-y-2">
               <h2 className="text-sm font-semibold">{t('shareDirector')}</h2>
               <LanShareLink path="/display/control" directorKey={directorKey} />
