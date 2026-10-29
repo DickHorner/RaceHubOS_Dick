@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Sun, Moon } from 'lucide-react'
+import { Sun, Moon, ExternalLink } from 'lucide-react'
 import {
   Sidebar,
   SidebarContent,
@@ -14,14 +14,14 @@ import {
   SidebarMenuButton,
 } from '@/components/ui/sidebar'
 import { useApp } from '../context/AppContext'
-import { allNavItems, navLabel } from '../lib/navItems'
+import { navGroups, systemNavItems, navLabel } from '../lib/navItems'
 
 export default function AppSidebar({ backendConnected, backendVersion, onStatusClick, ...props }) {
   const { t } = useTranslation('layout')
   const { isDark, toggleTheme, isAdmin } = useApp()
   const location = useLocation()
 
-  const navItems = allNavItems.filter((item) => !item.adminOnly || isAdmin)
+  const visibleSystemItems = systemNavItems.filter((item) => !item.adminOnly || isAdmin)
 
   const isActive = (to) => {
     if (to === '/') return location.pathname === '/'
@@ -51,30 +51,55 @@ export default function AppSidebar({ backendConnected, backendVersion, onStatusC
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>{t('nav.groupLabel')}</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navItems.map((item) => {
-                const label = navLabel(t, item)
-                return (
-                  <SidebarMenuItem key={item.to}>
-                    <SidebarMenuButton asChild isActive={isActive(item.to)} tooltip={label}>
-                      <Link to={item.to}>
-                        <item.Icon />
-                        <span>{label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {navGroups.map((group) => (
+          <SidebarGroup key={group.labelKey} role="group" aria-label={t(group.labelKey)}>
+            <SidebarGroupLabel>{t(group.labelKey)}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {group.items.map((item) => {
+                  const label = navLabel(t, item)
+                  return (
+                    <SidebarMenuItem key={item.to}>
+                      <SidebarMenuButton asChild isActive={isActive(item.to)} tooltip={label}>
+                        <Link
+                          to={item.to}
+                          target={item.standalone ? '_blank' : undefined}
+                          rel={item.standalone ? 'noopener noreferrer' : undefined}
+                        >
+                          <item.Icon />
+                          <span>{label}</span>
+                          {item.standalone && (
+                            <>
+                              <ExternalLink className="ml-auto" aria-hidden="true" />
+                              <span className="sr-only">{t('nav.newWindow')}</span>
+                            </>
+                          )}
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
 
       <SidebarFooter>
         <SidebarMenu>
+          {visibleSystemItems.map((item) => {
+            const label = navLabel(t, item)
+            return (
+              <SidebarMenuItem key={item.to}>
+                <SidebarMenuButton asChild isActive={isActive(item.to)} tooltip={label}>
+                  <Link to={item.to}>
+                    <item.Icon />
+                    <span>{label}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )
+          })}
           <SidebarMenuItem>
             <SidebarMenuButton onClick={toggleTheme} tooltip={isDark ? t('theme.dayMode') : t('theme.nightMode')}>
               {isDark ? <Sun /> : <Moon />}

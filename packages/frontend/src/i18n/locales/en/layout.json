@@ -8,7 +8,16 @@
     "balancing": "Balancing",
     "displays": "Displays",
     "test": "Test",
-    "settings": "Settings"
+    "settings": "Settings",
+    "areas": {
+      "race": "Race Center",
+      "garage": "Garage & Paddock",
+      "show": "Show & Sound",
+      "analysis": "Data Lab"
+    },
+    "raceControl": "Race Control",
+    "scoreboard": "Spectator Screen",
+    "newWindow": "Opens in a new window"
   },
   "theme": {
     "dayMode": "Day mode",

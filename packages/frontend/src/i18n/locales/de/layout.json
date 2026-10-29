@@ -8,7 +8,16 @@
     "balancing": "Fahrzeugabgleich",
     "displays": "Anzeigen",
     "test": "Test",
-    "settings": "Einstellungen"
+    "settings": "Einstellungen",
+    "areas": {
+      "race": "Rennzentrale",
+      "garage": "Garage & Fahrerlager",
+      "show": "Show & Sound",
+      "analysis": "Datenlabor"
+    },
+    "raceControl": "Rennleitung",
+    "scoreboard": "Zuschauerbildschirm",
+    "newWindow": "Öffnet ein neues Fenster"
   },
   "theme": {
     "dayMode": "Tagmodus",

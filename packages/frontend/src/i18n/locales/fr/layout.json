@@ -8,7 +8,16 @@
     "balancing": "Équilibrage",
     "displays": "Displays",
     "test": "Test",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "areas": {
+      "race": "Centre de course",
+      "garage": "Garage et paddock",
+      "show": "Show et son",
+      "analysis": "Analyse"
+    },
+    "raceControl": "Direction de course",
+    "scoreboard": "Écran spectateurs",
+    "newWindow": "Ouvre une nouvelle fenêtre"
   },
   "theme": {
     "dayMode": "Mode jour",
