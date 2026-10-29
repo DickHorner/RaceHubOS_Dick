@@ -1,0 +1,1 @@
+ALTER TABLE "Session" ADD COLUMN "requiredPitStops" INTEGER NOT NULL DEFAULT 0;

@@ -107,6 +107,16 @@
       "saveError": "L’enregistrement de la consommation n’a pas pu être confirmé.",
       "saving": "Enregistrement de la consommation…",
       "reload": "Recharger la page"
+    },
+    "requiredPits": {
+      "title": "Arrêts obligatoires",
+      "count": "Minimum par pilote (0–100)",
+      "hint": "0 désactive la règle. Seuls les arrêts terminés et enregistrés du simulateur comptent ; les observations CU ne prouvent pas encore la conformité. Cette règle affiche la conformité sans pénalité automatique.",
+      "locked": "Les arrêts obligatoires sont verrouillés après le départ.",
+      "invalid": "Saisir un entier de 0 à 100.",
+      "saveError": "Impossible de confirmer l’enregistrement. Rechargez les paramètres enregistrés.",
+      "saving": "Enregistrement…",
+      "reload": "Recharger les paramètres enregistrés"
     }
   },
   "bracket": {

@@ -9,3 +9,4 @@ export * from './tyres.js';
 export * from './virtualFuel.js';
 export * from './racePenalties.js';
 export * from './damage.js';
+export * from './pitStops.js';

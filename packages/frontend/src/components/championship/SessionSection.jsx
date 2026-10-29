@@ -41,6 +41,8 @@ import {
   sessionTypeAbbrKey,
   validDamageConfig,
   validVirtualFuelRate,
+  validRequiredPitStops,
+  REQUIRED_PIT_STOPS_MAX,
   VIRTUAL_FUEL_MAX_RATE,
 } from '@racehubos/shared'
 
@@ -83,6 +85,9 @@ export default function SessionSection({
   const [fuelError, setFuelError] = useState(null)
   const [fuelBusy, setFuelBusy] = useState(false)
   const fuelPending = useRef(false)
+  const [pitError, setPitError] = useState(null)
+  const [pitBusy, setPitBusy] = useState(false)
+  const pitPending = useRef(false)
   const [sharedLink, setSharedLink] = useState(null)
   const [editingName, setEditingName] = useState(false)
   const [inlineName, setInlineName] = useState('')
@@ -170,6 +175,28 @@ export default function SessionSection({
     } finally {
       fuelPending.current = false
       setFuelBusy(false)
+    }
+  }
+
+  async function saveRequiredPitStops(count) {
+    if (pitPending.current || session.status !== SessionStatus.DRAFT) return
+    if (!validRequiredPitStops(count)) {
+      setPitError({ sessionId: session.id, message: t('sessionSection.requiredPits.invalid') })
+      return
+    }
+    setPitError(null)
+    if (count === (session.requiredPitStops ?? 0)) return
+    pitPending.current = true
+    setPitBusy(true)
+    try {
+      const result = await onSaveConfig({ requiredPitStops: count })
+      if (result?.success === false)
+        setPitError({ sessionId: session.id, message: t('sessionSection.requiredPits.saveError') })
+    } catch {
+      setPitError({ sessionId: session.id, message: t('sessionSection.requiredPits.saveError') })
+    } finally {
+      pitPending.current = false
+      setPitBusy(false)
     }
   }
 
@@ -483,6 +510,59 @@ export default function SessionSection({
         </div>
         {sharedLink && <LanShareLink key={sharedLink} path={sharedLink} />}
       </div>
+
+      {session.type !== SessionType.BALANCING && (
+        <fieldset
+          className="m-4 rounded-lg border border-border bg-card p-4 space-y-3"
+          data-testid="required-pits-config"
+        >
+          <legend className="px-1 text-sm font-semibold">{t('sessionSection.requiredPits.title')}</legend>
+          <label className="block text-sm" htmlFor={`required-pits-${session.id}`}>
+            {t('sessionSection.requiredPits.count')}
+          </label>
+          <Input
+            id={`required-pits-${session.id}`}
+            data-testid="required-pits-count"
+            key={`${session.id}-required-pits-${session.requiredPitStops}-${session.status}`}
+            type="number"
+            min="0"
+            max={REQUIRED_PIT_STOPS_MAX}
+            step="1"
+            defaultValue={session.requiredPitStops ?? 0}
+            disabled={!canEdit || pitBusy || !onSaveConfig}
+            onBlur={(event) =>
+              saveRequiredPitStops(event.target.value.trim() === '' ? NaN : Number(event.target.value))
+            }
+            aria-describedby={`required-pits-hint-${session.id}`}
+            className="min-h-11 max-w-48"
+          />
+          <p id={`required-pits-hint-${session.id}`} className="text-sm text-muted-foreground">
+            {t('sessionSection.requiredPits.hint')}
+          </p>
+          {!canEdit && <p className="text-sm text-muted-foreground">{t('sessionSection.requiredPits.locked')}</p>}
+          {pitBusy && (
+            <p role="status" className="text-sm">
+              {t('sessionSection.requiredPits.saving')}
+            </p>
+          )}
+          {pitError?.sessionId === session.id && (
+            <div className="space-y-2">
+              <p role="alert" className="text-sm text-destructive" data-testid="required-pits-error">
+                {pitError.message}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11"
+                data-testid="required-pits-reload"
+                onClick={() => window.location.reload()}
+              >
+                {t('sessionSection.requiredPits.reload')}
+              </Button>
+            </div>
+          )}
+        </fieldset>
+      )}
 
       {session.type !== SessionType.BALANCING && (
         <fieldset
@@ -1100,7 +1180,13 @@ export default function SessionSection({
                   }
                 }}
                 disabled={
-                  !deviceConnected || hasIncompleteConfig || starting || fuelBusy || fuelError?.sessionId === session.id
+                  !deviceConnected ||
+                  hasIncompleteConfig ||
+                  starting ||
+                  fuelBusy ||
+                  fuelError?.sessionId === session.id ||
+                  pitBusy ||
+                  pitError?.sessionId === session.id
                 }
               >
                 {starting ? (

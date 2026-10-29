@@ -336,3 +336,48 @@ test('accepted fuel plans with a failed reload are reported as unconfirmed', asy
   await expect(page.getByTestId('fuel-saved-plan')).toContainText('25 laps')
   expect(state.writes).toHaveLength(1)
 })
+
+test('driver sees own remaining required stops while CU observations remain separate', async ({ page }) => {
+  const state = await mockSession(page)
+  state.current.requiredPitStops = 2
+  await page.goto('/display/driver/driver-1')
+  const progress = page.getByTestId('required-pits-driver-entry-1')
+  await expect(progress).toContainText('0 / 2')
+  await expect(progress).toContainText('remaining: 2')
+  await expect(page.getByTestId('required-pits-driver-entry-2')).toHaveCount(0)
+  await expect(page.getByTestId('pit-stop-cu-1')).toBeVisible()
+  state.current.pitStops.push({
+    id: 'verified-1',
+    sessionId: 'pit-session',
+    sessionDriverId: 'entry-1',
+    source: 'simulator',
+    enteredAt: '2026-10-29T12:03:00Z',
+    exitedAt: '2026-10-29T12:03:02Z',
+    durationMs: 2000,
+  })
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('session:pit_stop')))
+  await expect(progress).toContainText('1 / 2')
+  await expect(progress).toContainText('remaining: 1')
+  expect(state.writes).toEqual([])
+})
+
+for (const [view, path] of [
+  ['director', '/display/control'],
+  ['history', '/sessions/pit-session'],
+]) {
+  test(`${view} shows required-stop compliance per driver without changing the classification`, async ({ page }) => {
+    const state = await mockSession(page)
+    state.current.requiredPitStops = 1
+    if (view === 'history') state.current.status = 'finished'
+    state.current.pitStops[1] = {
+      ...state.current.pitStops[1],
+      sessionId: 'pit-session',
+      exitedAt: '2026-10-29T12:01:03.200Z',
+    }
+    await page.goto(path)
+    await expect(page.getByTestId('required-pits-driver-entry-1')).toContainText('not yet fulfilled')
+    await expect(page.getByTestId('required-pits-driver-entry-2')).toContainText('requirement fulfilled')
+    await expect(page.getByTestId('required-pits-status')).toContainText('does not automatically change classification')
+    expect(state.writes).toEqual([])
+  })
+}

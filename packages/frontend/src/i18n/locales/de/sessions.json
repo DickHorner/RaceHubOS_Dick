@@ -167,6 +167,14 @@
         "simulator": "Simulator"
       },
       "unknownSource": "Quelle unbekannt"
+    },
+    "requiredPits": {
+      "off": "Keine Pflichtstopps vorgeschrieben.",
+      "rule": "Vorgabe: {{count}} Pflichtstopps pro Fahrer",
+      "note": "Nur abgeschlossene Simulator-Stopps zählen. CU-Beobachtungen bleiben separat; diese Anzeige ändert die Wertung nicht automatisch.",
+      "progress": "Bestätigte Stopps: {{completed}} / {{required}} · noch offen: {{remaining}}",
+      "incomplete": "Pflichtstopp-Vorgabe noch nicht erfüllt",
+      "fulfilled": "Pflichtstopp-Vorgabe erfüllt"
     }
   }
 }

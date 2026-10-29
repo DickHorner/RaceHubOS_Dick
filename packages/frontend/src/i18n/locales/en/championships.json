@@ -107,6 +107,16 @@
       "saveError": "Saving the fuel consumption setting could not be confirmed.",
       "saving": "Saving fuel consumption setting…",
       "reload": "Reload page"
+    },
+    "requiredPits": {
+      "title": "Required pit stops",
+      "count": "Minimum per driver (0–100)",
+      "hint": "0 disables the requirement. Only saved, completed simulator stops count; CU observations do not yet verify compliance. This requirement reports compliance without applying an automatic penalty.",
+      "locked": "Required pit stops are locked after session start.",
+      "invalid": "Enter a whole number from 0 to 100.",
+      "saveError": "Required pit stops could not be confirmed saved. Reload the stored settings.",
+      "saving": "Saving…",
+      "reload": "Reload saved settings"
     }
   },
   "bracket": {

@@ -200,3 +200,68 @@ test('running, paused and finished sessions keep fuel settings discoverable but 
   }
   expect(state.writes).toEqual([])
 })
+
+for (const mode of ['free', 'championship']) {
+  test(`${mode}: required pit stops persist, reload and can be disabled before start`, async ({ page }) => {
+    const state = await openSession(page, mode)
+    const count = page.getByTestId('required-pits-count')
+    await expect(count).toHaveValue('0')
+    await count.fill('2')
+    await count.blur()
+    await expect.poll(() => state.current.requiredPitStops).toBe(2)
+    await page.reload()
+    await expect(count).toHaveValue('2')
+    await count.fill('0')
+    await count.blur()
+    await expect.poll(() => state.current.requiredPitStops).toBe(0)
+    expect(state.writes).toEqual([{ requiredPitStops: 2 }, { requiredPitStops: 0 }])
+  })
+}
+
+test('invalid required pit counts block start until corrected without a write', async ({ page }) => {
+  const state = await openSession(page)
+  const count = page.getByTestId('required-pits-count')
+  const start = page.getByTestId('session-section').getByRole('button', { name: 'Start', exact: true })
+  for (const value of ['-1', '101', '1.5', '']) {
+    await count.fill(value)
+    await count.blur()
+    await expect(page.getByTestId('required-pits-error')).toBeVisible()
+    await expect(start).toBeDisabled()
+  }
+  expect(state.writes).toEqual([])
+  await count.fill('0')
+  await count.blur()
+  await expect(page.getByTestId('required-pits-error')).toHaveCount(0)
+  await expect(start).toBeEnabled()
+})
+
+test('required pit save and reload failures stay visible and require recovery', async ({ page }) => {
+  const state = await openSession(page)
+  state.reject = true
+  const count = page.getByTestId('required-pits-count')
+  await count.fill('2')
+  await count.blur()
+  await expect(page.getByTestId('required-pits-error')).toContainText('could not be confirmed saved')
+  expect(state.current.requiredPitStops).toBeUndefined()
+  state.reject = false
+  state.failReload = true
+  await count.fill('3')
+  await count.blur()
+  await expect.poll(() => state.current.requiredPitStops).toBe(3)
+  await expect(page.getByTestId('required-pits-error')).toBeVisible()
+  state.failReload = false
+  await page.getByTestId('required-pits-reload').click()
+  await expect(count).toHaveValue('3')
+  await expect(page.getByTestId('required-pits-error')).toHaveCount(0)
+})
+
+test('required pit rules stay visible and locked after session start', async ({ page }) => {
+  const state = await openSession(page)
+  state.current.requiredPitStops = 2
+  state.current.status = 'active'
+  await page.reload()
+  await expect(page.getByTestId('required-pits-count')).toHaveValue('2')
+  await expect(page.getByTestId('required-pits-count')).toBeDisabled()
+  await expect(page.getByTestId('required-pits-config')).toContainText('locked after session start')
+  expect(state.writes).toEqual([])
+})

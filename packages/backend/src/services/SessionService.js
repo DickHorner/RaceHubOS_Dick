@@ -20,6 +20,7 @@ import {
   tyreAdjustedLapTime,
   validDamageConfig,
   validVirtualFuelRate,
+  validRequiredPitStops,
   virtualFuelBurn,
   virtualFuelPerLap,
   virtualFuelTarget,
@@ -400,6 +401,7 @@ export class SessionService extends EventEmitter {
       weatherAdvanceDuringPause: session.weatherAdvanceDuringPause,
       tyreMismatchPercent: session.tyreMismatchPercent,
       virtualFuelRate: session.virtualFuelRate,
+      requiredPitStops: session.requiredPitStops,
       damageLapThresholdMs: session.damageLapThresholdMs,
       damageRepairSeconds: session.damageRepairSeconds,
       damagePitSeconds: session.damagePitSeconds,
@@ -2047,6 +2049,7 @@ export class SessionService extends EventEmitter {
       weatherAdvanceDuringPause = false,
       tyreMismatchPercent = 0,
       virtualFuelRate = null,
+      requiredPitStops = 0,
       damageLapThresholdMs = null,
       damageRepairSeconds = 60,
       damagePitSeconds = 5,
@@ -2070,6 +2073,9 @@ export class SessionService extends EventEmitter {
       throw new Error('Weather is only supported for race sessions');
     }
 
+    if (!validRequiredPitStops(requiredPitStops)) {
+      throw new Error('Required pit stops must be a whole number from 0 to 100');
+    }
     if (!validVirtualFuelRate(virtualFuelRate)) {
       throw new Error('Virtual fuel rate must be 1-100 percent per minute or disabled');
     }
@@ -2119,6 +2125,7 @@ export class SessionService extends EventEmitter {
         weatherAdvanceDuringPause,
         tyreMismatchPercent,
         virtualFuelRate,
+        requiredPitStops,
         damageLapThresholdMs,
         damageRepairSeconds,
         damagePitSeconds,
