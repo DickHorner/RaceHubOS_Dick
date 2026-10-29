@@ -572,7 +572,11 @@ router.patch('/:id/status', async (req, res) => {
     res.json({ success: true, data: updatedSession, message: `Status changed to '${newStatus}'` });
   } catch (error) {
     console.error('Error changing status:', error);
-    res.status(error.status || 500).json({ success: false, error: error.message, runningSessions: error.runningSessions });
+    res.status(error.status || 500).json({
+      success: false,
+      error: error.message,
+      runningSessions: error.runningSessions,
+    });
   }
 });
 
@@ -605,7 +609,11 @@ router.post('/:id/start', async (req, res) => {
     res.json({ success: true, data: updatedSession, message: 'Session started' });
   } catch (error) {
     console.error('Error starting session:', error);
-    res.status(error.status || 500).json({ success: false, error: error.message, runningSessions: error.runningSessions });
+    res.status(error.status || 500).json({
+      success: false,
+      error: error.message,
+      runningSessions: error.runningSessions,
+    });
   }
 });
 
