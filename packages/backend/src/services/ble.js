@@ -1,5 +1,4 @@
 import EventEmitter from 'events';
-import noble from '@abandonware/noble';
 
 // UUIDs du Control Unit Carrera (format Noble: minuscules sans tirets)
 const SERVICE_UUID = '39df7777b1b4b90b57f17144ae4e4a6a';
@@ -30,6 +29,7 @@ export class BLEService extends EventEmitter {
    * @returns {Promise<string>} L'adresse du peripheral trouvé
    */
   async scan(timeout = 10000) {
+    const { default: noble } = await import('@abandonware/noble');
     console.log('🔍 Starting BLE scan for Control Unit...');
     console.log('   Noble state:', noble.state);
 
@@ -100,6 +100,9 @@ export class BLEService extends EventEmitter {
     if (this.connecting) {
       throw new Error('Connection already in progress');
     }
+
+    // A missing native binding must fail this CU request, not the entire server.
+    const { default: noble } = await import('@abandonware/noble');
 
     try {
       this.connecting = true;
