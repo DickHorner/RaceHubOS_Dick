@@ -27,9 +27,10 @@ function cuStateLabel(t, start) {
 function useDefaultPageTitle() {
   const { t } = useTranslation('layout')
   const { pathname } = useLocation()
-  const basePath = '/' + (pathname.split('/')[1] || '')
-  const item = allNavItems.find((n) => (n.to === '/' ? pathname === '/' : basePath === n.to))
-  return item ? navLabel(t, item) : 'RaceHubOS'
+  const item = allNavItems.find(
+    (entry) => entry.to === pathname || (entry.to !== '/' && pathname.startsWith(entry.to + '/'))
+  )
+  return item ? navLabel(t, item) : 'RaceHub OG'
 }
 
 function PageHeader() {

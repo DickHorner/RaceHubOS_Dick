@@ -17,7 +17,18 @@
     },
     "raceControl": "Rennleitung",
     "scoreboard": "Zuschauerbildschirm",
-    "newWindow": "Öffnet ein neues Fenster"
+    "newWindow": "Öffnet ein neues Fenster",
+    "home": "Startseite",
+    "homeTitle": "Deine Rennwelt.",
+    "homeDescription": "Vier Bereiche. Alles für Deinen nächsten Renntag.",
+    "openArea": "Entdecken",
+    "backHome": "Zur Startseite",
+    "areaDescriptions": {
+      "race": "Rennen starten, organisieren und live steuern.",
+      "garage": "Autos, Fahrer, Teams und Strecken vorbereiten.",
+      "show": "Sounds, Stimmung und Live-Anzeigen.",
+      "analysis": "Rundenzeiten, Ergebnisse und Rekorde entdecken."
+    }
   },
   "theme": {
     "dayMode": "Tagmodus",
