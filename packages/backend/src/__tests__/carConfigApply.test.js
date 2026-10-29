@@ -23,7 +23,11 @@ describe('CU vehicle configuration', () => {
     service = new SessionService({ emit: jest.fn() });
     const prisma = service.prisma;
     service.prisma = {
-      session: { update: jest.fn() },
+      session: {
+        findMany: jest.fn().mockResolvedValue([]),
+        findUnique: jest.fn().mockResolvedValue({ status: SessionStatus.DRAFT, deletedAt: null }),
+        update: jest.fn(),
+      },
       $disconnect: () => prisma.$disconnect(),
     };
     service.syncService = {
