@@ -215,7 +215,11 @@ app.post('/api/sync/load-session/:sessionId', async (req, res) => {
     const session = await sessionService.loadSession(sessionId);
     res.json({ success: true, session: { id: session.id, type: session.type } });
   } catch (error) {
-    res.status(error.status || 400).json({ success: false, error: error.message, runningSessions: error.runningSessions });
+    res.status(error.status || 400).json({
+      success: false,
+      error: error.message,
+      runningSessions: error.runningSessions,
+    });
   }
 });
 
