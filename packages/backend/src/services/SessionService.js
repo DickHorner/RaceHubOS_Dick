@@ -30,6 +30,7 @@ import {
 import { sessionName } from '../lib/sessionNames.js';
 
 const DEFAULT_GRACE_PERIOD_MS = 30000;
+const RUNNING_STATUSES = [SessionStatus.ACTIVE, SessionStatus.PAUSED, SessionStatus.FINISHING];
 
 function penaltyError(message, status) {
   return Object.assign(new Error(message), { status });
@@ -55,6 +56,7 @@ export class SessionService extends EventEmitter {
 
     // Session state
     this.activeSessionId = null;
+    this.startingSessionId = null;
     this.activeTrackId = null;
     this.currentPhase = SessionType.PRACTICE;
     this.sessionConfig = null;
@@ -280,10 +282,44 @@ export class SessionService extends EventEmitter {
 
   // ==================== Session Lifecycle ====================
 
+  async assertNoOtherRunningSession(sessionId) {
+    const running = await this.prisma.session.findMany({
+      where: { status: { in: RUNNING_STATUSES }, deletedAt: null },
+      select: { id: true, name: true, status: true },
+      take: 2,
+    });
+    if (this.isActive() && !running.some((session) => session.id === this.activeSessionId)) {
+      running.push({ id: this.activeSessionId, name: null, status: this.sessionStatus });
+    }
+    if (running.length > 1 || running.some((session) => session.id !== sessionId)) {
+      const details = running.map((session) => `${session.name || 'Session'} (${session.status}, ${session.id})`).join(', ');
+      const error = penaltyError(
+        `Another session is already running: ${details}. Stop or resolve it before switching sessions.`,
+        409
+      );
+      error.runningSessions = running;
+      throw error;
+    }
+    return running;
+  }
+
+  assertCurrentSession(sessionId) {
+    if (this.startingSessionId || this._finishing || !this.isActive() || this.activeSessionId !== sessionId) {
+      throw penaltyError(
+        `Session ${sessionId} is not the current running session (${this.activeSessionId || 'none'}).`,
+        409
+      );
+    }
+  }
+
   /**
    * Load session from DB
    */
   async loadSession(sessionId) {
+    if (this.startingSessionId && this.startingSessionId !== sessionId) {
+      throw penaltyError(`Session ${this.startingSessionId} is starting; cannot load another session.`, 409);
+    }
+    await this.assertNoOtherRunningSession(sessionId);
     await this.tyreWrites;
     await this.virtualFuelWrites;
     await this.damageOperation;
