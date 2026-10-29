@@ -9,6 +9,7 @@ import {
   validDamageConfig,
   weatherForSession,
   validVirtualFuelRate,
+  validRequiredPitStops,
   replayVirtualFuel,
   VIRTUAL_FUEL_FULL,
 } from '@racehubos/shared';
@@ -256,6 +257,7 @@ router.put('/:id', async (req, res) => {
       weatherAdvanceDuringPause,
       tyreMismatchPercent,
       virtualFuelRate,
+      requiredPitStops,
       damageLapThresholdMs,
       damageRepairSeconds,
       damagePitSeconds,
@@ -301,6 +303,19 @@ router.put('/:id', async (req, res) => {
       for (const key of weatherKeys) updateData[key] = nextWeather[key];
       if (tyreMismatchPercent !== undefined) updateData.tyreMismatchPercent = nextTyrePercent;
     }
+    if (requiredPitStops !== undefined) {
+      if (!validRequiredPitStops(requiredPitStops)) {
+        return res
+          .status(400)
+          .json({ success: false, error: 'Required pit stops must be a whole number from 0 to 100' });
+      }
+      const current = await prisma().session.findUnique({ where: { id: req.params.id } });
+      if (!current || current.deletedAt) return res.status(404).json({ success: false, error: 'Session not found' });
+      if (current.status !== SessionStatus.DRAFT) {
+        return res.status(409).json({ success: false, error: 'Required pit stops cannot change after session start' });
+      }
+      updateData.requiredPitStops = requiredPitStops;
+    }
     if (virtualFuelRate !== undefined) {
       if (!validVirtualFuelRate(virtualFuelRate)) {
         return res.status(400).json({ success: false, error: 'Invalid virtual fuel rate (1-100 %/min or disabled)' });
@@ -337,7 +352,10 @@ router.put('/:id', async (req, res) => {
     if (order !== undefined) updateData.order = order;
 
     const session = await prisma().session.update({
-      where: { id: req.params.id },
+      where: {
+        id: req.params.id,
+        ...(requiredPitStops !== undefined ? { status: SessionStatus.DRAFT, deletedAt: null } : {}),
+      },
       data: updateData,
       include: {
         track: true,
@@ -348,6 +366,9 @@ router.put('/:id', async (req, res) => {
 
     res.json({ success: true, data: session });
   } catch (error) {
+    if (error.code === 'P2025' && req.body?.requiredPitStops !== undefined) {
+      return res.status(409).json({ success: false, error: 'Session changed before pit rules could be saved' });
+    }
     console.error('Error updating session:', error);
     if (error.code === 'P2003') {
       return res.status(400).json({ success: false, error: 'Invalid trackId or championshipId' });

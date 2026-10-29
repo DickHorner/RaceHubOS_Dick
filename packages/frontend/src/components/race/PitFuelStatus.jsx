@@ -1,4 +1,4 @@
-import { VIRTUAL_FUEL_FULL } from '@racehubos/shared'
+import { VIRTUAL_FUEL_FULL, requiredPitProgress } from '@racehubos/shared'
 import { useTranslation } from 'react-i18next'
 
 export default function PitFuelStatus({ session, sessionDriverId, entries = [] }) {
@@ -15,6 +15,34 @@ export default function PitFuelStatus({ session, sessionDriverId, entries = [] }
     <section data-testid="pit-fuel-status" className="rounded-xl border border-border bg-card p-5 space-y-4">
       <h2 className="font-semibold">{t('profile.pitStatus.title')}</h2>
       <p className="text-xs text-muted-foreground">{t('profile.pitStatus.note')}</p>
+      <div data-testid="required-pits-status" className="space-y-2">
+        {(session.requiredPitStops ?? 0) === 0 ? (
+          <p className="text-sm text-muted-foreground">{t('profile.requiredPits.off')}</p>
+        ) : (
+          <>
+            <h3 className="text-sm font-semibold">
+              {t('profile.requiredPits.rule', { count: session.requiredPitStops })}
+            </h3>
+            <p className="text-xs text-muted-foreground">{t('profile.requiredPits.note')}</p>
+            {drivers.map((driver) => {
+              const progress = requiredPitProgress(session, driver.id)
+              return (
+                <div key={driver.id} data-testid={`required-pits-driver-${driver.id}`} className="text-sm">
+                  <p className="font-semibold">
+                    {driver.driver?.name || t('profile.pitStatus.controller', { number: driver.controller + 1 })}
+                  </p>
+                  <p>{t('profile.requiredPits.progress', progress)}</p>
+                  <p
+                    className={progress.remaining > 0 ? 'font-semibold text-amber-600' : 'font-semibold text-green-600'}
+                  >
+                    {t(progress.remaining > 0 ? 'profile.requiredPits.incomplete' : 'profile.requiredPits.fulfilled')}
+                  </p>
+                </div>
+              )
+            })}
+          </>
+        )}
+      </div>
       <div data-testid="pit-fuel-levels" className="space-y-2">
         {session.virtualFuelRate == null ? (
           <p className="text-sm text-muted-foreground">{t('profile.pitStatus.off')}</p>

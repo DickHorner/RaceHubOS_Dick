@@ -138,6 +138,7 @@ model Session {
   weatherIntervalSeconds Int     @default(60)  // Each interval samples the seeded forecast
   weatherAdvanceDuringPause Boolean @default(false) // Weather clock can continue while racing is paused
   tyreMismatchPercent Int       @default(0) // Optional virtual lap-time penalty, 0-30%
+  requiredPitStops Int           @default(0) // Minimum completed verified pit cycles; 0 disables
   virtualFuelRate Int?            // Virtual fuel burn: % per racing minute; null disables
   status         String          @default("draft") // draft | ready | active | paused | finishing | finished | interrupted — @racehubos/shared
   recoveredAt    DateTime?       // Explicit operator recovery; never a race finish

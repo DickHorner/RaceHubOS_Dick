@@ -167,6 +167,14 @@
         "simulator": "Simulator"
       },
       "unknownSource": "Source unknown"
+    },
+    "requiredPits": {
+      "off": "No pit stops required.",
+      "rule": "Requirement: {{count}} pit stops per driver",
+      "note": "Only completed simulator stops count. CU observations remain separate; this display does not automatically change classification.",
+      "progress": "Verified stops: {{completed}} / {{required}} · remaining: {{remaining}}",
+      "incomplete": "Pit-stop requirement not yet fulfilled",
+      "fulfilled": "Pit-stop requirement fulfilled"
     }
   }
 }

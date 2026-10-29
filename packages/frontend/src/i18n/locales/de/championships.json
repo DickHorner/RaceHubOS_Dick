@@ -107,6 +107,16 @@
       "saveError": "Das Speichern der Verbrauchseinstellung konnte nicht bestätigt werden.",
       "saving": "Verbrauchseinstellung wird gespeichert …",
       "reload": "Seite neu laden"
+    },
+    "requiredPits": {
+      "title": "Pflichtstopps",
+      "count": "Mindestzahl pro Fahrer (0–100)",
+      "hint": "0 deaktiviert die Vorgabe. Gezählt werden gespeicherte, abgeschlossene Simulator-Stopps; CU-Beobachtungen sind noch kein bestätigter Erfüllungsnachweis. Diese Vorgabe zeigt die Regelerfüllung und vergibt keine automatische Strafe.",
+      "locked": "Die Pflichtstopp-Vorgabe ist nach dem Start gesperrt.",
+      "invalid": "Ganze Zahl zwischen 0 und 100 eingeben.",
+      "saveError": "Pflichtstopps konnten nicht bestätigt gespeichert werden. Lade den gespeicherten Stand neu.",
+      "saving": "Wird gespeichert…",
+      "reload": "Gespeicherten Stand neu laden"
     }
   },
   "bracket": {
