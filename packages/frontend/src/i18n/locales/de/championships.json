@@ -96,7 +96,18 @@
     "damageDeadline": "Frist (s Rennzeit)",
     "damagePitMinimum": "Boxenintervall (s)",
     "damageHint": "Einmaliger Schaden pro Fahrer. Uhr pausiert mit dem Rennen; echte CU benötigt manuelle Reparaturbestätigung.",
-    "damageInvalid": "Ungültige Werte: 1–600 s Rundengrenze, 5–3600 s Frist, 1–300 s Boxenintervall (höchstens die Frist)."
+    "damageInvalid": "Ungültige Werte: 1–600 s Rundengrenze, 5–3600 s Frist, 1–300 s Boxenintervall (höchstens die Frist).",
+    "virtualFuel": {
+      "title": "Virtueller Kraftstoff",
+      "enabled": "Virtuellen Verbrauch aktivieren",
+      "rate": "Verbrauch (% pro Rennminute)",
+      "hint": "Der virtuelle Tankstand wird aus den gefahrenen Rundenzeiten berechnet. CU-Tankanzeige und CU-Tankprogrammierung bleiben davon unabhängig.",
+      "locked": "Der Verbrauch kann nur vor dem Start geändert werden.",
+      "invalid": "Bitte eine ganze Zahl von 1 bis 100 eingeben.",
+      "saveError": "Das Speichern der Verbrauchseinstellung konnte nicht bestätigt werden.",
+      "saving": "Verbrauchseinstellung wird gespeichert …",
+      "reload": "Seite neu laden"
+    }
   },
   "bracket": {
     "loading": "Wird geladen …",
