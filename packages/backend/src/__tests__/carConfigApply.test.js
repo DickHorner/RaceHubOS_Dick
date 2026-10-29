@@ -306,6 +306,10 @@ describe('CU vehicle configuration', () => {
         drivers: [],
         trackId: 'track-1',
       });
+      await expect(service.loadSession('session-2')).rejects.toMatchObject({ status: 409 });
+      expect(service.firstCrossingProgrammed.has(0)).toBe(true);
+
+      service.sessionStatus = SessionStatus.FINISHED;
       await service.loadSession('session-2');
       expect(service.firstCrossingProgrammed.size).toBe(0);
     });
