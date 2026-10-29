@@ -22,6 +22,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - run: npx prettier packages/backend/src/services/SessionService.js > /tmp/expected.js && diff -u packages/backend/src/services/SessionService.js /tmp/expected.js || true
       - run: npm run check -- --ci
       - run: node --test packages/frontend/tests/lapAnalysis.unit.js packages/frontend/tests/soundboardAuto.unit.js
       - run: npm run build
