@@ -116,6 +116,31 @@ describe('one running session per race PC', () => {
     expect(service.startingSessionId).toBeNull();
   });
 
+  test('loading a draft and starting another session cannot overlap', async () => {
+    const draft = await session('Being opened', SessionType.PRACTICE);
+    const race = await session('Being started', SessionType.RACE);
+    let enterLoad;
+    let completeLoad;
+    const loading = new Promise((resolve) => {
+      enterLoad = resolve;
+    });
+    service.loadSessionData = jest.fn(
+      () =>
+        new Promise((resolve) => {
+          completeLoad = resolve;
+          enterLoad();
+        })
+    );
+
+    const firstLoad = service.loadSession(draft.id);
+    await loading;
+    await expect(service.startSession(race.id)).rejects.toMatchObject({ status: 409 });
+    expect(sync.reset).not.toHaveBeenCalled();
+    completeLoad({ id: draft.id, type: draft.type });
+    await firstLoad;
+    expect(service.loadingSessionId).toBeNull();
+  });
+
   test('stale stop, pause, resume and status requests cannot operate on the current CU session', async () => {
     const old = await session('Stale practice', SessionType.PRACTICE, SessionStatus.ACTIVE);
     const current = await session('Current race', SessionType.RACE, SessionStatus.ACTIVE);
