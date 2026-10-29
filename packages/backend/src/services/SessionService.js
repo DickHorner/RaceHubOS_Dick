@@ -57,6 +57,7 @@ export class SessionService extends EventEmitter {
     // Session state
     this.activeSessionId = null;
     this.startingSessionId = null;
+    this.loadingSessionId = null;
     this.activeTrackId = null;
     this.currentPhase = SessionType.PRACTICE;
     this.sessionConfig = null;
@@ -318,10 +319,19 @@ export class SessionService extends EventEmitter {
    * Load session from DB
    */
   async loadSession(sessionId) {
-    if (this.startingSessionId && this.startingSessionId !== sessionId) {
-      throw penaltyError(`Session ${this.startingSessionId} is starting; cannot load another session.`, 409);
+    if (this.loadingSessionId || (this.startingSessionId && this.startingSessionId !== sessionId)) {
+      throw penaltyError('Another session is being loaded or started; try again after it completes.', 409);
     }
-    await this.assertNoOtherRunningSession(sessionId);
+    this.loadingSessionId = sessionId;
+    try {
+      await this.assertNoOtherRunningSession(sessionId);
+      return await this.loadSessionData(sessionId);
+    } finally {
+      this.loadingSessionId = null;
+    }
+  }
+
+  async loadSessionData(sessionId) {
     await this.tyreWrites;
     await this.virtualFuelWrites;
     await this.damageOperation;
@@ -339,8 +349,8 @@ export class SessionService extends EventEmitter {
       },
     });
 
-    if (!session) {
-      throw new Error(`Session ${sessionId} not found`);
+    if (!session || session.deletedAt) {
+      throw penaltyError(`Session ${sessionId} not found`, 404);
     }
 
     if (this.activeSessionId !== session.id || session.status === SessionStatus.DRAFT) {
@@ -483,7 +493,7 @@ export class SessionService extends EventEmitter {
    * Note: startedAt is set later by onRaceStart() when CU goes to racing (GO!)
    */
   async startSession(sessionId) {
-    if (this.startingSessionId || this._finishing) {
+    if (this.startingSessionId || this.loadingSessionId || this._finishing) {
       throw penaltyError('Another session transition is already in progress.', 409);
     }
     this.startingSessionId = sessionId;
