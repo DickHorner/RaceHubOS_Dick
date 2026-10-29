@@ -203,14 +203,24 @@ function serialize(action) {
   return result;
 }
 
-router.get('/status', (req, res) => {
+router.get('/status', async (req, res) => {
   res.set('Cache-Control', 'no-store');
   const local = isLoopback(req.socket.remoteAddress) && trustedOrigin('http://localhost', req.get('host'));
+  let setupAvailable = !process.env.RACE_CONTROL_SECRET && local;
+  if (setupAvailable) {
+    try {
+      const existing = await fs.readFile(directorEnvPath, 'utf8');
+      setupAvailable = !/^[ \t]*(?:export[ \t]+)?RACE_CONTROL_SECRET[ \t]*=/m.test(existing);
+    } catch (error) {
+      if (error.code !== 'ENOENT') setupAvailable = false;
+    }
+  }
   res.json({
     success: true,
     enabled: Boolean(directorSecret()),
     keyRequired: directorKeyRequired(),
-    setupAvailable: !process.env.RACE_CONTROL_SECRET && local,
+    setupAvailable,
+    recoveryAvailable: local,
   });
 });
 
@@ -334,67 +344,97 @@ router.post('/director/key-required', requireDirector, async (req, res) => {
   }
 });
 
-// Existing director authorization is required to rotate the persisted credential.
-// A new key immediately invalidates previously issued driver access tokens.
-router.post('/director/credential', requireDirector, async (req, res) => {
-  res.set('Cache-Control', 'no-store');
-  const nextSecret = req.body?.secret;
-  if (!validNewDirectorSecret(nextSecret)) {
-    return res.status(400).json({ success: false, error: 'Credential must be 32-128 letters, digits, - or _' });
-  }
-  if (nextSecret === directorSecret()) {
-    return res.status(409).json({ success: false, error: 'Credential is unchanged' });
-  }
-  if (setupInProgress) {
-    return res.status(409).json({ success: false, error: 'Credential setup is already running' });
-  }
+// Rotation requires the current credential. Recovery instead requires a local
+// browser and explicit confirmation; forwarded addresses never grant access.
+router.post(
+  ['/director/credential', '/recover'],
+  (req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    if (req.path !== '/recover') return requireDirector(req, res, next);
+    if (
+      !isLoopback(req.socket.remoteAddress) ||
+      !req.get('origin') ||
+      !trustedOrigin(req.get('origin'), req.get('host'))
+    ) {
+      return res.status(403).json({ success: false, error: 'Recovery is only available on the race PC at localhost' });
+    }
+    if (req.body?.confirmed !== true) {
+      return res.status(400).json({ success: false, error: 'Recovery confirmation is required' });
+    }
+    next();
+  },
+  async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    const recovery = req.path === '/recover';
+    const requested = req.body?.secret;
+    const nextSecret =
+      recovery && (requested === undefined || requested === '') ? randomBytes(32).toString('hex') : requested;
+    if (!validNewDirectorSecret(nextSecret)) {
+      return res.status(400).json({ success: false, error: 'Credential must be 32-128 letters, digits, - or _' });
+    }
+    if (nextSecret === directorSecret()) {
+      return res.status(409).json({ success: false, error: 'Credential is unchanged' });
+    }
+    if (setupInProgress) {
+      return res.status(409).json({ success: false, error: 'Credential setup is already running' });
+    }
 
-  setupInProgress = true;
-  let temporaryPath;
-  try {
-    let existing;
+    setupInProgress = true;
+    let temporaryPath;
     try {
-      existing = await fs.readFile(directorEnvPath, 'utf8');
-    } catch (error) {
-      if (error.code !== 'ENOENT') throw error;
-      return res.status(409).json({ success: false, error: 'Credential is managed outside the server .env file' });
-    }
-
-    const matches = [...existing.matchAll(/^([ \t]*(?:export[ \t]+)?RACE_CONTROL_SECRET[ \t]*=[ \t]*)([^\r\n]*)/gm)];
-    const fileSecret = matches[0]?.[2]?.trim().replace(/^(['"])(.*)\1$/, '$2');
-    if (matches.length !== 1 || fileSecret !== directorSecret()) {
-      return res.status(409).json({ success: false, error: 'Credential is managed outside the server .env file' });
-    }
-
-    const entry = matches[0];
-    const updated =
-      existing.slice(0, entry.index) + entry[1] + nextSecret + existing.slice(entry.index + entry[0].length);
-    temporaryPath = `${directorEnvPath}.${randomBytes(8).toString('hex')}.tmp`;
-    await fs.writeFile(temporaryPath, updated, { mode: 0o600, flag: 'wx' });
-    await fs.rename(temporaryPath, directorEnvPath);
-    temporaryPath = null;
-    process.env.RACE_CONTROL_SECRET = nextSecret;
-
-    const receiver = soundReceiver();
-    soundReceiverId = null;
-    soundRequests.clear();
-    receiver?.emit('soundboard:deactivate');
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error('[RaceControl] Credential update failed:', error);
-    res.status(500).json({ success: false, error: 'Could not save director credential' });
-  } finally {
-    if (temporaryPath) {
+      let existing;
       try {
-        await fs.unlink(temporaryPath);
-      } catch {
-        // The temporary file may never have been created.
+        existing = await fs.readFile(directorEnvPath, 'utf8');
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+        return res.status(409).json({
+          success: false,
+          error: 'Credential is managed outside the server .env file',
+          code: 'recoveryConfigError',
+        });
       }
+
+      const matches = [...existing.matchAll(/^([ \t]*(?:export[ \t]+)?RACE_CONTROL_SECRET[ \t]*=[ \t]*)([^\r\n]*)/gm)];
+      const fileSecret = matches[0]?.[2]?.trim().replace(/^(['"])(.*)\1$/, '$2');
+      const currentSecret = recovery ? process.env.RACE_CONTROL_SECRET : directorSecret();
+      if (matches.length !== 1 || ((!recovery || currentSecret) && fileSecret !== currentSecret)) {
+        return res.status(409).json({
+          success: false,
+          error: 'Credential is managed outside the server .env file',
+          code: 'recoveryConfigError',
+        });
+      }
+
+      const entry = matches[0];
+      const updated =
+        existing.slice(0, entry.index) + entry[1] + nextSecret + existing.slice(entry.index + entry[0].length);
+      temporaryPath = `${directorEnvPath}.${randomBytes(8).toString('hex')}.tmp`;
+      await fs.writeFile(temporaryPath, updated, { mode: 0o600, flag: 'wx' });
+      await fs.rename(temporaryPath, directorEnvPath);
+      temporaryPath = null;
+      process.env.RACE_CONTROL_SECRET = nextSecret;
+
+      const receiver = soundReceiver();
+      soundReceiverId = null;
+      soundRequests.clear();
+      receiver?.emit('soundboard:deactivate');
+
+      res.json({ success: true, ...(recovery ? { secret: nextSecret } : {}) });
+    } catch (error) {
+      console.error('[RaceControl] Credential update failed:', error);
+      res.status(500).json({ success: false, error: 'Could not save director credential' });
+    } finally {
+      if (temporaryPath) {
+        try {
+          await fs.unlink(temporaryPath);
+        } catch {
+          // The temporary file may never have been created.
+        }
+      }
+      setupInProgress = false;
     }
-    setupInProgress = false;
   }
-});
+);
 
 router.post('/driver-link', requireDirector, async (req, res) => {
   res.set('Cache-Control', 'no-store');

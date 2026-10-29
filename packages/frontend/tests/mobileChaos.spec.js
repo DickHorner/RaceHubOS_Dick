@@ -27,6 +27,86 @@ async function mockRace(page, session) {
   await page.route('**/api/sessions/race-1', (route) => route.fulfill({ json: { success: true, data: session } }))
 }
 
+test('development proxy preserves the LAN host for recovery checks', async ({ request }) => {
+  const status = await request.get('/api/race-control/status', { headers: { Host: '192.168.0.10:5175' } })
+  expect(status.ok()).toBe(true)
+  expect(await status.json()).toMatchObject({ setupAvailable: false, recoveryAvailable: false })
+  const recovery = await request.post('/api/race-control/recover', {
+    headers: { Host: '192.168.0.10:5175', Origin: 'http://192.168.0.10:5175' },
+    data: { confirmed: true },
+  })
+  expect(recovery.status()).toBe(403)
+})
+
+test('forgotten credential can be recovered locally after explicit confirmation', async ({ page }) => {
+  await mockRace(page, race)
+  await page.route('**/api/race-control/status', (route) =>
+    route.fulfill({
+      json: { success: true, enabled: true, keyRequired: true, recoveryAvailable: true },
+    })
+  )
+  const replacement = 'Recovered_Director_Key_2026'.padEnd(40, 'A')
+  let submitted
+  let calls = 0
+  await page.route('**/api/race-control/recover', (route) => {
+    calls++
+    submitted = route.request().postDataJSON()
+    expect(route.request().headers().authorization).toBeUndefined()
+    return route.fulfill({ json: { success: true, secret: replacement } })
+  })
+  await page.goto('/display/control')
+  await page.getByTestId('director-recovery-open').click()
+  await expect(page.getByTestId('director-recovery-submit')).toBeDisabled()
+  await page.getByTestId('director-recovery-confirm').check()
+  await page.getByLabel('Custom director credential (optional)').fill('short')
+  await expect(page.getByTestId('director-recovery-submit')).toBeDisabled()
+  expect(calls).toBe(0)
+  await page.getByLabel('Custom director credential (optional)').fill(replacement)
+  await page.getByTestId('director-recovery-submit').click()
+  await expect(page.getByRole('status').filter({ hasText: /director authorized/i })).toBeVisible()
+  await expect(page.getByLabel(/new race director credential/i)).toHaveValue(replacement)
+  await expect(page.getByTestId('director-recovery-form')).toHaveCount(0)
+  expect(submitted).toEqual({ confirmed: true, secret: replacement })
+  expect(calls).toBe(1)
+  expect(page.url()).not.toContain(replacement)
+})
+
+test('recovery remains discoverable remotely with an explanation and no executable action', async ({ page }) => {
+  await mockRace(page, race)
+  await page.route('**/api/race-control/status', (route) =>
+    route.fulfill({
+      json: { success: true, enabled: true, recoveryAvailable: false },
+    })
+  )
+  await page.goto('/display/control')
+  await expect(page.getByTestId('director-recovery-open')).toBeVisible()
+  await expect(page.getByTestId('director-recovery-open')).toBeDisabled()
+  await expect(page.getByText(/open this page via localhost directly on the race PC/i)).toBeVisible()
+})
+
+test('unusable file entry offers recovery and keeps failed recovery on screen', async ({ page }) => {
+  await mockRace(page, race)
+  await page.route('**/api/race-control/status', (route) =>
+    route.fulfill({
+      json: { success: true, enabled: false, setupAvailable: false, recoveryAvailable: true },
+    })
+  )
+  await page.route('**/api/race-control/recover', (route) =>
+    route.fulfill({
+      status: 409,
+      json: { success: false, code: 'recoveryConfigError' },
+    })
+  )
+  await page.goto('/display/control')
+  await expect(page.getByRole('button', { name: /set up race control/i })).toHaveCount(0)
+  await page.getByTestId('director-recovery-open').click()
+  await page.getByTestId('director-recovery-confirm').check()
+  await page.getByTestId('director-recovery-submit').click()
+  await expect(page.getByRole('alert')).toHaveText(/managed externally or contains conflicting entries/i)
+  await expect(page.getByTestId('director-recovery-form')).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: /director authorized/i })).toHaveCount(0)
+})
+
 test('personal display offers CHAOS only with a scoped token', async ({ page }) => {
   await mockRace(page, race)
   await page.goto('/display/driver/driver-1')

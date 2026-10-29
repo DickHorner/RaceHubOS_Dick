@@ -18,7 +18,9 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: `http://localhost:${backendPort}`,
-        changeOrigin: true,
+        // Preserve the browser's host so LAN clients cannot appear local to
+        // the backend's setup/recovery availability checks.
+        changeOrigin: false,
       },
       '/health': {
         target: `http://localhost:${backendPort}`,
