@@ -49,9 +49,9 @@ test('sidebar has four primary areas with context-sensitive secondary links', as
   await page.goto('/cars')
   await expect(page.locator('[data-sidebar="menu-sub"]')).toHaveCount(1)
   const garage = page.locator('[data-sidebar="group"]').nth(1)
-  const routes = await garage.locator('a[data-sidebar="menu-sub-button"]').evaluateAll((links) =>
-    links.map((link) => new URL(link.href).pathname)
-  )
+  const routes = await garage
+    .locator('a[data-sidebar="menu-sub-button"]')
+    .evaluateAll((links) => links.map((link) => new URL(link.href).pathname))
   expect(routes).toEqual(areas[1].routes)
   await expect(garage.locator('a[href="/cars"]')).toHaveAttribute('data-active', 'true')
   await expect(page.getByRole('link', { name: 'Einstellungen' })).toBeVisible()
