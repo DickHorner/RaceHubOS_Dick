@@ -8,6 +8,7 @@ import { DriverBadge } from '../components/DriverDisplays'
 import LapTime from '../components/race/LapTime'
 import GapDisplay from '../components/race/GapDisplay'
 import PitFuelStatus from '../components/race/PitFuelStatus'
+import DriverFuelStrategy from '../components/race/DriverFuelStrategy'
 import { Button } from '@/components/ui/button'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
@@ -251,6 +252,14 @@ export default function DriverDisplay() {
                   </div>
                 </section>
                 <PitFuelStatus session={session} sessionDriverId={assignment.id} entries={entries} />
+                <DriverFuelStrategy
+                  key={`${session.id}:${assignment.id}`}
+                  session={session}
+                  assignment={assignment}
+                  live={live}
+                  accessToken={accessToken}
+                  fetchSession={fetchSession}
+                />
                 {session.type === SessionType.RACE && session.weatherSeed != null && (
                   <section className="rounded-xl border border-border bg-card p-5 space-y-3">
                     <h2 className="font-semibold">{t('tyreTitle')}</h2>

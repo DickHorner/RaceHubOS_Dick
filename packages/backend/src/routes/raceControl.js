@@ -520,6 +520,41 @@ router.post('/driver/tyres', async (req, res) => {
   }
 });
 
+// A personal link plans fuel only for its signed assignment; it never creates a pit event.
+router.post('/driver/fuel', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const access = decodeDriverAccess(bearer(req));
+  if (!access) return res.status(403).json({ success: false, error: 'Invalid or expired driver access' });
+  const { targetLaps, expectedVersion } = req.body || {};
+  try {
+    const result = await serialize(async () => {
+      const assignments = await sessionService.prisma.sessionDriver.findMany({
+        where: { sessionId: access.sid, driverId: access.did, deletedAt: null },
+      });
+      if (
+        assignments.length !== 1 ||
+        assignments[0].id !== access.sdid ||
+        assignments[0].controller !== access.controller
+      ) {
+        return { status: 403, error: 'Driver assignment has changed; request a new link' };
+      }
+      if (sessionService.activeSessionId !== access.sid) {
+        return { status: 409, error: 'Driver link is not for the current session' };
+      }
+      return {
+        status: 200,
+        data: await sessionService.requestFuelTarget(access.sid, access.sdid, targetLaps, expectedVersion),
+      };
+    });
+    if (result.error) return res.status(result.status).json({ success: false, error: result.error });
+    res.json({ success: true, data: result.data });
+  } catch (error) {
+    const status = error.status || 500;
+    if (status === 500) console.error('[RaceControl] Fuel target failed:', error);
+    res.status(status).json({ success: false, error: status === 500 ? 'Could not save fuel target' : error.message });
+  }
+});
+
 router.post('/chaos', async (req, res) => {
   res.set('Cache-Control', 'no-store');
   const access = decodeDriverAccess(bearer(req));

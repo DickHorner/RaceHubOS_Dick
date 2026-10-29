@@ -1,3 +1,4 @@
+import { VIRTUAL_FUEL_FULL } from '@racehubos/shared'
 import { useTranslation } from 'react-i18next'
 
 export default function PitFuelStatus({ session, sessionDriverId, entries = [] }) {
@@ -64,7 +65,7 @@ export default function PitFuelStatus({ session, sessionDriverId, entries = [] }
           {refuels.map((event) => (
             <li key={event.id} data-testid={`pit-refuel-${event.id}`} className="py-2 text-sm space-y-1">
               <p className="font-semibold break-words">{participant(event)}</p>
-              <p>{t('profile.pitStatus.refilled')}</p>
+              <p>{t('profile.pitStatus.refilled', { percent: (event.targetUnits ?? VIRTUAL_FUEL_FULL) / 100 })}</p>
               <p>
                 {t(`profile.pitStatus.source.${event.source}`, { defaultValue: t('profile.pitStatus.unknownSource') })}
               </p>

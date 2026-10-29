@@ -52,5 +52,26 @@
     "repaired": "Repariert",
     "dnf": "DNF – nicht rechtzeitig repariert",
     "none": "Kein Schaden"
+  },
+  "fuelStrategy": {
+    "title": "Tankstrategie für den nächsten Boxenstopp",
+    "range": "Geschätzte Reichweite: {{laps}} Runden",
+    "noEstimate": "Reichweite noch nicht berechenbar",
+    "estimateNote": "Schätzung aus dem Median der letzten fünf gespeicherten Rundenverbräuche, mindestens drei Runden. Ein anderes Tempo verändert die Reichweite.",
+    "pending": "Gespeichert: {{laps}} Runden, Ziel mindestens {{percent}} % (Schätzung beim Speichern).",
+    "fullTank": "Kein individuelles Ziel: Der nächste Simulator-Stopp füllt den virtuellen Tank vollständig.",
+    "off": "Virtueller Verbrauch ist für diese Session deaktiviert.",
+    "pitNote": "Automatisch beim abgeschlossenen Simulator-Boxenstopp, ohne Rennleiterfreigabe. Ein höherer Tankstand wird nicht abgesenkt. CU-Pit-Signale führen diesen Plan nicht aus.",
+    "target": "Zielreichweite nach dem nächsten Boxenstopp (Runden)",
+    "preview": "Geschätztes Tankziel: {{percent}} %",
+    "invalidTarget": "Ganze Rundenzahl innerhalb der Tankkapazität eingeben.",
+    "save": "Boxenplan speichern",
+    "saving": "Wird gespeichert…",
+    "saved": "Boxenplan gespeichert.",
+    "clear": "Wieder vollständig auftanken",
+    "tokenRequired": "Nutze Deinen persönlichen Fahrerlink für die Tankplanung.",
+    "unavailable": "In laufenden oder pausierten Renn-/Qualifying-Sessions mit virtuellem Verbrauch verfügbar.",
+    "saveError": "Boxenplan konnte nicht gespeichert werden. Aktuelle Fahrerzuordnung, gemessene Runden und Tankkapazität prüfen; vor erneutem Speichern aktualisieren.",
+    "refreshError": "Der Server hat den Plan angenommen, der gespeicherte Stand konnte aber nicht geladen werden. Lade die Seite vor einem erneuten Versuch neu."
   }
 }

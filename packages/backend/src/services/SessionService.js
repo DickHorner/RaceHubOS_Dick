@@ -21,6 +21,9 @@ import {
   validDamageConfig,
   validVirtualFuelRate,
   virtualFuelBurn,
+  virtualFuelPerLap,
+  virtualFuelTarget,
+  validVirtualFuelLaps,
   virtualFuelAfter,
   replayVirtualFuel,
   VIRTUAL_FUEL_FULL,
@@ -424,6 +427,9 @@ export class SessionService extends EventEmitter {
       simulatedBestLapTime: sd.simulatedBestLapTime,
       tyreType: sd.tyreType,
       pendingTyreType: sd.pendingTyreType,
+      pendingFuelLaps: sd.pendingFuelLaps,
+      fuelPlanVersion: sd.fuelPlanVersion,
+      pendingFuelUnits: sd.pendingFuelUnits,
       bestLapTime: sd.bestLapTime || null,
       lastLapTime: sd.lastLapTime || null,
       virtualFuelUnits: session.virtualFuelRate == null ? null : (fuelLevels.get(sd.id) ?? VIRTUAL_FUEL_FULL),
@@ -824,99 +830,116 @@ export class SessionService extends EventEmitter {
     const sessionId = this.activeSessionId;
     const data = { sessionId, sessionDriverId: driver.id, controller, enteredAt, exitedAt, durationMs, source };
     return this.queueTyre(() =>
-      this.queueDamage(async () => {
-        if (this.activeSessionId !== sessionId || this.sessionStatus !== SessionStatus.ACTIVE) return;
+      this.queueDamage(() =>
+        this.queueVirtualFuel(async () => {
+          if (this.activeSessionId !== sessionId || this.sessionStatus !== SessionStatus.ACTIVE) return;
 
-        const applyTyres =
-          source === 'simulator' && validTyreType(driver.pendingTyreType) && driver.pendingTyreType !== driver.tyreType;
-        const refuel = this.sessionConfig?.virtualFuelRate != null && source === 'simulator';
-        const repair =
-          source === 'simulator' &&
-          driver.damageStatus === DamageStatus.ACTIVE &&
-          durationMs >= this.sessionConfig.damagePitSeconds * 1000 &&
-          enteredAt.getTime() >= new Date(driver.damageTriggeredAt).getTime() &&
-          this.raceClock(exitedAt.getTime()).elapsedTime < driver.damageDeadlineElapsedMs &&
-          this.raceClock().elapsedTime < driver.damageDeadlineElapsedMs;
-        let pitStop;
-        if (applyTyres || refuel || repair) {
-          const result = await this.prisma.$transaction(async (tx) => {
-            const pit = await tx.pitStop.create({ data });
-            let change = null;
-            let event = null;
-            let repaired = false;
-            if (applyTyres) {
-              change = await tx.tyreChange.create({
-                data: {
-                  sessionId,
-                  sessionDriverId: driver.id,
-                  controller,
-                  fromType: driver.tyreType,
-                  toType: driver.pendingTyreType,
-                  source: 'simulator',
-                  pitStopId: pit.id,
-                },
-              });
-              await tx.sessionDriver.update({
-                where: { id: driver.id },
-                data: { tyreType: change.toType, pendingTyreType: null },
-              });
-            }
-            if (refuel) {
-              event = await tx.virtualFuelEvent.create({
-                data: {
-                  sessionId,
-                  sessionDriverId: driver.id,
-                  controller,
-                  kind: 'refuel',
-                  units: 0,
-                  source: 'simulator',
-                  reference: `pit:${pit.id}`,
-                },
-              });
-            }
-            if (repair) {
-              await tx.sessionDriver.update({
-                where: { id: driver.id },
-                data: {
-                  damageStatus: DamageStatus.REPAIRED,
-                  damageRepairedAt: exitedAt,
-                  damageRepairPitStopId: pit.id,
-                  damageRepairSource: 'simulator',
-                },
-              });
-              repaired = true;
-            }
-            return { pit, change, event, repaired };
-          });
-          pitStop = result.pit;
-          if (result.change) {
-            driver.tyreType = result.change.toType;
-            driver.pendingTyreType = null;
-            this.emit('session:tyre_changed', { sessionId, sessionDriverId: driver.id, change: result.change });
-          }
-          if (result.event) {
-            driver.virtualFuelUnits = virtualFuelAfter(driver.virtualFuelUnits ?? VIRTUAL_FUEL_FULL, result.event);
-          }
-          if (result.repaired) {
-            driver.damageStatus = DamageStatus.REPAIRED;
-            driver.damageRepairedAt = exitedAt;
-            driver.damageRepairPitStopId = pitStop.id;
-            driver.damageRepairSource = 'simulator';
-            this.emit('session:damage_changed', {
-              sessionId,
-              sessionDriverId: driver.id,
-              controller,
-              damageStatus: DamageStatus.REPAIRED,
+          const applyTyres =
+            source === 'simulator' &&
+            validTyreType(driver.pendingTyreType) &&
+            driver.pendingTyreType !== driver.tyreType;
+          const refuel = this.sessionConfig?.virtualFuelRate != null && source === 'simulator';
+          const repair =
+            source === 'simulator' &&
+            driver.damageStatus === DamageStatus.ACTIVE &&
+            durationMs >= this.sessionConfig.damagePitSeconds * 1000 &&
+            enteredAt.getTime() >= new Date(driver.damageTriggeredAt).getTime() &&
+            this.raceClock(exitedAt.getTime()).elapsedTime < driver.damageDeadlineElapsedMs &&
+            this.raceClock().elapsedTime < driver.damageDeadlineElapsedMs;
+          let pitStop;
+          if (applyTyres || refuel || repair) {
+            const result = await this.prisma.$transaction(async (tx) => {
+              const pit = await tx.pitStop.create({ data });
+              let change = null;
+              let event = null;
+              let repaired = false;
+              if (applyTyres) {
+                change = await tx.tyreChange.create({
+                  data: {
+                    sessionId,
+                    sessionDriverId: driver.id,
+                    controller,
+                    fromType: driver.tyreType,
+                    toType: driver.pendingTyreType,
+                    source: 'simulator',
+                    pitStopId: pit.id,
+                  },
+                });
+                await tx.sessionDriver.update({
+                  where: { id: driver.id },
+                  data: { tyreType: change.toType, pendingTyreType: null },
+                });
+              }
+              if (refuel) {
+                event = await tx.virtualFuelEvent.create({
+                  data: {
+                    sessionId,
+                    sessionDriverId: driver.id,
+                    controller,
+                    kind: 'refuel',
+                    units: 0,
+                    targetUnits: Math.max(
+                      driver.virtualFuelUnits ?? VIRTUAL_FUEL_FULL,
+                      driver.pendingFuelUnits ?? VIRTUAL_FUEL_FULL
+                    ),
+                    source: 'simulator',
+                    reference: `pit:${pit.id}`,
+                  },
+                });
+              }
+              if (refuel && driver.pendingFuelLaps != null) {
+                await tx.sessionDriver.update({
+                  where: { id: driver.id },
+                  data: { pendingFuelLaps: null, pendingFuelUnits: null, fuelPlanVersion: { increment: 1 } },
+                });
+              }
+              if (repair) {
+                await tx.sessionDriver.update({
+                  where: { id: driver.id },
+                  data: {
+                    damageStatus: DamageStatus.REPAIRED,
+                    damageRepairedAt: exitedAt,
+                    damageRepairPitStopId: pit.id,
+                    damageRepairSource: 'simulator',
+                  },
+                });
+                repaired = true;
+              }
+              return { pit, change, event, repaired };
             });
+            pitStop = result.pit;
+            if (result.change) {
+              driver.tyreType = result.change.toType;
+              driver.pendingTyreType = null;
+              this.emit('session:tyre_changed', { sessionId, sessionDriverId: driver.id, change: result.change });
+            }
+            if (result.event) {
+              driver.virtualFuelUnits = virtualFuelAfter(driver.virtualFuelUnits ?? VIRTUAL_FUEL_FULL, result.event);
+              if (driver.pendingFuelLaps != null) driver.fuelPlanVersion++;
+              driver.pendingFuelLaps = null;
+              driver.pendingFuelUnits = null;
+            }
+            if (result.repaired) {
+              driver.damageStatus = DamageStatus.REPAIRED;
+              driver.damageRepairedAt = exitedAt;
+              driver.damageRepairPitStopId = pitStop.id;
+              driver.damageRepairSource = 'simulator';
+              this.emit('session:damage_changed', {
+                sessionId,
+                sessionDriverId: driver.id,
+                controller,
+                damageStatus: DamageStatus.REPAIRED,
+              });
+            }
+            this.emitLeaderboard();
+          } else {
+            // Physical CU pit telemetry is not validated: record the stop, never infer a refuel or tyre change.
+            pitStop = await this.prisma.pitStop.create({ data });
           }
-          this.emitLeaderboard();
-        } else {
-          // Physical CU pit telemetry is not validated: record the stop, never infer a refuel or tyre change.
-          pitStop = await this.prisma.pitStop.create({ data });
-        }
-        this.emit('session:pit_stop', pitStop);
-        return pitStop;
-      })
+          this.emit('session:pit_stop', pitStop);
+          return pitStop;
+        })
+      )
     );
   }
 
@@ -925,6 +948,65 @@ export class SessionService extends EventEmitter {
     const result = this.tyreWrites.then(action);
     this.tyreWrites = result.catch(() => {});
     return result;
+  }
+
+  queueVirtualFuel(action) {
+    const result = this.virtualFuelWrites.then(action);
+    this.virtualFuelWrites = result.catch(() => {});
+    return result;
+  }
+
+  requestFuelTarget(sessionId, sessionDriverId, targetLaps, expectedVersion) {
+    return this.queueTyre(() =>
+      this.queueVirtualFuel(async () => {
+        if (targetLaps !== null && !validVirtualFuelLaps(targetLaps)) {
+          throw Object.assign(new Error('Invalid lap target'), { status: 400 });
+        }
+        if (
+          sessionId !== this.activeSessionId ||
+          ![SessionType.RACE, SessionType.QUALIF].includes(this.currentPhase) ||
+          ![SessionStatus.ACTIVE, SessionStatus.PAUSED].includes(this.sessionStatus) ||
+          this.sessionConfig?.virtualFuelRate == null
+        ) {
+          throw Object.assign(new Error('Virtual fuel strategy is not available for this session'), { status: 409 });
+        }
+        const driver = this.sessionDrivers.find((row) => row.id === sessionDriverId);
+        if (!driver?.driverId || !driver.carId || driver.isDNF) {
+          throw Object.assign(new Error('Driver assignment is no longer available'), { status: 409 });
+        }
+        if (!Number.isInteger(expectedVersion) || expectedVersion < 0) {
+          throw Object.assign(new Error('Fuel plan version is required'), { status: 400 });
+        }
+        if (driver.fuelPlanVersion !== expectedVersion) {
+          throw Object.assign(new Error('Fuel plan has changed; refresh before saving'), { status: 409 });
+        }
+        let pendingFuelUnits = null;
+        if (targetLaps !== null) {
+          const events = await this.prisma.virtualFuelEvent.findMany({
+            where: { sessionId, sessionDriverId, kind: 'lap' },
+            orderBy: { id: 'desc' },
+            take: 5,
+          });
+          const perLap = virtualFuelPerLap(events.reverse());
+          if (perLap === null)
+            throw Object.assign(new Error('At least three measured laps are needed'), { status: 409 });
+          pendingFuelUnits = virtualFuelTarget(targetLaps, perLap);
+          if (pendingFuelUnits === null)
+            throw Object.assign(new Error('Lap target exceeds tank capacity'), { status: 400 });
+        }
+        const saved = await this.prisma.sessionDriver.updateMany({
+          where: { id: driver.id, fuelPlanVersion: expectedVersion },
+          data: { pendingFuelLaps: targetLaps, pendingFuelUnits, fuelPlanVersion: { increment: 1 } },
+        });
+        if (saved.count !== 1)
+          throw Object.assign(new Error('Fuel plan has changed; refresh before saving'), { status: 409 });
+        driver.fuelPlanVersion++;
+        driver.pendingFuelLaps = targetLaps;
+        driver.pendingFuelUnits = pendingFuelUnits;
+        this.emitLeaderboard();
+        return { pendingFuelLaps: targetLaps, pendingFuelUnits, fuelPlanVersion: driver.fuelPlanVersion };
+      })
+    );
   }
 
   requestTyreChange(sessionId, sessionDriverId, tyreType) {
@@ -1905,7 +1987,7 @@ export class SessionService extends EventEmitter {
       return;
     }
 
-    const write = this.virtualFuelWrites.then(async () => {
+    await this.queueVirtualFuel(async () => {
       const event = await this.prisma.$transaction(async (tx) => {
         const lap = await tx.lap.create({ data });
         return tx.virtualFuelEvent.create({
@@ -1924,8 +2006,6 @@ export class SessionService extends EventEmitter {
         driver.virtualFuelUnits = virtualFuelAfter(driver.virtualFuelUnits ?? VIRTUAL_FUEL_FULL, event);
       }
     });
-    this.virtualFuelWrites = write.catch(() => {});
-    await write;
   }
 
   async updateSessionDriver(driver) {
@@ -2167,6 +2247,9 @@ export class SessionService extends EventEmitter {
         simulatedBestLapTime: null,
         tyreType: TyreType.DRY,
         pendingTyreType: null,
+        pendingFuelLaps: null,
+        pendingFuelUnits: null,
+        fuelPlanVersion: { increment: 1 },
         bestLapTime: null,
         lastLapTime: null,
         isDNF: false,

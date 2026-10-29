@@ -202,6 +202,9 @@ model SessionDriver {
   session         Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   pitStops        PitStop[]
   tyreType        String       @default("dry") // Actual simulated tyres; dry | wet
+  fuelPlanVersion Int        @default(0) // Reject stale/retried driver plans, including after a pit stop
+  pendingFuelLaps Int?        // Estimated target range requested for the next simulator pit stop
+  pendingFuelUnits Int?       // Persisted target calculated from observed lap consumption
   pendingTyreType String?      // Driver-requested tyres for next confirmed pit stop
   simulatedTotalTime Int?      // Separate from measured totalTime, ms
   simulatedBestLapTime Int?    // Separate from measured bestLapTime, ms
@@ -254,6 +257,7 @@ model VirtualFuelEvent {
   controller      Int
   kind            String        // lap | refuel
   units           Int           // basis points burned per lap; 0 for refuel
+  targetUnits     Int?          // Refuel target; null preserves legacy full-tank refills
   source          String        // lap | simulator
   reference       String        // lap:<id> | pit:<id>, unique per session
   createdAt       DateTime      @default(now())

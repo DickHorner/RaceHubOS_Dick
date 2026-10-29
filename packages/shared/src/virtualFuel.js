@@ -13,7 +13,7 @@ export function virtualFuelBurn(lapTimeMs, rate) {
 }
 
 export function virtualFuelAfter(units, event) {
-  if (event.kind === 'refuel') return VIRTUAL_FUEL_FULL;
+  if (event.kind === 'refuel') return event.targetUnits ?? VIRTUAL_FUEL_FULL;
   if (event.kind === 'lap') return Math.max(0, units - event.units);
   return units;
 }
@@ -25,4 +25,31 @@ export function replayVirtualFuel(events = []) {
     levels.set(event.sessionDriverId, virtualFuelAfter(previous, event));
   }
   return levels;
+}
+
+// Use the median of the last five recorded lap burns; at least three are needed.
+// Pit refills are excluded. The estimate is in the same integer units as the event log.
+export function virtualFuelPerLap(events = []) {
+  const burns = events
+    .filter(
+      (event) =>
+        event.kind === 'lap' && Number.isInteger(event.units) && event.units >= 0 && event.units <= VIRTUAL_FUEL_FULL
+    )
+    .slice(-5)
+    .map((event) => event.units)
+    .sort((a, b) => a - b);
+  if (burns.length < 3) return null;
+  const middle = Math.floor(burns.length / 2);
+  const median = burns.length % 2 ? burns[middle] : (burns[middle - 1] + burns[middle]) / 2;
+  return median > 0 ? Math.ceil(median) : null;
+}
+
+export function validVirtualFuelLaps(laps) {
+  return Number.isInteger(laps) && laps >= 1 && laps <= VIRTUAL_FUEL_FULL;
+}
+
+export function virtualFuelTarget(laps, unitsPerLap) {
+  if (!validVirtualFuelLaps(laps) || !Number.isInteger(unitsPerLap) || unitsPerLap <= 0) return null;
+  const target = laps * unitsPerLap;
+  return target <= VIRTUAL_FUEL_FULL ? target : null;
 }

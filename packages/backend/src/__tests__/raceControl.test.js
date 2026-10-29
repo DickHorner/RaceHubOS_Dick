@@ -1089,3 +1089,76 @@ describe('read-only LAN share addresses', () => {
     }
   });
 });
+
+describe('driver-scoped fuel plans', () => {
+  const previousSecret = process.env.RACE_CONTROL_SECRET;
+  beforeEach(() => {
+    process.env.RACE_CONTROL_SECRET = secret;
+  });
+  afterEach(() => {
+    if (previousSecret === undefined) delete process.env.RACE_CONTROL_SECRET;
+    else process.env.RACE_CONTROL_SECRET = previousSecret;
+    jest.restoreAllMocks();
+  });
+
+  test('fuel plans use the signed assignment and never trust a body-supplied driver or session', async () => {
+    const { app, session } = setup();
+    session.requestFuelTarget = jest
+      .fn()
+      .mockResolvedValue({ pendingFuelLaps: 25, pendingFuelUnits: 2500, fuelPlanVersion: 1 });
+    const token = await issueToken(app);
+    const url = '/api/race-control/driver/fuel';
+    await request(app).post(url).send({ targetLaps: 25 }).expect(403);
+    await request(app).post(url).set('Authorization', 'Bearer forged').send({ targetLaps: 25 }).expect(403);
+    const res = await request(app)
+      .post(url)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ targetLaps: 25, expectedVersion: 0, sessionId: 'foreign', sessionDriverId: 'foreign', controller: 0 })
+      .expect(200);
+    expect(res.body.data.pendingFuelUnits).toBe(2500);
+    expect(session.requestFuelTarget).toHaveBeenCalledWith('race-1', 'sd-1', 25, 0);
+    for (const rows of [
+      [],
+      [{ ...assignment, controller: 1 }],
+      [{ ...assignment, id: 'replacement' }],
+      [assignment, assignment],
+    ]) {
+      session.prisma.sessionDriver.findMany.mockResolvedValueOnce(rows);
+      await request(app)
+        .post(url)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ targetLaps: 25, expectedVersion: 0 })
+        .expect(403);
+    }
+    session.activeSessionId = 'different';
+    await request(app)
+      .post(url)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ targetLaps: 25, expectedVersion: 0 })
+      .expect(409);
+    expect(session.requestFuelTarget).toHaveBeenCalledTimes(1);
+  });
+
+  test('expired tokens and rejected/stale fuel plans cannot report success', async () => {
+    const { app, session } = setup();
+    session.requestFuelTarget = jest.fn();
+    const token = await issueToken(app);
+    for (const status of [400, 409]) {
+      session.requestFuelTarget.mockRejectedValueOnce(Object.assign(new Error('Plan rejected'), { status }));
+      const res = await request(app)
+        .post('/api/race-control/driver/fuel')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ targetLaps: null, expectedVersion: 1 })
+        .expect(status);
+      expect(res.body.success).toBe(false);
+    }
+    const now = Date.now();
+    jest.spyOn(Date, 'now').mockReturnValue(now + 24 * 60 * 60 * 1000);
+    await request(app)
+      .post('/api/race-control/driver/fuel')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ targetLaps: 25, expectedVersion: 0 })
+      .expect(403);
+    expect(session.requestFuelTarget).toHaveBeenCalledTimes(2);
+  });
+});
