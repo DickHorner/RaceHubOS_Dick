@@ -149,6 +149,24 @@
       "active": "Réparation en attente",
       "repaired": "Réparé",
       "dnf": "Abandon – non réparé"
+    },
+    "pitStatus": {
+      "title": "Arrêts aux stands et carburant virtuel",
+      "note": "Seuls les cycles de stand terminés et enregistrés sont comptés. Les signaux CU ne prouvent pas un ravitaillement ; le carburant virtuel ne programme pas la CU.",
+      "off": "La consommation virtuelle est désactivée.",
+      "rate": "Consommation virtuelle : {{rate}} % par minute de course",
+      "level": "Carburant virtuel : {{percent}} %",
+      "unavailable": "Carburant virtuel : indisponible",
+      "controller": "Manette {{number}}",
+      "noStops": "Aucun arrêt terminé enregistré.",
+      "refuels": "Ravitaillements virtuels ({{count}})",
+      "noRefuels": "Aucun ravitaillement virtuel enregistré.",
+      "refilled": "Réservoir virtuel rempli à 100 % lors de cet événement.",
+      "source": {
+        "cu": "Signal de stand CU (observé)",
+        "simulator": "Simulateur"
+      },
+      "unknownSource": "Source inconnue"
     }
   }
 }

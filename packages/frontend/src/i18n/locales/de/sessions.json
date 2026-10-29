@@ -149,6 +149,24 @@
       "active": "Reparatur offen",
       "repaired": "Repariert",
       "dnf": "DNF – nicht repariert"
+    },
+    "pitStatus": {
+      "title": "Boxenstopps & virtueller Tank",
+      "note": "Es zählen nur gespeicherte, abgeschlossene Boxenzyklen. CU-Pit-Signale belegen keine Betankung; der virtuelle Tank programmiert die CU nicht.",
+      "off": "Virtueller Verbrauch ist deaktiviert.",
+      "rate": "Virtueller Verbrauch: {{rate}} % pro Rennminute",
+      "level": "Virtueller Tank: {{percent}} %",
+      "unavailable": "Virtueller Tank: nicht verfügbar",
+      "controller": "Regler {{number}}",
+      "noStops": "Kein abgeschlossener Boxenstopp gespeichert.",
+      "refuels": "Virtuelle Betankungen ({{count}})",
+      "noRefuels": "Keine virtuelle Betankung gespeichert.",
+      "refilled": "Virtueller Tank bei diesem Ereignis auf 100 % aufgefüllt.",
+      "source": {
+        "cu": "CU-Pit-Signal (beobachtet)",
+        "simulator": "Simulator"
+      },
+      "unknownSource": "Quelle unbekannt"
     }
   }
 }

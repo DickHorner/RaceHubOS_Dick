@@ -5,6 +5,7 @@ import { useSession } from '../context/SessionContext'
 import { Button } from '@/components/ui/button'
 import Soundboard from '../components/race/Soundboard'
 import SessionRecovery from '../components/race/SessionRecovery'
+import PitFuelStatus from '../components/race/PitFuelStatus'
 import LanShareLink from '../components/LanShareLink'
 import { SessionStatus, SessionType, PenaltyKind, PenaltyStatus, TyreType, DamageStatus } from '@racehubos/shared'
 
@@ -14,7 +15,7 @@ const DIRECTOR_SECRET_PATTERN = /^[A-Za-z0-9_-]{32,128}$/
 export default function MobileRaceControl() {
   const { t } = useTranslation('mobileControl')
   const { connected, socketConnected } = useDevice()
-  const { session, elapsed, fetchSession, clearSession } = useSession()
+  const { session, entries, elapsed, fetchSession, clearSession } = useSession()
   const [configured, setConfigured] = useState(null)
   const [keyRequired, setKeyRequired] = useState(true)
   const [setupAvailable, setSetupAvailable] = useState(false)
@@ -740,6 +741,7 @@ export default function MobileRaceControl() {
                 </>
               )}
             </section>
+            {session?.id === selectedId && <PitFuelStatus session={session} entries={entries} />}
             {((session?.id === selectedId && session.type === SessionType.RACE) || vsc.status !== 'inactive') && (
               <section className="rounded-xl border border-border bg-card p-5 space-y-3">
                 <h2 className="font-bold">{t('vscTitle')}</h2>

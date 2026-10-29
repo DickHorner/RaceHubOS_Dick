@@ -13,6 +13,7 @@ import BalancingChart from '../components/balancing/BalancingChart'
 import Podium from '../components/race/Podium'
 import LapTime from '../components/race/LapTime'
 import SessionLapChart from '../components/race/SessionLapChart'
+import PitFuelStatus from '../components/race/PitFuelStatus'
 import { SessionStatus, SessionType, rankRaceDrivers, PenaltyKind, PenaltyStatus } from '@racehubos/shared'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
@@ -363,34 +364,7 @@ export default function SessionDetail() {
         {/* Persisted lap analysis */}
         {session.laps?.length > 0 && !isBalancing && <SessionLapChart key={session.id} session={session} />}
 
-        {/* Observed pit stops */}
-        {session.pitStops?.length > 0 && (
-          <Card>
-            <CardContent className="p-0">
-              <div className="px-4 py-3 border-b border-border">
-                <h3 className="text-sm font-semibold">{t('profile.pitHistory', { count: session.pitStops.length })}</h3>
-              </div>
-              <table className="w-full text-sm">
-                <thead className="border-b border-border text-left text-xs text-muted-foreground uppercase">
-                  <tr>
-                    <th className="px-4 py-2 font-medium">{t('profile.pitDriver')}</th>
-                    <th className="px-4 py-2 font-medium">{t('profile.pitEntered')}</th>
-                    <th className="px-4 py-2 font-medium text-right">{t('profile.pitDuration')}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {session.pitStops.map((stop) => (
-                    <tr key={stop.id}>
-                      <td className="px-4 py-2">{stop.sessionDriver?.driver?.name || `Ctrl ${stop.controller + 1}`}</td>
-                      <td className="px-4 py-2">{new Date(stop.enteredAt).toLocaleTimeString(i18n.language)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">~{(stop.durationMs / 1000).toFixed(1)} s</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
-        )}
+        {!isBalancing && <PitFuelStatus session={session} />}
 
         {session.tyreChanges?.length > 0 && (
           <Card>
