@@ -204,10 +204,18 @@ app.get('/api/sync/leaderboard', (req, res) => {
 
 app.post('/api/sync/load-session/:sessionId', async (req, res) => {
   try {
-    const session = await sessionService.loadSession(req.params.sessionId);
+    const { sessionId } = req.params;
+    if (sessionService.startingSessionId) {
+      return res.status(409).json({ success: false, error: 'A session is starting; try again after it completes' });
+    }
+    // Reopening the same live session in another tab must not reset lap and timer state.
+    if (sessionService.activeSessionId === sessionId && sessionService.isActive()) {
+      return res.json({ success: true, session: { id: sessionId, type: sessionService.currentPhase } });
+    }
+    const session = await sessionService.loadSession(sessionId);
     res.json({ success: true, session: { id: session.id, type: session.type } });
   } catch (error) {
-    res.status(400).json({ error: error.message });
+    res.status(error.status || 400).json({ success: false, error: error.message, runningSessions: error.runningSessions });
   }
 });
 
