@@ -132,6 +132,14 @@ test('session detail distinguishes recovery from a normal race finish', async ({
 })
 
 test('blocked race start links directly to session recovery', async ({ page }) => {
+  // This UI fixture supplies its own device state; live CU broadcasts must not
+  // overwrite it while the test exercises the HTTP conflict response.
+  await page.routeWebSocket('**/socket.io/**', (socket) => socket.close())
+  await page.route('**/socket.io/**', (route) => route.abort())
+  await page.route('**/api/preferences/**', (route) => route.fulfill({ json: { success: true, data: null } }))
+  await page.route('**/api/records/track/**', (route) =>
+    route.fulfill({ json: { success: true, data: { practice: [], qualif: [], race: [] } } })
+  )
   const track = { id: 'recovery-track', name: 'Recovery circuit' }
   const car = { ...participant.car, id: 'recovery-car' }
   const draft = {
@@ -167,6 +175,8 @@ test('blocked race start links directly to session recovery', async ({ page }) =
     localStorage.setItem('racehubos-free-type', 'race')
   })
   await page.goto('/race')
+  await expect(page.getByTestId('session-section')).toBeVisible({ timeout: 15000 })
+  await expect(page.getByTestId('session-section').getByRole('button', { name: 'Start', exact: true })).toBeEnabled()
   await page.getByTestId('session-section').getByRole('button', { name: 'Start', exact: true }).click()
   await expect(page.getByTestId('session-conflict-recovery-link')).toHaveAttribute(
     'href',
