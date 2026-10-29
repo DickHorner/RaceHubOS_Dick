@@ -19,6 +19,7 @@ const stop = {
 test('only unique, persisted completed simulator cycles fulfil the own session/assignment requirement', () => {
   const session = {
     id: 'session-1',
+    startedAt: '2026-10-29T11:59:00Z',
     requiredPitStops: 2,
     pitStops: [
       stop,
@@ -34,6 +35,8 @@ test('only unique, persisted completed simulator cycles fulfil the own session/a
     ],
   };
   expect(requiredPitProgress(session, 'entry-1')).toEqual({ required: 2, completed: 1, remaining: 1 });
+  expect(requiredPitProgress({ ...session, status: 'active', startedAt: null }, 'entry-1').completed).toBe(0);
+  expect(requiredPitProgress({ ...session, status: 'active', startedAt: 'invalid' }, 'entry-1').completed).toBe(0);
   session.pitStops.push({ ...stop, id: 'pit-2' }, { ...stop, id: 'pit-3' });
   expect(requiredPitProgress(session, 'entry-1')).toEqual({ required: 2, completed: 3, remaining: 0 });
   expect(requiredPitProgress({ ...session, startedAt: '2026-10-29T12:01:00Z' }, 'entry-1').completed).toBe(0);
@@ -110,7 +113,10 @@ describe('persisted session pit-stop requirement', () => {
     const assigned = await prisma.sessionDriver.create({
       data: { sessionId: session.id, controller: 0, driverId: driver.id, carId: car.id },
     });
-    await prisma.session.update({ where: { id: session.id }, data: { status: 'active' } });
+    await prisma.session.update({
+      where: { id: session.id },
+      data: { status: 'active', startedAt: new Date(Date.now() - 6000) },
+    });
     await service.loadSession(session.id);
     for (const source of ['simulator', 'cu'])
       await service.recordPitStop({

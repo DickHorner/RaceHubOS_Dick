@@ -10,6 +10,7 @@ async function mockSession(page) {
       name: 'Pit race',
       type: 'race',
       status: 'active',
+      startedAt: '2026-10-29T11:59:00Z',
       virtualFuelRate: 5,
       track: { name: 'Pit circuit' },
       drivers: [
@@ -381,3 +382,33 @@ for (const [view, path] of [
     expect(state.writes).toEqual([])
   })
 }
+
+test('required stops wait for GO and exclude earlier pit cycles from the next attempt', async ({ page }) => {
+  const state = await mockSession(page)
+  state.current.requiredPitStops = 1
+  state.current.startedAt = null
+  state.current.pitStops[1] = {
+    ...state.current.pitStops[1],
+    sessionId: 'pit-session',
+    exitedAt: '2026-10-29T12:01:03.200Z',
+  }
+  await page.goto('/display/control')
+  const progress = page.getByTestId('required-pits-driver-entry-2')
+  await expect(progress).toContainText('0 / 1')
+  state.current.startedAt = '2026-10-29T12:02:00Z'
+  await page.reload()
+  await expect(progress).toContainText('0 / 1')
+  state.current.pitStops.push({
+    id: 'after-go',
+    sessionId: 'pit-session',
+    sessionDriverId: 'entry-2',
+    source: 'simulator',
+    enteredAt: '2026-10-29T12:03:00Z',
+    exitedAt: '2026-10-29T12:03:01Z',
+    durationMs: 1000,
+  })
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('session:pit_stop')))
+  await expect(progress).toContainText('1 / 1')
+  await expect(progress).toContainText('requirement fulfilled')
+  expect(state.writes).toEqual([])
+})

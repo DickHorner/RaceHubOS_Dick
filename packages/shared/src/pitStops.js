@@ -10,9 +10,11 @@ export function validRequiredPitStops(count) {
 // CU observations remain visible separately until their hardware semantics are verified.
 export function requiredPitProgress(session, sessionDriverId) {
   const required = session.requiredPitStops ?? 0;
-  if (session.status === SessionStatus.DRAFT) return { required, completed: 0, remaining: required };
+  const startedAt = session.startedAt ? new Date(session.startedAt).getTime() : NaN;
+  if (session.status === SessionStatus.DRAFT || !Number.isFinite(startedAt)) {
+    return { required, completed: 0, remaining: required };
+  }
   const completed = new Set();
-  const startedAt = session.startedAt ? new Date(session.startedAt).getTime() : null;
   for (const stop of session.pitStops || []) {
     if (
       !stop.id ||
@@ -27,7 +29,7 @@ export function requiredPitProgress(session, sessionDriverId) {
       continue;
     const entered = new Date(stop.enteredAt).getTime();
     const exited = new Date(stop.exitedAt).getTime();
-    if (startedAt !== null && entered < startedAt) continue;
+    if (entered < startedAt) continue;
     if (Number.isFinite(entered) && Number.isFinite(exited) && exited - entered === stop.durationMs)
       completed.add(stop.id);
   }
