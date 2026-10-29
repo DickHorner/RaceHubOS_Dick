@@ -481,29 +481,51 @@ export class SessionService extends EventEmitter {
    * Note: startedAt is set later by onRaceStart() when CU goes to racing (GO!)
    */
   async startSession(sessionId) {
-    if (!this.syncService?.isConnected()) {
-      throw new Error('No device connected. Connect a CU or Simulator first.');
+    if (this.startingSessionId || this._finishing) {
+      throw penaltyError('Another session transition is already in progress.', 409);
     }
+    this.startingSessionId = sessionId;
+    try {
+      if (!this.syncService?.isConnected()) {
+        throw new Error('No device connected. Connect a CU or Simulator first.');
+      }
+      if (this.vsc) throw new Error('VSC speed restoration is unresolved; clear it before the next race');
 
-    // Apply vehicle profiles while the CU is stopped, before starting the lights.
-    // A failed write must not leave the session active or start the race.
-    if (this.vsc) throw new Error('VSC speed restoration is unresolved; clear it before the next race');
-    await this.syncService.reset();
-    await this.loadSession(sessionId);
-    await this.applyCarConfigs();
-    await this.syncService.prepareRace();
+      // Reject before touching the CU or replacing the running session in memory.
+      const running = await this.assertNoOtherRunningSession(sessionId);
+      if (running.length || this.isActive()) {
+        throw penaltyError(`Session ${sessionId} is already running; stop it before starting again.`, 409);
+      }
+      const session = await this.prisma.session.findUnique({
+        where: { id: sessionId },
+        select: { status: true, deletedAt: true },
+      });
+      if (!session || session.deletedAt) throw penaltyError(`Session ${sessionId} not found`, 404);
+      if (session.status !== SessionStatus.DRAFT) {
+        throw penaltyError(`Session must be 'draft' to start, current: ${session.status}`, 409);
+      }
 
-    await this.prisma.session.update({
-      where: { id: sessionId },
-      data: { status: SessionStatus.ACTIVE },
-    });
-    this.sessionStatus = SessionStatus.ACTIVE;
+      // Apply vehicle profiles while the CU is stopped, before starting the lights.
+      // A failed write must not leave the session active or start the race.
+      await this.syncService.reset();
+      await this.loadSession(sessionId);
+      await this.applyCarConfigs();
+      await this.syncService.prepareRace();
 
-    this.startHeartbeat();
-    this.emit('session:started', { sessionId });
-    this.emitStatusChanged('active', 'draft');
+      await this.prisma.session.update({
+        where: { id: sessionId },
+        data: { status: SessionStatus.ACTIVE },
+      });
+      this.sessionStatus = SessionStatus.ACTIVE;
 
-    return this.getState();
+      this.startHeartbeat();
+      this.emit('session:started', { sessionId });
+      this.emitStatusChanged('active', 'draft');
+
+      return this.getState();
+    } finally {
+      this.startingSessionId = null;
+    }
   }
   /**
    * Pause session
