@@ -292,7 +292,9 @@ export class SessionService extends EventEmitter {
       running.push({ id: this.activeSessionId, name: null, status: this.sessionStatus });
     }
     if (running.length > 1 || running.some((session) => session.id !== sessionId)) {
-      const details = running.map((session) => `${session.name || 'Session'} (${session.status}, ${session.id})`).join(', ');
+      const details = running
+        .map((session) => `${session.name || 'Session'} (${session.status}, ${session.id})`)
+        .join(', ');
       const error = penaltyError(
         `Another session is already running: ${details}. Stop or resolve it before switching sessions.`,
         409
