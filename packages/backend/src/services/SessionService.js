@@ -2050,7 +2050,10 @@ export class SessionService extends EventEmitter {
       throw new Error(`Session ${sessionId} not found`);
     }
 
-    if (this.startingSessionId || (RUNNING_SESSION_STATUSES.includes(session.status) && this.activeSessionId !== sessionId)) {
+    if (
+      this.startingSessionId ||
+      (RUNNING_SESSION_STATUSES.includes(session.status) && this.activeSessionId !== sessionId)
+    ) {
       throw penaltyError(`Session ${sessionId} must be loaded as the current session before it can be reset`, 409);
     }
 
