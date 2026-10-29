@@ -185,6 +185,7 @@ describe('persisted session weather and heartbeat', () => {
       where: { id: created.id },
       data: { status: 'active', startedAt: new Date(start) },
     });
+    await service.loadSession(created.id);
     await service.resetSession(created.id);
     const reset = await prisma.session.findUnique({ where: { id: created.id } });
     expect(reset).toMatchObject({ status: 'draft', weatherSeed: 17, weatherInitial: WeatherCondition.DRY });
