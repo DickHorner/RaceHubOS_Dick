@@ -55,5 +55,8 @@
     "description": "Lecture uniquement avec un récepteur audio actif sur le PC direction. {driver}, {car}, {controller} et {lapTime} sont disponibles pour les meilleurs tours. Sans données fiables, l'annonce est ignorée.",
     "loadError": "Impossible de charger les sons automatiques.",
     "lastSpoken": "Dernière annonce"
-  }
+  },
+  "operatorMode": "Ouvrir les boutons sonores",
+  "operatorHint": "Touchez un bouton pour jouer le son sur cet appareil. Pas de commandes de course ni de modifications ici.",
+  "backToRace": "Retour à la course"
 }

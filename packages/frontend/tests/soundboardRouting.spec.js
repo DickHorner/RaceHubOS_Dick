@@ -279,3 +279,70 @@ test('director auto cues map verified best lap and finish to saved speech and HT
     await page.request.put('/api/preferences/soundboard:presets', { data: { value: null } })
   }
 })
+
+test('operator pads play locally without editing or race controls', async ({ page }) => {
+  const previous = await (await page.request.get('/api/preferences/soundboard:presets')).json()
+  const url = '/api/upload/sounds/123e4567-e89b-12d3-a456-426614174000.mp3'
+  const writes = []
+  try {
+    await page.request.put('/api/preferences/soundboard:presets', {
+      data: { value: [{ id: 'operator-horn', label: 'Airhorn', kind: 'clip', url }] },
+    })
+    await page.addInitScript(() => {
+      window.__operatorPlays = []
+      window.__operatorPauses = 0
+      window.Audio = class {
+        constructor(src) {
+          this.src = src
+        }
+        play() {
+          window.__operatorPlays.push(this.src)
+          return Promise.resolve()
+        }
+        pause() {
+          window.__operatorPauses++
+        }
+      }
+    })
+    page.on('request', (request) => {
+      if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method()) && request.url().includes('/api/')) {
+        writes.push(request.url())
+      }
+    })
+    await page.goto('/soundboard')
+    const pad = page.getByRole('button', { name: 'Airhorn', exact: true })
+    await expect(pad).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Back to race' })).toHaveAttribute('href', '/race')
+    await expect(page.getByRole('combobox')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Edit: Airhorn' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Add announcement or sound' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Receive audio here' })).toHaveCount(0)
+
+    await pad.click()
+    await expect.poll(() => page.evaluate(() => window.__operatorPlays.length)).toBe(1)
+    const playedUrl = await page.evaluate(() => window.__operatorPlays[0])
+    expect(playedUrl.endsWith(url)).toBe(true)
+    await page.getByRole('button', { name: 'Stop', exact: true }).click()
+    await expect.poll(() => page.evaluate(() => window.__operatorPauses)).toBe(1)
+    await page.getByRole('button', { name: 'Mute', exact: true }).click()
+    await expect(pad).toBeDisabled()
+    await page.getByRole('button', { name: 'Unmute', exact: true }).click()
+    await expect(pad).toBeEnabled()
+    expect(writes).toEqual([])
+  } finally {
+    await page.request.put('/api/preferences/soundboard:presets', { data: { value: previous.data ?? null } })
+  }
+})
+
+test('operator soundboard handles empty presets', async ({ page }) => {
+  const previous = await (await page.request.get('/api/preferences/soundboard:presets')).json()
+  try {
+    await page.request.put('/api/preferences/soundboard:presets', { data: { value: null } })
+    await page.goto('/soundboard')
+    await expect(page.getByText('No announcements or sounds saved yet.')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Add announcement or sound' })).toHaveCount(0)
+  } finally {
+    await page.request.put('/api/preferences/soundboard:presets', { data: { value: previous.data ?? null } })
+  }
+})

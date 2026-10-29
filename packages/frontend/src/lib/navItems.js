@@ -8,6 +8,7 @@ import {
   Map,
   Users2,
   LayoutGrid,
+  Volume2,
   Scale,
   Terminal,
   Settings,
@@ -18,6 +19,7 @@ import {
 export const allNavItems = [
   { to: '/', labelKey: 'nav.dashboard', Icon: BarChart3 },
   { to: '/race', labelKey: 'nav.freeMode', Icon: Flag },
+  { to: '/soundboard', labelKey: 'nav.soundboard', Icon: Volume2 },
   { to: '/championships', labelKey: 'championship', glossary: true, Icon: Trophy },
   { to: '/history', labelKey: 'nav.history', Icon: Clock },
   { to: '/tracks', labelKey: 'track', glossary: true, Icon: Map },
