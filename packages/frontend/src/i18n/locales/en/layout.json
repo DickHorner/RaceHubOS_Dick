@@ -9,7 +9,27 @@
     "displays": "Displays",
     "test": "Test",
     "settings": "Settings",
-    "soundboard": "Soundboard"
+    "soundboard": "Soundboard",
+    "areas": {
+      "race": "Race Center",
+      "garage": "Garage & Paddock",
+      "show": "Show & Sound",
+      "analysis": "Data Lab"
+    },
+    "raceControl": "Race Control",
+    "scoreboard": "Spectator Screen",
+    "newWindow": "Opens in a new window",
+    "home": "Home",
+    "homeTitle": "Your racing world.",
+    "homeDescription": "Four areas. Everything for your next race day.",
+    "openArea": "Explore",
+    "backHome": "Back to home",
+    "areaDescriptions": {
+      "race": "Start, organize and control races live.",
+      "garage": "Prepare cars, drivers, teams and tracks.",
+      "show": "Sounds, atmosphere and live displays.",
+      "analysis": "Explore lap times, results and records."
+    }
   },
   "theme": {
     "dayMode": "Day mode",

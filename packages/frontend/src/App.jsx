@@ -9,6 +9,8 @@ import Layout from './components/Layout'
 
 // Lazy load all pages
 const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Home = lazy(() => import('./pages/Home'))
+const AreaOverview = lazy(() => import('./pages/AreaOverview'))
 const Drivers = lazy(() => import('./pages/Drivers'))
 const DriverProfile = lazy(() => import('./pages/DriverProfile'))
 const Cars = lazy(() => import('./pages/Cars'))
@@ -48,7 +50,23 @@ function App() {
                       index
                       element={
                         <Suspense>
+                          <Home />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="dashboard"
+                      element={
+                        <Suspense>
                           <Dashboard />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path="areas/:areaId"
+                      element={
+                        <Suspense>
+                          <AreaOverview />
                         </Suspense>
                       }
                     />

@@ -9,7 +9,27 @@
     "displays": "Displays",
     "test": "Test",
     "settings": "Paramètres",
-    "soundboard": "Table de sons"
+    "soundboard": "Table de sons",
+    "areas": {
+      "race": "Centre de course",
+      "garage": "Garage et paddock",
+      "show": "Show et son",
+      "analysis": "Analyse"
+    },
+    "raceControl": "Direction de course",
+    "scoreboard": "Écran spectateurs",
+    "newWindow": "Ouvre une nouvelle fenêtre",
+    "home": "Accueil",
+    "homeTitle": "Votre univers de course.",
+    "homeDescription": "Quatre espaces pour votre prochaine journée de course.",
+    "openArea": "Explorer",
+    "backHome": "Retour à l’accueil",
+    "areaDescriptions": {
+      "race": "Lancer, organiser et diriger les courses.",
+      "garage": "Préparer voitures, pilotes, équipes et circuits.",
+      "show": "Sons, ambiance et affichages en direct.",
+      "analysis": "Explorer chronos, résultats et records."
+    }
   },
   "theme": {
     "dayMode": "Mode jour",
