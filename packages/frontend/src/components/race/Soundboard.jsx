@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ChevronDown, ChevronUp, Pencil, Play, Plus, Square, Trash2, Volume2, VolumeX } from 'lucide-react'
+import { ChevronDown, ChevronUp, LayoutGrid, Mic2, Music2, Pencil, Play, Plus, Square, Trash2, Volume2, VolumeX } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { useVoice } from '../../context/VoiceContext'
 import { io } from 'socket.io-client'
@@ -12,6 +13,14 @@ const PREF_KEY = 'soundboard:presets'
 const AUTO_PREF_KEY = 'soundboard:auto'
 const AUTO_HISTORY_KEY = 'racehubos-soundboard-auto-history'
 const AUDIO_URL = /^\/api\/upload\/sounds\/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.(mp3|ogg|wav)$/
+const PAD_STYLES = [
+  'border-rose-500/50 bg-rose-500/15 hover:bg-rose-500/25',
+  'border-amber-500/50 bg-amber-500/15 hover:bg-amber-500/25',
+  'border-sky-500/50 bg-sky-500/15 hover:bg-sky-500/25',
+  'border-emerald-500/50 bg-emerald-500/15 hover:bg-emerald-500/25',
+  'border-violet-500/50 bg-violet-500/15 hover:bg-violet-500/25',
+  'border-cyan-500/50 bg-cyan-500/15 hover:bg-cyan-500/25',
+]
 
 function validPreset(preset) {
   return (
@@ -28,7 +37,7 @@ function validPreset(preset) {
   )
 }
 
-export default function Soundboard({ directorKey = '', allowDirectorWithoutKey = false }) {
+export default function Soundboard({ directorKey = '', allowDirectorWithoutKey = false, operatorOnly = false }) {
   const { t } = useTranslation('soundboard')
   const { speak, formatTimeVoice } = useVoice()
   const directorAccess = Boolean(directorKey || allowDirectorWithoutKey)
@@ -153,7 +162,7 @@ export default function Soundboard({ directorKey = '', allowDirectorWithoutKey =
   async function playSelected(preset) {
     if (muted || busy) return
     cancelAuto()
-    if (directorAccess || target === 'local') {
+    if (operatorOnly || directorAccess || target === 'local') {
       await playPreset(preset)
       return
     }
@@ -175,7 +184,7 @@ export default function Soundboard({ directorKey = '', allowDirectorWithoutKey =
 
   async function stopSelected() {
     cancelAuto()
-    const remotelyPlaying = !directorAccess && target === 'director'
+    const remotelyPlaying = !operatorOnly && !directorAccess && target === 'director'
     stopPlayback()
     setRemoteStatus('')
     if (!remotelyPlaying) return
@@ -568,6 +577,71 @@ export default function Soundboard({ directorKey = '', allowDirectorWithoutKey =
     }
   }
 
+  if (operatorOnly) {
+    return (
+      <section aria-label={t('title')} className="space-y-5">
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-3 sm:p-4">
+          <Button variant="outline" size="lg" onClick={() => void stopSelected()} disabled={!playingId}>
+            <Square className="size-5" /> {t('stop')}
+          </Button>
+          <Button
+            variant={muted ? 'destructive' : 'outline'}
+            size="lg"
+            onClick={() => {
+              if (!muted) void stopSelected()
+              setMuted(!muted)
+            }}
+          >
+            {muted ? <VolumeX className="size-5" /> : <Volume2 className="size-5" />}
+            {t(muted ? 'unmute' : 'mute')}
+          </Button>
+          <label className="ml-auto flex items-center gap-3 text-sm font-medium">
+            {t('volume')}
+            <input
+              aria-label={t('volume')}
+              className="w-28 accent-primary sm:w-48"
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={volume}
+              onChange={(event) => setVolume(Number(event.target.value))}
+            />
+          </label>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
+          {presets.map((preset, index) => (
+            <button
+              key={preset.id}
+              type="button"
+              disabled={muted || busy}
+              onClick={() => void playSelected(preset)}
+              className={`relative flex min-h-36 flex-col items-center justify-center gap-4 rounded-2xl border-2 p-4 text-foreground shadow-[0_7px_0_0_rgba(0,0,0,0.2)] transition-[transform,box-shadow,background-color] active:translate-y-1 active:shadow-none focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-44 ${PAD_STYLES[index % PAD_STYLES.length]} ${playingId === preset.id ? 'translate-y-1 ring-4 ring-primary/40 shadow-none' : ''}`}
+            >
+              <span className="absolute right-3 top-3 text-xs font-black tabular-nums opacity-50">
+                {String(index + 1).padStart(2, '0')}
+              </span>
+              {preset.kind === 'speech' ? (
+                <Mic2 className="size-10" aria-hidden="true" />
+              ) : (
+                <Music2 className="size-10" aria-hidden="true" />
+              )}
+              <span className="max-w-full break-words text-center text-base font-black leading-tight sm:text-xl">
+                {preset.label}
+              </span>
+            </button>
+          ))}
+        </div>
+        {presets.length === 0 && <p className="text-center text-muted-foreground">{t('empty')}</p>}
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
+      </section>
+    )
+  }
+
   return (
     <section className="rounded-lg border bg-card mb-4" aria-label={t('title')}>
       <div className="flex flex-wrap items-center gap-2 p-3">
@@ -575,6 +649,13 @@ export default function Soundboard({ directorKey = '', allowDirectorWithoutKey =
           <Volume2 className="size-4" /> {t('title')}{' '}
           {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
         </Button>
+        {!directorAccess && (
+          <Button asChild variant="outline" size="sm">
+            <Link to="/soundboard">
+              <LayoutGrid className="size-4" /> {t('operatorMode')}
+            </Link>
+          </Button>
+        )}
         <Button variant="outline" size="sm" onClick={stopSelected} disabled={!playingId}>
           <Square className="size-3" /> {t('stop')}
         </Button>

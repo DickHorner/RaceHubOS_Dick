@@ -55,5 +55,8 @@
     "description": "Nur bei aktiviertem Audio-Empfang auf dem Rennleiter-PC. {driver}, {car}, {controller} und {lapTime} sind für Bestzeiten verfügbar. Bei fehlenden Daten entfällt die Ansage.",
     "loadError": "Automatischer Sound konnte nicht geladen werden.",
     "lastSpoken": "Letzte Durchsage"
-  }
+  },
+  "operatorMode": "Soundpult öffnen",
+  "operatorHint": "Tippe auf einen Knopf, um den Sound auf diesem Gerät abzuspielen. Hier gibt es keine Rennsteuerung oder Bearbeitung.",
+  "backToRace": "Zurück zum Rennen"
 }
