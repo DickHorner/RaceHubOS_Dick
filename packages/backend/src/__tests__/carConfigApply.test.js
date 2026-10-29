@@ -23,7 +23,11 @@ describe('CU vehicle configuration', () => {
     service = new SessionService({ emit: jest.fn() });
     const prisma = service.prisma;
     service.prisma = {
-      session: { update: jest.fn() },
+      session: {
+        findMany: jest.fn().mockResolvedValue([]),
+        findUnique: jest.fn().mockResolvedValue({ status: SessionStatus.DRAFT, deletedAt: null }),
+        update: jest.fn(),
+      },
       $disconnect: () => prisma.$disconnect(),
     };
     service.syncService = {
@@ -302,6 +306,10 @@ describe('CU vehicle configuration', () => {
         drivers: [],
         trackId: 'track-1',
       });
+      await expect(service.loadSession('session-2')).rejects.toMatchObject({ status: 409 });
+      expect(service.firstCrossingProgrammed.has(0)).toBe(true);
+
+      service.sessionStatus = SessionStatus.FINISHED;
       await service.loadSession('session-2');
       expect(service.firstCrossingProgrammed.size).toBe(0);
     });
