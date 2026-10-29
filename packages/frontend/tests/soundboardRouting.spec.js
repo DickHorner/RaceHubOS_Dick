@@ -320,7 +320,8 @@ test('operator pads play locally without editing or race controls', async ({ pag
 
     await pad.click()
     await expect.poll(() => page.evaluate(() => window.__operatorPlays.length)).toBe(1)
-    expect(await page.evaluate(() => window.__operatorPlays[0].endsWith('/api/upload/sounds/123e4567-e89b-12d3-a456-426614174000.mp3'))).toBe(true)
+    const playedUrl = await page.evaluate(() => window.__operatorPlays[0])
+    expect(playedUrl.endsWith(url)).toBe(true)
     await page.getByRole('button', { name: 'Stop', exact: true }).click()
     await expect.poll(() => page.evaluate(() => window.__operatorPauses)).toBe(1)
     await page.getByRole('button', { name: 'Mute', exact: true }).click()
