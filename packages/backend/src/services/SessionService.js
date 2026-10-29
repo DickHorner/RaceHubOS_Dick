@@ -593,8 +593,8 @@ export class SessionService extends EventEmitter {
   /**
    * Stop session manually
    */
-  async stopSession(sessionId) {
-    if (sessionId !== undefined) this.assertCurrentSession(sessionId);
+  async stopSession(requestedSessionId) {
+    if (requestedSessionId !== undefined) this.assertCurrentSession(requestedSessionId);
     if (!this.activeSessionId) return null;
 
     const sessionId = this.activeSessionId;
