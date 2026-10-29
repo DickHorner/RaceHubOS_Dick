@@ -498,16 +498,15 @@ export class SessionService extends EventEmitter {
     }
     this.startingSessionId = sessionId;
     try {
-      if (!this.syncService?.isConnected()) {
-        throw new Error('No device connected. Connect a CU or Simulator first.');
-      }
-      if (this.vsc) throw new Error('VSC speed restoration is unresolved; clear it before the next race');
-
       // Reject before touching the CU or replacing the running session in memory.
       const running = await this.assertNoOtherRunningSession(sessionId);
       if (running.length || this.isActive()) {
         throw penaltyError(`Session ${sessionId} is already running; stop it before starting again.`, 409);
       }
+      if (!this.syncService?.isConnected()) {
+        throw new Error('No device connected. Connect a CU or Simulator first.');
+      }
+      if (this.vsc) throw new Error('VSC speed restoration is unresolved; clear it before the next race');
       const session = await this.prisma.session.findUnique({
         where: { id: sessionId },
         select: { status: true, deletedAt: true },
