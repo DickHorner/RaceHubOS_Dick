@@ -161,7 +161,7 @@
       "noStops": "Aucun arrêt terminé enregistré.",
       "refuels": "Ravitaillements virtuels ({{count}})",
       "noRefuels": "Aucun ravitaillement virtuel enregistré.",
-      "refilled": "Réservoir virtuel rempli à 100 % lors de cet événement.",
+      "refilled": "Réservoir virtuel rempli à {{percent}} % lors de cet événement.",
       "source": {
         "cu": "Signal de stand CU (observé)",
         "simulator": "Simulateur"

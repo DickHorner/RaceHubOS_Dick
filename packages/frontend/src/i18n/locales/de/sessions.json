@@ -161,7 +161,7 @@
       "noStops": "Kein abgeschlossener Boxenstopp gespeichert.",
       "refuels": "Virtuelle Betankungen ({{count}})",
       "noRefuels": "Keine virtuelle Betankung gespeichert.",
-      "refilled": "Virtueller Tank bei diesem Ereignis auf 100 % aufgefüllt.",
+      "refilled": "Virtueller Tank bei diesem Ereignis auf {{percent}} % aufgefüllt.",
       "source": {
         "cu": "CU-Pit-Signal (beobachtet)",
         "simulator": "Simulator"

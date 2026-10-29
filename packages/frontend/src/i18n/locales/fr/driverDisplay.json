@@ -52,5 +52,26 @@
     "repaired": "Réparé",
     "dnf": "Abandon – non réparé",
     "none": "Aucun dommage"
+  },
+  "fuelStrategy": {
+    "title": "Stratégie de carburant au prochain arrêt",
+    "range": "Autonomie estimée : {{laps}} tours",
+    "noEstimate": "Autonomie pas encore calculable",
+    "estimateNote": "Estimation sur la médiane des cinq dernières consommations par tour enregistrées, avec au moins trois tours. Un changement de rythme peut modifier l’autonomie.",
+    "pending": "Enregistré : {{laps}} tours, objectif au moins {{percent}} % (estimation à l’enregistrement).",
+    "fullTank": "Aucun objectif individuel : le prochain arrêt du simulateur remplit entièrement le réservoir virtuel.",
+    "off": "Le carburant virtuel est désactivé pour cette session.",
+    "pitNote": "Application automatique après un arrêt terminé du simulateur, sans autorisation du directeur. Un niveau supérieur n’est pas réduit. Les signaux CU n’exécutent pas ce plan.",
+    "target": "Autonomie visée après le prochain arrêt (tours)",
+    "preview": "Niveau cible estimé : {{percent}} %",
+    "invalidTarget": "Saisir un nombre entier de tours dans la capacité du réservoir.",
+    "save": "Enregistrer le plan",
+    "saving": "Enregistrement…",
+    "saved": "Plan enregistré.",
+    "clear": "Revenir aux pleins complets",
+    "tokenRequired": "Utilisez Votre lien personnel de pilote pour planifier le carburant.",
+    "unavailable": "Disponible en course ou qualification active ou en pause avec carburant virtuel activé.",
+    "saveError": "Impossible d’enregistrer le plan. Vérifiez l’affectation, les tours mesurés et la capacité ; actualisez avant de réessayer.",
+    "refreshError": "Le serveur a accepté le plan, mais son état enregistré n’a pas pu être chargé. Rechargez cette page avant de réessayer."
   }
 }

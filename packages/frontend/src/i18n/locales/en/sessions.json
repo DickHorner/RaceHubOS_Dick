@@ -161,7 +161,7 @@
       "noStops": "No completed pit stop recorded.",
       "refuels": "Virtual refuels ({{count}})",
       "noRefuels": "No virtual refuel recorded.",
-      "refilled": "Virtual tank refilled to 100 % at this event.",
+      "refilled": "Virtual tank refilled to {{percent}} % at this event.",
       "source": {
         "cu": "CU pit signal (observed)",
         "simulator": "Simulator"

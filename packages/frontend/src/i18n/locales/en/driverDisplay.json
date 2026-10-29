@@ -52,5 +52,26 @@
     "repaired": "Repaired",
     "dnf": "DNF – repair not completed",
     "none": "No damage"
+  },
+  "fuelStrategy": {
+    "title": "Fuel strategy for the next pit stop",
+    "range": "Estimated range: {{laps}} laps",
+    "noEstimate": "Range not yet calculable",
+    "estimateNote": "Estimate from the median of the last five recorded lap consumptions, with at least three laps. Pace changes can alter the range.",
+    "pending": "Saved: {{laps}} laps, target at least {{percent}} % (estimate at saving time).",
+    "fullTank": "No individual target: the next simulator stop fills the virtual tank completely.",
+    "off": "Virtual fuel is disabled for this session.",
+    "pitNote": "Applied automatically on a completed simulator pit stop, without director approval. No fuel is removed if the current level is higher. CU pit signals do not execute this plan.",
+    "target": "Target range after the next pit stop (laps)",
+    "preview": "Estimated tank target: {{percent}} %",
+    "invalidTarget": "Enter whole laps within the tank capacity.",
+    "save": "Save pit plan",
+    "saving": "Saving…",
+    "saved": "Pit plan saved.",
+    "clear": "Return to full-tank stops",
+    "tokenRequired": "Use your personal driver link to plan fuel.",
+    "unavailable": "Available in running or paused race/qualifying sessions with virtual fuel enabled.",
+    "saveError": "Could not save the pit plan. Check the current assignment, measured laps and tank capacity; refresh before retrying.",
+    "refreshError": "The server accepted the plan, but its saved state could not be loaded. Reload this page before retrying."
   }
 }

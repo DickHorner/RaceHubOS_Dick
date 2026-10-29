@@ -60,13 +60,25 @@ async function mockSession(page) {
     },
     writes: [],
     failRead: false,
+    rejectPlan: false,
   }
   await page.routeWebSocket('**/socket.io/**', (socket) => socket.close())
   await page.route('**/socket.io/**', (route) => route.abort())
-  await page.route('**/api/**', (route) => {
+  await page.route('**/api/**', async (route) => {
     const request = route.request()
     const url = new URL(request.url())
     if (request.method() !== 'GET') state.writes.push({ path: url.pathname, method: request.method() })
+    if (url.pathname === '/api/race-control/driver/fuel' && request.method() === 'POST') {
+      const body = request.postDataJSON()
+      state.writes[state.writes.length - 1].body = body
+      if (state.rejectPlan) return route.fulfill({ status: 409, json: { success: false } })
+      if (state.planGate) await state.planGate
+      const assigned = state.current.drivers[0]
+      assigned.pendingFuelLaps = body.targetLaps
+      assigned.pendingFuelUnits = body.targetLaps == null ? null : body.targetLaps * 100
+      assigned.fuelPlanVersion = (assigned.fuelPlanVersion || 0) + 1
+      return route.fulfill({ json: { success: true, data: assigned } })
+    }
     let data = []
     if (url.pathname === '/api/sessions') data = [state.current]
     if (url.pathname === '/api/sessions/pit-session') {
@@ -176,4 +188,151 @@ test('history retains unassigned pit observations and reports missing fuel inste
   await expect(panel.getByTestId('pit-stop-cu-1')).toContainText('Controller 1')
   await expect(panel.getByTestId('pit-stop-cu-1')).toContainText('Source unknown')
   await expect(panel.getByTestId('pit-fuel-level-entry-1')).toContainText('Virtual fuel: unavailable')
+})
+
+test('personal fuel plan previews 25 laps, persists without approval and applies only after the pit update', async ({
+  page,
+}) => {
+  const state = await mockSession(page)
+  state.current.virtualFuelEvents = [1, 2, 3].map((id) => ({ id, sessionDriverId: 'entry-1', kind: 'lap', units: 100 }))
+  state.current.drivers[0].virtualFuelUnits = 1700
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/display/driver/driver-1#chaos=personal-test-token')
+  await expect(page.getByTestId('fuel-range')).toContainText('17 laps')
+  await page.getByTestId('fuel-target-laps').fill('25')
+  await expect(page.getByTestId('fuel-target-preview')).toContainText('25 %')
+  expect(state.writes).toEqual([])
+  await page.getByTestId('fuel-plan-save').click()
+  await expect(page.getByTestId('fuel-saved-plan')).toContainText('25 laps')
+  await expect(page.getByTestId('pit-fuel-level-entry-1')).toContainText('17 %')
+  expect(state.writes).toEqual([
+    { path: '/api/race-control/driver/fuel', method: 'POST', body: { targetLaps: 25, expectedVersion: 0 } },
+  ])
+  await page.reload()
+  await expect(page.getByTestId('fuel-target-laps')).toHaveValue('25')
+  state.current.drivers[0] = {
+    ...state.current.drivers[0],
+    pendingFuelLaps: null,
+    pendingFuelUnits: null,
+    fuelPlanVersion: 2,
+    virtualFuelUnits: 2500,
+  }
+  state.current.virtualFuelEvents.push({
+    id: 4,
+    sessionDriverId: 'entry-1',
+    controller: 0,
+    kind: 'refuel',
+    source: 'simulator',
+    targetUnits: 2500,
+    createdAt: '2026-10-29T12:03:00Z',
+  })
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('session:pit_stop')))
+  await expect(page.getByTestId('fuel-saved-plan')).toContainText('No individual target')
+  await expect(page.getByTestId('fuel-range')).toContainText('25 laps')
+  await expect(page.getByTestId('pit-refuel-4')).toContainText('25 % at this event')
+  expect(state.writes).toHaveLength(1)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+})
+
+test('fuel planning shows prerequisites and rejects impossible previews without a write', async ({ page }) => {
+  const state = await mockSession(page)
+  await page.goto('/display/driver/driver-1')
+  const panel = page.getByTestId('driver-fuel-strategy')
+  await expect(panel).toContainText('Use your personal driver link')
+  await expect(panel.getByTestId('fuel-target-laps')).toBeDisabled()
+  await page.goto('/display/driver/driver-1#chaos=personal-test-token')
+  await expect(panel.getByTestId('fuel-range')).toContainText('not yet calculable')
+  await page.getByTestId('fuel-target-laps').fill('25')
+  await expect(page.getByTestId('fuel-plan-save')).toBeDisabled()
+  state.current.virtualFuelEvents = [1, 2, 3].map((id) => ({
+    id,
+    sessionDriverId: 'entry-1',
+    kind: 'lap',
+    units: 1000,
+  }))
+  await page.reload()
+  for (const laps of ['25', '0', '1.5', '']) {
+    await page.getByTestId('fuel-target-laps').fill(laps)
+    await expect(page.getByTestId('fuel-plan-save')).toBeDisabled()
+  }
+  await page.getByTestId('fuel-target-laps').fill('10')
+  await expect(page.getByTestId('fuel-target-preview')).toContainText('100 %')
+  await expect(page.getByTestId('fuel-plan-save')).toBeEnabled()
+  expect(state.writes).toEqual([])
+})
+
+test('a paused qualifying fuel plan can return to full-tank stops without a refuel', async ({ page }) => {
+  const state = await mockSession(page)
+  state.current.type = 'qualif'
+  state.current.status = 'paused'
+  state.current.drivers[0] = {
+    ...state.current.drivers[0],
+    pendingFuelLaps: 25,
+    pendingFuelUnits: 2500,
+    fuelPlanVersion: 3,
+  }
+  await page.goto('/display/driver/driver-1#chaos=personal-test-token')
+  await page.getByTestId('fuel-plan-clear').click()
+  await expect(page.getByTestId('fuel-saved-plan')).toContainText('fills the virtual tank completely')
+  await expect(page.getByTestId('pit-fuel-level-entry-1')).toContainText('73 %')
+  expect(state.writes[0].body).toEqual({ targetLaps: null, expectedVersion: 3 })
+  expect(
+    state.current.virtualFuelEvents.filter((event) => event.sessionDriverId === 'entry-1' && event.kind === 'refuel')
+  ).toHaveLength(0)
+})
+
+test('stale fuel plans report failure and refresh the saved assignment', async ({ page }) => {
+  const state = await mockSession(page)
+  state.current.virtualFuelEvents = [1, 2, 3].map((id) => ({ id, sessionDriverId: 'entry-1', kind: 'lap', units: 100 }))
+  await page.goto('/display/driver/driver-1#chaos=personal-test-token')
+  await page.getByTestId('fuel-target-laps').fill('25')
+  state.current.drivers[0] = {
+    ...state.current.drivers[0],
+    pendingFuelLaps: 40,
+    pendingFuelUnits: 4000,
+    fuelPlanVersion: 1,
+  }
+  state.rejectPlan = true
+  await page.getByTestId('fuel-plan-save').click()
+  await expect(page.getByTestId('fuel-plan-error')).toContainText('Could not save')
+  await expect(page.getByTestId('fuel-saved-plan')).toContainText('40 laps')
+  await expect(page.getByTestId('fuel-target-laps')).toHaveValue('25')
+  await expect(page.getByTestId('pit-fuel-level-entry-1')).toContainText('73 %')
+  expect(state.writes[0].body.expectedVersion).toBe(0)
+})
+
+test('fuel plan saving blocks duplicate input until the server reply', async ({ page }) => {
+  const state = await mockSession(page)
+  state.current.virtualFuelEvents = [1, 2, 3].map((id) => ({ id, sessionDriverId: 'entry-1', kind: 'lap', units: 100 }))
+  let release
+  state.planGate = new Promise((resolve) => {
+    release = resolve
+  })
+  await page.goto('/display/driver/driver-1#chaos=personal-test-token')
+  await page.getByTestId('fuel-target-laps').fill('25')
+  await page.getByTestId('fuel-plan-save').click()
+  await expect(page.getByTestId('fuel-plan-save')).toBeDisabled()
+  await expect(page.getByTestId('fuel-target-laps')).toBeDisabled()
+  await page.getByTestId('fuel-plan-save').evaluate((button) => button.click())
+  expect(state.writes).toHaveLength(1)
+  release()
+  await expect(page.getByTestId('fuel-saved-plan')).toContainText('25 laps')
+  await expect(page.getByTestId('fuel-plan-save')).toBeEnabled()
+  expect(state.writes).toHaveLength(1)
+})
+
+test('accepted fuel plans with a failed reload are reported as unconfirmed', async ({ page }) => {
+  const state = await mockSession(page)
+  state.current.virtualFuelEvents = [1, 2, 3].map((id) => ({ id, sessionDriverId: 'entry-1', kind: 'lap', units: 100 }))
+  await page.goto('/display/driver/driver-1#chaos=personal-test-token')
+  await page.getByTestId('fuel-target-laps').fill('25')
+  state.failRead = true
+  await page.getByTestId('fuel-plan-save').click()
+  await expect(page.getByTestId('fuel-plan-error')).toContainText('server accepted the plan')
+  await expect(page.getByTestId('fuel-plan-error')).toContainText('Reload this page')
+  expect(state.writes).toHaveLength(1)
+  state.failRead = false
+  await page.reload()
+  await expect(page.getByTestId('fuel-saved-plan')).toContainText('25 laps')
+  expect(state.writes).toHaveLength(1)
 })
