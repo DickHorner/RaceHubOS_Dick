@@ -115,8 +115,9 @@ describe('migrateSchema', () => {
   }, 120000);
 
   it('upgrades a database missing the recent feature migrations without losing saved sessions', () => {
-    const migrationCount = migrationNames().length;
-    const db = fixture(dbPath, migrationCount - 5);
+    const beforeDamage = migrationNames().indexOf('20261026142000_add_race_damage');
+    expect(beforeDamage).toBeGreaterThan(0);
+    const db = fixture(dbPath, beforeDamage);
     db.prepare('INSERT INTO Track (id, name, updatedAt) VALUES (?, ?, 0)').run('track-old', 'Existing circuit');
     db.prepare('INSERT INTO Session (id, name, type, trackId, updatedAt) VALUES (?, ?, ?, ?, 0)').run(
       'session-old',

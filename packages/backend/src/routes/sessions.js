@@ -175,7 +175,7 @@ router.get('/:id', async (req, res) => {
     }
 
     if (session.virtualFuelRate != null) {
-      const levels = replayVirtualFuel(session.virtualFuelEvents);
+      const levels = replayVirtualFuel(session.virtualFuelEvents, session.drivers);
       session.drivers = session.drivers.map((driver) => ({
         ...driver,
         virtualFuelUnits: levels.get(driver.id) ?? VIRTUAL_FUEL_FULL,
@@ -789,7 +789,8 @@ router.get('/:id/leaderboard', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Session not found' });
     }
 
-    const fuelLevels = session.virtualFuelRate == null ? null : replayVirtualFuel(session.virtualFuelEvents);
+    const fuelLevels =
+      session.virtualFuelRate == null ? null : replayVirtualFuel(session.virtualFuelEvents, session.drivers);
     const entries = [];
     for (const sd of session.drivers) {
       const laps = await prisma().lap.findMany({

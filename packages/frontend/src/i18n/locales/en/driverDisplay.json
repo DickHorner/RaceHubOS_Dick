@@ -18,7 +18,7 @@
   "gap": "Gap",
   "fuel": "Fuel level",
   "unavailable": "Unavailable",
-  "readOnly": "Race controls require the director; tyre requests require a personal driver link.",
+  "readOnly": "Race controls require the director; tyre and fuel selections require a personal driver link.",
   "linksTitle": "Personal driver displays",
   "copyLink": "Copy link for {{name}}",
   "linkCopied": "Link copied",
@@ -70,8 +70,17 @@
     "saved": "Pit plan saved.",
     "clear": "Return to full-tank stops",
     "tokenRequired": "Use your personal driver link to plan fuel.",
-    "unavailable": "Available in running or paused race/qualifying sessions with virtual fuel enabled.",
+    "unavailable": "The pit plan is available in running or paused race/qualifying sessions with virtual fuel enabled.",
     "saveError": "Could not save the pit plan. Check the current assignment, measured laps and tank capacity; refresh before retrying.",
-    "refreshError": "The server accepted the plan, but its saved state could not be loaded. Reload this page before retrying."
-  }
+    "refreshError": "The server accepted the plan, but its saved state could not be loaded. Reload this page before retrying.",
+    "startTitle": "Virtual starting fuel",
+    "startConfigured": "Saved starting level: {{percent}} %",
+    "startHint": "Set through your personal link before a race or qualifying session with virtual consumption enabled. Locked after start; CU fuel remains independent. Lap range needs measured laps first.",
+    "startPercent": "Starting level in % (0–100, whole number)",
+    "startSave": "Save starting level",
+    "startSaved": "Virtual starting level saved.",
+    "startInvalid": "Enter a whole percentage from 0 to 100.",
+    "startSaveError": "Could not save starting fuel. Refresh the saved state; the session may be starting or the selection may have changed."
+  },
+  "personalSession": "This personal driver link is bound to this session."
 }

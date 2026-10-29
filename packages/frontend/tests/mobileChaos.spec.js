@@ -23,6 +23,11 @@ const race = {
 }
 
 async function mockRace(page, session) {
+  await page.route('**/api/race-control/driver/session', (route) =>
+    route.fulfill({
+      json: { success: true, data: { sessionId: session.id, sessionDriverId: 'entry-1', driverId: 'driver-1' } },
+    })
+  )
   await page.route('**/api/sessions?*', (route) => route.fulfill({ json: { success: true, data: [session] } }))
   await page.route('**/api/sessions/race-1', (route) => route.fulfill({ json: { success: true, data: session } }))
 }

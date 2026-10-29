@@ -18,7 +18,7 @@
   "gap": "Écart",
   "fuel": "Carburant",
   "unavailable": "Indisponible",
-  "readOnly": "Commandes de course réservées au directeur ; demandes de pneus via lien pilote personnel.",
+  "readOnly": "Les commandes de course nécessitent le directeur ; les choix de pneus et de carburant nécessitent un lien personnel de pilote.",
   "linksTitle": "Affichages pilotes individuels",
   "copyLink": "Copier le lien pour {{name}}",
   "linkCopied": "Lien copié",
@@ -70,8 +70,17 @@
     "saved": "Plan enregistré.",
     "clear": "Revenir aux pleins complets",
     "tokenRequired": "Utilisez Votre lien personnel de pilote pour planifier le carburant.",
-    "unavailable": "Disponible en course ou qualification active ou en pause avec carburant virtuel activé.",
+    "unavailable": "Le plan de stand est disponible en course ou qualification active ou en pause avec carburant virtuel activé.",
     "saveError": "Impossible d’enregistrer le plan. Vérifiez l’affectation, les tours mesurés et la capacité ; actualisez avant de réessayer.",
-    "refreshError": "Le serveur a accepté le plan, mais son état enregistré n’a pas pu être chargé. Rechargez cette page avant de réessayer."
-  }
+    "refreshError": "Le serveur a accepté le plan, mais son état enregistré n’a pas pu être chargé. Rechargez cette page avant de réessayer.",
+    "startTitle": "Carburant virtuel au départ",
+    "startConfigured": "Niveau de départ enregistré : {{percent}} %",
+    "startHint": "Réglable par Votre lien personnel avant une course ou qualification avec consommation virtuelle activée. Verrouillé après le départ ; le niveau CU reste indépendant. L’autonomie nécessite des tours mesurés.",
+    "startPercent": "Niveau au départ en % (0–100, entier)",
+    "startSave": "Enregistrer le niveau de départ",
+    "startSaved": "Niveau virtuel de départ enregistré.",
+    "startInvalid": "Saisir un pourcentage entier de 0 à 100.",
+    "startSaveError": "Impossible d’enregistrer le carburant de départ. Actualisez ; la session peut démarrer ou la sélection avoir changé."
+  },
+  "personalSession": "Ce lien personnel de pilote est lié à cette session."
 }

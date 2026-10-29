@@ -69,6 +69,17 @@ async function mockSession(page) {
     const request = route.request()
     const url = new URL(request.url())
     if (request.method() !== 'GET') state.writes.push({ path: url.pathname, method: request.method() })
+    if (url.pathname === '/api/race-control/driver/start-fuel' && request.method() === 'POST') {
+      const body = request.postDataJSON()
+      state.writes[state.writes.length - 1].body = body
+      if (state.rejectPlan) return route.fulfill({ status: 409, json: { success: false } })
+      if (state.planGate) await state.planGate
+      const assigned = state.current.drivers[0]
+      assigned.initialFuelUnits = body.initialFuelUnits
+      assigned.virtualFuelUnits = body.initialFuelUnits
+      assigned.fuelPlanVersion = (assigned.fuelPlanVersion || 0) + 1
+      return route.fulfill({ json: { success: true, data: assigned } })
+    }
     if (url.pathname === '/api/race-control/driver/fuel' && request.method() === 'POST') {
       const body = request.postDataJSON()
       state.writes[state.writes.length - 1].body = body
@@ -81,6 +92,11 @@ async function mockSession(page) {
       return route.fulfill({ json: { success: true, data: assigned } })
     }
     let data = []
+    if (url.pathname === '/api/race-control/driver/session') {
+      if (state.accessGate) await state.accessGate
+      if (state.rejectAccess) return route.fulfill({ status: 403, json: { success: false } })
+      data = { sessionId: state.current.id, sessionDriverId: 'entry-1', driverId: 'driver-1' }
+    }
     if (url.pathname === '/api/sessions') data = [state.current]
     if (url.pathname === '/api/sessions/pit-session') {
       if (state.failRead) return route.fulfill({ status: 500, json: { success: false } })
@@ -410,5 +426,117 @@ test('required stops wait for GO and exclude earlier pit cycles from the next at
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('session:pit_stop')))
   await expect(progress).toContainText('1 / 1')
   await expect(progress).toContainText('requirement fulfilled')
+  expect(state.writes).toEqual([])
+})
+
+for (const type of ['race', 'qualif']) {
+  test(`${type}: personal draft link saves starting fuel and reloads its own prepared session`, async ({ page }) => {
+    const state = await mockSession(page)
+    state.current.type = type
+    state.current.status = 'draft'
+    state.current.startedAt = null
+    state.current.virtualFuelEvents = []
+    state.current.drivers[0].virtualFuelUnits = 10000
+    // A prepared personal session must remain reachable while another race is active.
+    let listReads = 0
+    await page.route('**/api/sessions?*', (route) => {
+      listReads++
+      return route.fulfill({
+        json: { success: true, data: [{ id: 'other-race', status: 'active', name: 'Other race' }] },
+      })
+    })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/display/driver/driver-1#chaos=personal-test-token')
+    await expect(page.getByTestId('start-fuel-save')).toBeEnabled()
+    await expect(page.getByTestId('fuel-range')).toContainText('not yet calculable')
+    await page.getByTestId('start-fuel-percent').fill('25')
+    await page.getByTestId('start-fuel-save').click()
+    await expect(page.getByTestId('start-fuel-saved')).toContainText('25 %')
+    await expect(page.getByTestId('start-fuel-save')).toBeEnabled()
+    expect(state.writes).toEqual([
+      {
+        path: '/api/race-control/driver/start-fuel',
+        method: 'POST',
+        body: { initialFuelUnits: 2500, expectedVersion: 0 },
+      },
+    ])
+    await page.reload()
+    await expect(page.getByTestId('start-fuel-percent')).toHaveValue('25')
+    await expect(page.getByTestId('pit-fuel-level-entry-1')).toContainText('25 %')
+    await page.getByTestId('start-fuel-percent').fill('0')
+    await page.getByTestId('start-fuel-save').click()
+    await expect(page.getByTestId('start-fuel-saved')).toContainText('0 %')
+    expect(state.writes[1].body).toEqual({ initialFuelUnits: 0, expectedVersion: 1 })
+    expect(listReads).toBe(0)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  })
+}
+
+test('starting fuel requires a verified personal draft link and rejects invalid percentages', async ({ page }) => {
+  const state = await mockSession(page)
+  state.current.status = 'draft'
+  state.current.type = 'qualif'
+  await page.goto('/display/driver/driver-1#chaos=personal-test-token')
+  for (const value of ['-1', '101', '1.5', '']) {
+    await page.getByTestId('start-fuel-percent').fill(value)
+    await expect(page.getByTestId('start-fuel-save')).toBeDisabled()
+  }
+  await page.getByTestId('start-fuel-percent').fill('100')
+  await expect(page.getByTestId('start-fuel-save')).toBeEnabled()
+  state.current.status = 'active'
+  await page.reload()
+  await expect(page.getByTestId('start-fuel-percent')).toBeDisabled()
+  await expect(page.getByTestId('start-fuel-save')).toBeDisabled()
+  expect(state.writes).toEqual([])
+})
+
+test('stale or unconfirmed starting fuel remains explicit and recovers through reload', async ({ page }) => {
+  const state = await mockSession(page)
+  state.current.status = 'draft'
+  await page.goto('/display/driver/driver-1#chaos=personal-test-token')
+  await page.getByTestId('start-fuel-percent').fill('25')
+  state.rejectPlan = true
+  await page.getByTestId('start-fuel-save').click()
+  await expect(page.getByTestId('fuel-plan-error')).toContainText('Could not save starting fuel')
+  await expect(page.getByTestId('start-fuel-saved')).toContainText('100 %')
+  state.rejectPlan = false
+  state.failRead = true
+  await page.getByTestId('start-fuel-save').click()
+  await expect(page.getByTestId('fuel-plan-error')).toContainText('server accepted the plan')
+  state.failRead = false
+  await page.reload()
+  await expect(page.getByTestId('start-fuel-saved')).toContainText('25 %')
+})
+
+test('a rejected or mismatched personal link never enables controls for a different driver', async ({ page }) => {
+  const state = await mockSession(page)
+  await page.goto('/display/driver/another-driver#chaos=personal-test-token')
+  await expect(page.getByRole('alert')).toContainText('Could not refresh session data')
+  await expect(page.getByTestId('driver-fuel-strategy')).toHaveCount(0)
+  await page.goto('/display/driver/driver-1#chaos=personal-test-token')
+  await expect(page.getByTestId('driver-fuel-strategy')).toBeVisible()
+  state.rejectAccess = true
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('session:status_changed')))
+  await expect(page.getByTestId('driver-fuel-strategy')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /chaos/i })).toHaveCount(0)
+  expect(state.writes).toEqual([])
+})
+
+test('switching the driver URL immediately revokes controls while personal lookup is pending', async ({ page }) => {
+  const state = await mockSession(page)
+  await page.goto('/display/driver/driver-1#chaos=personal-test-token')
+  await expect(page.getByRole('button', { name: /chaos/i })).toBeVisible()
+  let release
+  state.accessGate = new Promise((resolve) => {
+    release = resolve
+  })
+  await page.evaluate(() => {
+    history.pushState(null, '', '/display/driver/driver-2#chaos=personal-test-token')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+  })
+  await expect(page.getByRole('button', { name: /chaos/i })).toHaveCount(0)
+  await expect(page.getByTestId('start-fuel-save')).toBeDisabled()
+  release()
+  await expect(page.getByRole('alert')).toContainText('Could not refresh session data')
   expect(state.writes).toEqual([])
 })

@@ -1162,3 +1162,80 @@ describe('driver-scoped fuel plans', () => {
     expect(session.requestFuelTarget).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('personal draft session and starting fuel access', () => {
+  const previousSecret = process.env.RACE_CONTROL_SECRET;
+  beforeEach(() => {
+    process.env.RACE_CONTROL_SECRET = secret;
+  });
+  afterEach(() => {
+    if (previousSecret === undefined) delete process.env.RACE_CONTROL_SECRET;
+    else process.env.RACE_CONTROL_SECRET = previousSecret;
+    jest.restoreAllMocks();
+  });
+
+  test('personal lookup stays on its signed session and starting fuel ignores foreign body identities', async () => {
+    const { app, session } = setup();
+    session.setInitialFuel = jest.fn().mockResolvedValue({ initialFuelUnits: 2500, fuelPlanVersion: 1 });
+    const token = await issueToken(app);
+    session.activeSessionId = 'other-running-session';
+    const lookup = await request(app)
+      .get('/api/race-control/driver/session')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(lookup.body.data).toEqual({ sessionId: 'race-1', sessionDriverId: 'sd-1', driverId: 'driver-1' });
+    await request(app)
+      .post('/api/race-control/driver/start-fuel')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        initialFuelUnits: 2500,
+        expectedVersion: 0,
+        sessionId: 'foreign',
+        sessionDriverId: 'foreign',
+        driverId: 'foreign',
+        controller: 0,
+      })
+      .expect(200);
+    expect(session.setInitialFuel).toHaveBeenCalledWith({
+      sessionId: 'race-1',
+      sessionDriverId: 'sd-1',
+      driverId: 'driver-1',
+      controller: 2,
+      initialFuelUnits: 2500,
+      expectedVersion: 0,
+    });
+  });
+
+  test('both endpoints reject forged, expired and changed or ambiguous assignments', async () => {
+    const { app, session } = setup();
+    session.setInitialFuel = jest.fn();
+    const token = await issueToken(app);
+    const call = (auth) =>
+      request(app)
+        .post('/api/race-control/driver/start-fuel')
+        .set('Authorization', auth)
+        .send({ initialFuelUnits: 2500, expectedVersion: 0 });
+    for (const auth of ['', 'Bearer forged']) {
+      await call(auth).expect(403);
+      await request(app).get('/api/race-control/driver/session').set('Authorization', auth).expect(403);
+    }
+    for (const rows of [
+      [],
+      [{ ...assignment, controller: 1 }],
+      [{ ...assignment, id: 'replacement' }],
+      [assignment, assignment],
+    ]) {
+      session.prisma.sessionDriver.findMany.mockResolvedValue(rows);
+      await call(`Bearer ${token}`).expect(403);
+      await request(app).get('/api/race-control/driver/session').set('Authorization', `Bearer ${token}`).expect(403);
+    }
+    session.prisma.sessionDriver.findMany.mockResolvedValue([assignment]);
+    session.prisma.session.findUnique.mockResolvedValue({ id: 'race-1', deletedAt: new Date() });
+    await request(app).get('/api/race-control/driver/session').set('Authorization', `Bearer ${token}`).expect(409);
+    const now = Date.now();
+    jest.spyOn(Date, 'now').mockReturnValue(now + 7 * 60 * 60 * 1000);
+    await call(`Bearer ${token}`).expect(403);
+    await request(app).get('/api/race-control/driver/session').set('Authorization', `Bearer ${token}`).expect(403);
+    expect(session.setInitialFuel).not.toHaveBeenCalled();
+  });
+});

@@ -30,6 +30,7 @@ export default function DriverDisplay() {
   const [tyreError, setTyreError] = useState('')
   const [tyreMessage, setTyreMessage] = useState('')
   const accessToken = new URLSearchParams(window.location.hash.slice(1)).get('chaos')
+  const [verifiedAccess, setVerifiedAccess] = useState(null)
 
   const refresh = useCallback(async () => {
     if (fetching.current) return
@@ -44,10 +45,38 @@ export default function DriverDisplay() {
         return result.data?.[0] || null
       }
 
-      const latest = (await findLatest('active,paused,finishing')) || (await findLatest('finished'))
+      let latest
+      let verified = null
+      if (accessToken) {
+        const response = await fetch(`${API_URL}/api/race-control/driver/session`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        const result = await response.json()
+        if (
+          !response.ok ||
+          !result.success ||
+          result.data?.driverId !== driverId ||
+          !result.data?.sessionId ||
+          !result.data?.sessionDriverId
+        ) {
+          clearSession()
+          setVerifiedAccess(null)
+          throw new Error('Personal driver session is unavailable')
+        }
+        latest = { id: result.data.sessionId }
+        verified = {
+          token: accessToken,
+          driverId,
+          sessionId: result.data.sessionId,
+          sessionDriverId: result.data.sessionDriverId,
+        }
+      } else {
+        latest = (await findLatest('active,paused,finishing')) || (await findLatest('finished'))
+      }
       if (latest?.id !== currentSession.current?.id) clearSession()
       if (latest && !(await fetchSession(latest.id))) throw new Error('Could not load session')
       if (!latest) clearSession()
+      setVerifiedAccess(verified)
       setLoadError(false)
     } catch (error) {
       console.warn('[DriverDisplay] Read-only refresh failed:', error.message)
@@ -56,7 +85,7 @@ export default function DriverDisplay() {
       fetching.current = false
       setLoading(false)
     }
-  }, [clearSession, fetchSession])
+  }, [clearSession, fetchSession, accessToken, driverId])
 
   useEffect(() => {
     refresh()
@@ -89,6 +118,13 @@ export default function DriverDisplay() {
   const signalMissing = !socketConnected || (racing && (!lastServerTime || isStale))
   const assigned = (session?.drivers || []).filter((row) => row.driverId === driverId && !row.deletedAt)
   const assignment = assigned.length === 1 ? assigned[0] : null
+  const driverAccessToken =
+    verifiedAccess?.token === accessToken &&
+    verifiedAccess?.driverId === driverId &&
+    verifiedAccess?.sessionId === session?.id &&
+    verifiedAccess?.sessionDriverId === assignment?.id
+      ? accessToken
+      : null
   const live = assignment && entries.find((row) => row.id === assignment.id && row.controller === assignment.controller)
   const driver = assignment?.driver || live?.driver
   const car = assignment?.car || live?.car
@@ -128,14 +164,14 @@ export default function DriverDisplay() {
     !signalMissing && Number.isInteger(damageDeadline) ? Math.max(0, Math.ceil(damageDeadline / 1000 - elapsed)) : null
 
   async function requestTyres(tyreType) {
-    if (!accessToken || tyrePending || !session?.id || !assignment) return
+    if (!driverAccessToken || tyrePending || !session?.id || !assignment) return
     setTyrePending(true)
     setTyreError('')
     setTyreMessage('')
     try {
       const response = await fetch(`${API_URL}/api/race-control/driver/tyres`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${driverAccessToken}` },
         body: JSON.stringify({ tyreType }),
       })
       const result = await response.json()
@@ -150,14 +186,14 @@ export default function DriverDisplay() {
   }
 
   async function requestChaos() {
-    if (!accessToken || chaosPending || !session || !assignment) return
+    if (!driverAccessToken || chaosPending || !session || !assignment) return
     setChaosPending(true)
     setChaosError('')
     setChaosMessage('')
     try {
       const response = await fetch(`${API_URL}/api/race-control/chaos`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${accessToken}` },
+        headers: { Authorization: `Bearer ${driverAccessToken}` },
       })
       const result = await response.json()
       if (!response.ok || !result.success) throw new Error(result.error || t('chaosError'))
@@ -198,6 +234,7 @@ export default function DriverDisplay() {
                 {t(sessionTypeFullKey(session.type), { defaultValue: session.type })}
               </p>
               <h2 className="text-xl font-bold break-words">{session.name || t('untitled')}</h2>
+              {driverAccessToken && <p className="text-xs text-muted-foreground">{t('personalSession')}</p>}
               <span className="inline-block rounded-md bg-muted px-3 py-1 text-sm font-semibold">
                 {t(`glossary:sessionStatus.${session.status}`, { defaultValue: session.status })}
               </span>
@@ -257,7 +294,7 @@ export default function DriverDisplay() {
                   session={session}
                   assignment={assignment}
                   live={live}
-                  accessToken={accessToken}
+                  accessToken={driverAccessToken}
                   fetchSession={fetchSession}
                 />
                 {session.type === SessionType.RACE && session.weatherSeed != null && (
@@ -282,7 +319,7 @@ export default function DriverDisplay() {
                       </div>
                     )}
                     <p className="text-xs text-muted-foreground">{t('tyreHint')}</p>
-                    {accessToken && [SessionStatus.ACTIVE, SessionStatus.PAUSED].includes(session.status) && (
+                    {driverAccessToken && [SessionStatus.ACTIVE, SessionStatus.PAUSED].includes(session.status) && (
                       <div className="grid grid-cols-2 gap-2">
                         <Button
                           type="button"
@@ -302,7 +339,7 @@ export default function DriverDisplay() {
                         </Button>
                       </div>
                     )}
-                    {!accessToken && <p className="text-xs text-amber-500">{t('tyreTokenRequired')}</p>}
+                    {!driverAccessToken && <p className="text-xs text-amber-500">{t('tyreTokenRequired')}</p>}
                     {tyreMessage && (
                       <p role="status" className="text-sm text-green-500">
                         {tyreMessage}
@@ -334,7 +371,7 @@ export default function DriverDisplay() {
                     <p className="text-xs text-muted-foreground">{t('damageRepairHint')}</p>
                   </section>
                 )}
-                {accessToken && ['active', 'paused'].includes(session.status) && (
+                {driverAccessToken && ['active', 'paused'].includes(session.status) && (
                   <section className="rounded-xl border border-red-500/40 bg-card p-5 space-y-3">
                     <Button
                       type="button"

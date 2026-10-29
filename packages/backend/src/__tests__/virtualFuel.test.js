@@ -14,6 +14,7 @@ import {
   replayVirtualFuel,
   virtualFuelPerLap,
   virtualFuelTarget,
+  validVirtualFuelUnits,
 } from '@racehubos/shared';
 
 describe('virtual fuel arithmetic', () => {
@@ -61,6 +62,19 @@ describe('virtual fuel arithmetic', () => {
     expect(replayVirtualFuel([{ sessionDriverId: 'a', kind: 'refuel', units: 0, targetUnits: null }]).get('a')).toBe(
       VIRTUAL_FUEL_FULL
     );
+  });
+
+  test('replay starts from each saved tank, including empty, while legacy drivers start full', () => {
+    const drivers = [{ id: 'a', initialFuelUnits: 2500 }, { id: 'b', initialFuelUnits: 0 }, { id: 'c' }];
+    const levels = replayVirtualFuel([{ sessionDriverId: 'a', kind: 'lap', units: 100 }], drivers);
+    expect([...levels]).toEqual([
+      ['a', 2400],
+      ['b', 0],
+      ['c', 10000],
+    ]);
+    expect(replayVirtualFuel([{ sessionDriverId: 'a', kind: 'refuel', units: 0 }], drivers).get('a')).toBe(10000);
+    for (const units of [0, 2500, 10000]) expect(validVirtualFuelUnits(units)).toBe(true);
+    for (const units of [null, -1, 10001, 1.5, '2500', Infinity]) expect(validVirtualFuelUnits(units)).toBe(false);
   });
 
   test('ordered events replay exactly and a confirmed refill restores a full tank', () => {
@@ -115,6 +129,7 @@ describe('virtual fuel event persistence', () => {
   afterEach(async () => {
     if (previousSecret === undefined) delete process.env.RACE_CONTROL_SECRET;
     else process.env.RACE_CONTROL_SECRET = previousSecret;
+    service.stopHeartbeat();
     sync?.close();
     sync = null;
     await service.prisma.$disconnect();
@@ -500,6 +515,168 @@ describe('virtual fuel event persistence', () => {
     await service.resetSession(data.session.id);
     const stored = await prisma.sessionDriver.findUnique({ where: { id: data.assigned.id } });
     expect(stored).toMatchObject({ pendingFuelLaps: null, pendingFuelUnits: null, fuelPlanVersion: 4 });
+  });
+
+  test('a personal draft qualifying link saves starting fuel, locks at start and replays the measured consumption', async () => {
+    const data = await fixture(6, 'draft');
+    await prisma.session.update({ where: { id: data.session.id }, data: { type: 'qualif' } });
+    process.env.RACE_CONTROL_SECRET = 'start-fuel-integration-test-secret-only';
+    setRaceControlServices(service, null);
+    setSessionService(service);
+    const app = express();
+    app.use(express.json());
+    app.use('/api/race-control', raceControl);
+    app.use('/api/sessions', sessionsRouter);
+    const issued = await request(app)
+      .post('/api/race-control/driver-link')
+      .set('Authorization', `Bearer ${process.env.RACE_CONTROL_SECRET}`)
+      .send({ sessionId: data.session.id, driverId: data.driver.id })
+      .expect(200);
+    const auth = `Bearer ${issued.body.token}`;
+    const resolved = await request(app).get('/api/race-control/driver/session').set('Authorization', auth).expect(200);
+    expect(resolved.body.data).toEqual({
+      sessionId: data.session.id,
+      sessionDriverId: data.assigned.id,
+      driverId: data.driver.id,
+    });
+    const save = (units, version) =>
+      request(app)
+        .post('/api/race-control/driver/start-fuel')
+        .set('Authorization', auth)
+        .send({ initialFuelUnits: units, expectedVersion: version });
+    await save(2500, 0).expect(200);
+    const read = await request(app).get(`/api/sessions/${data.session.id}`).expect(200);
+    expect(read.body.data.drivers[0]).toMatchObject({
+      initialFuelUnits: 2500,
+      virtualFuelUnits: 2500,
+      fuelPlanVersion: 1,
+    });
+    const board = await request(app).get(`/api/sessions/${data.session.id}/leaderboard`).expect(200);
+    expect(board.body.data[0].virtualFuelUnits).toBe(2500);
+    expect(await prisma.virtualFuelEvent.count()).toBe(0);
+    await service.loadSession(data.session.id);
+    await save(0, 1).expect(200);
+    expect(service.getLeaderboard()[0].virtualFuelUnits).toBe(0);
+    await save(2500, 2).expect(200);
+    service.setSyncService({
+      isConnected: () => true,
+      getDevice: () => null,
+      reset: jest.fn(),
+      prepareRace: jest.fn(),
+      stopRace: jest.fn(),
+    });
+    service.applyCarConfigs = jest.fn();
+    await service.startSession(data.session.id);
+    expect(service.getLeaderboard()[0].virtualFuelUnits).toBe(2500);
+    await save(10000, 3).expect(409);
+    await service.onRaceStart();
+    await lap(10000);
+    expect(service.getLeaderboard()[0].virtualFuelUnits).toBe(2400);
+    await service.loadSession(data.session.id);
+    expect(service.getLeaderboard()[0].virtualFuelUnits).toBe(2400);
+    expect((await prisma.lap.findFirst()).lapTime).toBe(10000);
+    expect((await prisma.session.findUnique({ where: { id: data.session.id } })).fuelMode).toBe('OFF');
+    await service.resetSession(data.session.id);
+    await service.loadSession(data.session.id);
+    expect(service.getLeaderboard()[0].virtualFuelUnits).toBe(2500);
+    expect((await prisma.sessionDriver.findUnique({ where: { id: data.assigned.id } })).initialFuelUnits).toBe(2500);
+  });
+
+  test('starting fuel rejects invalid, stale and unavailable selections without changing the stored level', async () => {
+    const data = await fixture(6, 'draft');
+    const choose = (units, version = 0) =>
+      service.setInitialFuel({
+        sessionId: data.session.id,
+        sessionDriverId: data.assigned.id,
+        driverId: data.driver.id,
+        controller: 0,
+        initialFuelUnits: units,
+        expectedVersion: version,
+      });
+    for (const units of [null, -1, 10001, 1.5, '2500'])
+      await expect(choose(units)).rejects.toMatchObject({ status: 400 });
+    await expect(choose(2500, null)).rejects.toMatchObject({ status: 400 });
+    await choose(2500);
+    await expect(choose(5000)).rejects.toMatchObject({ status: 409 });
+    for (const status of ['active', 'paused', 'finishing', 'finished', 'interrupted']) {
+      await prisma.session.update({ where: { id: data.session.id }, data: { status } });
+      await expect(choose(1000, 1)).rejects.toMatchObject({ status: 409 });
+    }
+    await prisma.session.update({ where: { id: data.session.id }, data: { status: 'draft', virtualFuelRate: null } });
+    await expect(choose(1000, 1)).rejects.toMatchObject({ status: 409 });
+    await prisma.session.update({ where: { id: data.session.id }, data: { virtualFuelRate: 6, type: 'practice' } });
+    await expect(choose(1000, 1)).rejects.toMatchObject({ status: 409 });
+    expect((await prisma.sessionDriver.findUnique({ where: { id: data.assigned.id } })).initialFuelUnits).toBe(2500);
+    expect(await prisma.virtualFuelEvent.count()).toBe(0);
+  });
+
+  test('a starting session waits for an already admitted fuel save before loading its initial tank', async () => {
+    const data = await fixture(6, 'draft');
+    const choose = () =>
+      service.setInitialFuel({
+        sessionId: data.session.id,
+        sessionDriverId: data.assigned.id,
+        driverId: data.driver.id,
+        controller: 0,
+        initialFuelUnits: 2500,
+        expectedVersion: 0,
+      });
+    service.startingSessionId = data.session.id;
+    await expect(choose()).rejects.toMatchObject({ status: 409 });
+    service.startingSessionId = null;
+    let release;
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    let entered;
+    const started = new Promise((resolve) => {
+      entered = resolve;
+    });
+    const update = service.prisma.sessionDriver.updateMany.bind(service.prisma.sessionDriver);
+    const held = jest.spyOn(service.prisma.sessionDriver, 'updateMany').mockImplementationOnce(async (args) => {
+      entered();
+      await gate;
+      return update(args);
+    });
+    const saving = choose();
+    await started;
+    service.setSyncService({
+      isConnected: () => true,
+      getDevice: () => null,
+      reset: jest.fn(),
+      prepareRace: jest.fn(),
+    });
+    service.applyCarConfigs = jest.fn();
+    const starting = service.startSession(data.session.id);
+    release();
+    await Promise.all([saving, starting]);
+    held.mockRestore();
+    expect(service.getLeaderboard()[0].virtualFuelUnits).toBe(2500);
+    await expect(choose()).rejects.toMatchObject({ status: 409 });
+  });
+
+  test('an intervening database start or reassignment cannot receive a late starting-fuel write', async () => {
+    const data = await fixture(6, 'draft');
+    const choose = () =>
+      service.setInitialFuel({
+        sessionId: data.session.id,
+        sessionDriverId: data.assigned.id,
+        driverId: data.driver.id,
+        controller: 0,
+        initialFuelUnits: 2500,
+        expectedVersion: 0,
+      });
+    const update = service.prisma.sessionDriver.updateMany.bind(service.prisma.sessionDriver);
+    const raced = jest.spyOn(service.prisma.sessionDriver, 'updateMany').mockImplementationOnce(async (args) => {
+      await prisma.session.update({ where: { id: data.session.id }, data: { status: 'active' } });
+      return update(args);
+    });
+    await expect(choose()).rejects.toMatchObject({ status: 409 });
+    raced.mockRestore();
+    await prisma.session.update({ where: { id: data.session.id }, data: { status: 'draft' } });
+    await prisma.sessionDriver.update({ where: { id: data.assigned.id }, data: { controller: 1 } });
+    await expect(choose()).rejects.toMatchObject({ status: 409 });
+    expect((await prisma.sessionDriver.findUnique({ where: { id: data.assigned.id } })).initialFuelUnits).toBe(10000);
   });
 
   test('session creation validates virtual rate; draft edit works but running races are locked', async () => {

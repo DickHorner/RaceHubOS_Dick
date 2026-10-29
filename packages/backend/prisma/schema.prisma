@@ -203,6 +203,7 @@ model SessionDriver {
   session         Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   pitStops        PitStop[]
   tyreType        String       @default("dry") // Actual simulated tyres; dry | wet
+  initialFuelUnits Int       @default(10000) // Virtual starting tank; immutable after session start
   fuelPlanVersion Int        @default(0) // Reject stale/retried driver plans, including after a pit stop
   pendingFuelLaps Int?        // Estimated target range requested for the next simulator pit stop
   pendingFuelUnits Int?       // Persisted target calculated from observed lap consumption
