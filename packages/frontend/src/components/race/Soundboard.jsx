@@ -1,6 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ChevronDown, ChevronUp, LayoutGrid, Mic2, Music2, Pencil, Play, Plus, Square, Trash2, Volume2, VolumeX } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronUp,
+  LayoutGrid,
+  Mic2,
+  Music2,
+  Pencil,
+  Play,
+  Plus,
+  Square,
+  Trash2,
+  Volume2,
+  VolumeX,
+} from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { useVoice } from '../../context/VoiceContext'
