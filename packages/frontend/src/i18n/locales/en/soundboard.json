@@ -55,5 +55,8 @@
     "description": "Plays only with an enabled director-PC audio receiver. {driver}, {car}, {controller} and {lapTime} are available for best laps. Missing event details suppress speech.",
     "loadError": "Could not load automatic sound settings.",
     "lastSpoken": "Last announcement"
-  }
+  },
+  "operatorMode": "Open sound pads",
+  "operatorHint": "Tap a pad to play its sound on this device. Race controls and editing are not available here.",
+  "backToRace": "Back to race"
 }

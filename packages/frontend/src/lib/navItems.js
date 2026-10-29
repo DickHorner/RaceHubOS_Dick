@@ -8,6 +8,7 @@ import {
   Map,
   Users2,
   LayoutGrid,
+  Volume2,
   Scale,
   Terminal,
   Settings,
@@ -44,7 +45,6 @@ export const navGroups = [
       { to: '/drivers', labelKey: 'driver', glossary: true, Icon: Users },
       { to: '/teams', labelKey: 'team', glossary: true, Icon: Users2 },
       { to: '/tracks', labelKey: 'track', glossary: true, Icon: Map },
-      { to: '/balancing', labelKey: 'nav.balancing', Icon: Scale },
     ],
   },
   {
@@ -54,7 +54,10 @@ export const navGroups = [
     Icon: Monitor,
     artwork: '/illustrations/show.svg',
     tileClass: 'bg-violet-100 dark:bg-violet-950/50',
-    items: [{ to: '/display/scoreboard', labelKey: 'nav.scoreboard', Icon: Monitor, standalone: true }],
+    items: [
+      { to: '/soundboard', labelKey: 'nav.soundboard', Icon: Volume2, standalone: true },
+      { to: '/display/scoreboard', labelKey: 'nav.scoreboard', Icon: Monitor, standalone: true },
+    ],
   },
   {
     id: 'analysis',
@@ -66,6 +69,7 @@ export const navGroups = [
     items: [
       { to: '/history', labelKey: 'nav.history', Icon: Clock },
       { to: '/stats', labelKey: 'nav.stats', Icon: BarChart3 },
+      { to: '/balancing', labelKey: 'nav.balancing', Icon: Scale },
     ],
   },
 ]

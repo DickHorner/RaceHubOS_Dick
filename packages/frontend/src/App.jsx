@@ -33,6 +33,7 @@ const ChampionshipDetail = lazy(() => import('./pages/ChampionshipDetail'))
 const SpectatorScoreboard = lazy(() => import('./pages/SpectatorScoreboard'))
 const DriverDisplay = lazy(() => import('./pages/DriverDisplay'))
 const MobileRaceControl = lazy(() => import('./pages/MobileRaceControl'))
+const SoundboardOperator = lazy(() => import('./pages/SoundboardOperator'))
 
 function App() {
   return (
@@ -227,6 +228,16 @@ function App() {
                       }
                     />
                   </Route>
+
+                  {/* Standalone sound pads, without preset editing or race controls */}
+                  <Route
+                    path="soundboard"
+                    element={
+                      <Suspense>
+                        <SoundboardOperator />
+                      </Suspense>
+                    }
+                  />
 
                   {/* Read-only spectator screen, no sidebar or race controls */}
                   <Route

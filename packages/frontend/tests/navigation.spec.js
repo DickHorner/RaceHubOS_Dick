@@ -4,9 +4,9 @@ test.use({ locale: 'de-DE' })
 
 const areas = [
   { id: 'race', title: 'Rennzentrale', routes: ['/dashboard', '/race', '/championships', '/display/control'] },
-  { id: 'garage', title: 'Garage & Fahrerlager', routes: ['/cars', '/drivers', '/teams', '/tracks', '/balancing'] },
-  { id: 'show', title: 'Show & Sound', routes: ['/display/scoreboard'] },
-  { id: 'analysis', title: 'Datenlabor', routes: ['/history', '/stats'] },
+  { id: 'garage', title: 'Garage & Fahrerlager', routes: ['/cars', '/drivers', '/teams', '/tracks'] },
+  { id: 'show', title: 'Show & Sound', routes: ['/soundboard', '/display/scoreboard'] },
+  { id: 'analysis', title: 'Datenlabor', routes: ['/history', '/stats', '/balancing'] },
 ]
 
 test('landing page offers four illustrated area tiles with working destinations', async ({ page }) => {
@@ -62,6 +62,21 @@ test('sidebar has four primary areas with context-sensitive secondary links', as
   const race = page.locator('[data-sidebar="group"]').first()
   await expect(race.locator('a[href="/display/control"]')).toHaveAttribute('target', '_blank')
   await expect(page.locator('a[href="/dashboard"]')).toBeVisible()
+})
+
+test('soundboard and vehicle balancing appear in their intended areas', async ({ page }) => {
+  await page.goto('/areas/show')
+  const show = page.getByRole('main')
+  const soundboard = show.locator('a[href="/soundboard"]')
+  await expect(soundboard).toBeVisible()
+  await expect(soundboard).toHaveAttribute('target', '_blank')
+  await expect(show.locator('a[href="/display/scoreboard"]')).toBeVisible()
+
+  await page.goto('/areas/analysis')
+  await expect(page.getByRole('main').locator('a[href="/balancing"]')).toBeVisible()
+
+  await page.goto('/areas/garage')
+  await expect(page.getByRole('main').locator('a[href="/balancing"]')).toHaveCount(0)
 })
 
 test('system tools remain global and old dashboard lives in the race center', async ({ page }) => {

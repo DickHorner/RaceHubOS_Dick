@@ -395,6 +395,9 @@ router.patch('/:id/restore', async (req, res) => {
     const { id } = req.params;
     const entity = await prisma().session.findUnique({ where: { id } });
     if (!entity) return res.status(404).json({ success: false, error: 'Session not found' });
+    if ([SessionStatus.ACTIVE, SessionStatus.PAUSED, SessionStatus.FINISHING].includes(entity.status)) {
+      return res.status(409).json({ success: false, error: 'Resolve the running session before restoring it' });
+    }
 
     // Restore cascade: session → session drivers → laps
     await prisma().session.update({
@@ -545,11 +548,11 @@ router.patch('/:id/status', async (req, res) => {
     if (newStatus === 'active' && currentStatus === 'draft') {
       await sessionService.startSession(id);
     } else if (newStatus === 'paused' && currentStatus === 'active') {
-      await sessionService.pauseSession();
+      await sessionService.pauseSession(id);
     } else if (newStatus === 'active' && currentStatus === 'paused') {
-      await sessionService.resumeSession();
+      await sessionService.resumeSession(id);
     } else if (newStatus === 'finished') {
-      await sessionService.stopSession();
+      await sessionService.stopSession(id);
     } else {
       // Simple status update (finished -> draft)
       const updateData = { status: newStatus };
@@ -569,7 +572,11 @@ router.patch('/:id/status', async (req, res) => {
     res.json({ success: true, data: updatedSession, message: `Status changed to '${newStatus}'` });
   } catch (error) {
     console.error('Error changing status:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(error.status || 500).json({
+      success: false,
+      error: error.message,
+      runningSessions: error.runningSessions,
+    });
   }
 });
 
@@ -586,7 +593,7 @@ router.post('/:id/start', async (req, res) => {
     }
 
     if (session.status !== SessionStatus.DRAFT) {
-      return res.status(400).json({
+      return res.status(409).json({
         success: false,
         error: `Session must be 'draft' to start, current: ${session.status}`,
       });
@@ -602,7 +609,11 @@ router.post('/:id/start', async (req, res) => {
     res.json({ success: true, data: updatedSession, message: 'Session started' });
   } catch (error) {
     console.error('Error starting session:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(error.status || 500).json({
+      success: false,
+      error: error.message,
+      runningSessions: error.runningSessions,
+    });
   }
 });
 
@@ -625,7 +636,7 @@ router.post('/:id/pause', async (req, res) => {
       });
     }
 
-    await sessionService.pauseSession();
+    await sessionService.pauseSession(id);
 
     const updatedSession = await prisma().session.findUnique({
       where: { id },
@@ -635,7 +646,7 @@ router.post('/:id/pause', async (req, res) => {
     res.json({ success: true, data: updatedSession, message: 'Session paused' });
   } catch (error) {
     console.error('Error pausing session:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(error.status || 500).json({ success: false, error: error.message });
   }
 });
 
@@ -658,7 +669,7 @@ router.post('/:id/resume', async (req, res) => {
       });
     }
 
-    await sessionService.resumeSession();
+    await sessionService.resumeSession(id);
 
     const updatedSession = await prisma().session.findUnique({
       where: { id },
@@ -668,7 +679,7 @@ router.post('/:id/resume', async (req, res) => {
     res.json({ success: true, data: updatedSession, message: 'Session resumed' });
   } catch (error) {
     console.error('Error resuming session:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(error.status || 500).json({ success: false, error: error.message });
   }
 });
 
@@ -691,7 +702,7 @@ router.post('/:id/stop', async (req, res) => {
       });
     }
 
-    await sessionService.stopSession();
+    await sessionService.stopSession(id);
 
     const updatedSession = await prisma().session.findUnique({
       where: { id },
@@ -701,7 +712,7 @@ router.post('/:id/stop', async (req, res) => {
     res.json({ success: true, data: updatedSession, message: 'Session stopped' });
   } catch (error) {
     console.error('Error stopping session:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(error.status || 500).json({ success: false, error: error.message });
   }
 });
 
@@ -725,7 +736,7 @@ router.post('/:id/reset', async (req, res) => {
     res.json({ success: true, data: updatedSession, message: 'Session reset' });
   } catch (error) {
     console.error('Error resetting session:', error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(error.status || 500).json({ success: false, error: error.message });
   }
 });
 
