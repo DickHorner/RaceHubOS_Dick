@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useDevice } from '../../context/DeviceContext'
+import { traceStart } from '../../lib/startTrace'
 
 /**
  * StartLights - F1-style start lights animation
@@ -33,11 +34,15 @@ export default function StartLights({ onCancel }) {
       gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration)
       osc.start()
       osc.stop(ctx.currentTime + duration)
-    } catch {}
+      traceStart('audio:scheduled', { frequency: freq, duration, contextState: ctx.state, audioTime: ctx.currentTime })
+    } catch {
+      traceStart('audio:failed')
+    }
   }, [])
 
   // Play sound on each light change
   useEffect(() => {
+    traceStart('light:effect', { start: cuStart })
     if (cuStart >= 1 && cuStart <= 5) {
       playBeep(600, 0.2)
     } else if ((cuStart === 7 || cuStart === 0) && wasInSequence.current) {
@@ -45,10 +50,14 @@ export default function StartLights({ onCancel }) {
     } else if (cuStart === 6) {
       playBeep(300, 0.4)
     }
+    if (cuStart === 0 && wasInSequence.current) traceStart('racing')
   }, [cuStart, playBeep])
 
   const handleCancel = useCallback(() => {
-    if (onCancel) onCancel()
+    if (onCancel) {
+      traceStart('failed')
+      onCancel()
+    }
   }, [onCancel])
 
   useEffect(() => {
@@ -179,6 +188,7 @@ export default function StartLights({ onCancel }) {
           {showStartButton && (
             <button
               onClick={startRace}
+              data-testid="start-lights-advance"
               className="group relative overflow-hidden px-16 py-5 bg-gradient-to-b from-green-400 to-green-600 hover:from-green-300 hover:to-green-500 text-white text-3xl font-black rounded-2xl shadow-[0_0_40px_rgba(34,197,94,0.5)] hover:shadow-[0_0_60px_rgba(34,197,94,0.7)] transition-all duration-300 hover:scale-105 active:scale-95"
             >
               {/* Shine effect */}

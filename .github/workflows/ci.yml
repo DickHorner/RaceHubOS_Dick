@@ -23,11 +23,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check -- --ci
-      - run: node --test packages/frontend/tests/lapAnalysis.unit.js packages/frontend/tests/soundboardAuto.unit.js
+      - run: node --test packages/frontend/tests/lapAnalysis.unit.js packages/frontend/tests/soundboardAuto.unit.js packages/frontend/tests/startTrace.unit.js
       - run: npm run build
       - run: npm run prisma:generate -w @racehubos/backend
       - run: npx playwright install chromium
         working-directory: packages/frontend
-      - run: npx playwright test tests/raceCommentary.spec.js tests/championshipTeams.spec.js tests/soundboardRouting.spec.js tests/lanShare.spec.js tests/mobileChaos.spec.js tests/navigation.spec.js tests/virtualFuelConfig.spec.js tests/pitFuelStatus.spec.js
+      - run: npx playwright test tests/raceCommentary.spec.js tests/championshipTeams.spec.js tests/soundboardRouting.spec.js tests/lanShare.spec.js tests/mobileChaos.spec.js tests/navigation.spec.js tests/virtualFuelConfig.spec.js tests/pitFuelStatus.spec.js tests/startTrace.spec.js
         working-directory: packages/frontend
       - run: npm test -w @racehubos/backend

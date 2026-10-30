@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { io } from 'socket.io-client'
+import { traceStart, traceStartStatus } from '../lib/startTrace'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 const WS_URL = import.meta.env.VITE_WS_URL || ''
@@ -47,6 +48,7 @@ export function DeviceProvider({ children }) {
     })
 
     socket.on('disconnect', () => {
+      traceStart('disconnected')
       setSocketConnected(false)
     })
 
@@ -55,12 +57,14 @@ export function DeviceProvider({ children }) {
     })
 
     socket.on('cu:disconnected', () => {
+      traceStart('disconnected')
       setConnected(false)
       setDeviceType(null)
       setDeviceAddress(null)
     })
 
     socket.on('cu:status', (status) => {
+      traceStartStatus(status.start)
       if (status.connected !== undefined) {
         setConnected(status.connected)
       }
@@ -215,12 +219,17 @@ export function DeviceProvider({ children }) {
 
   // Start race
   const startRace = useCallback(async () => {
+    traceStart('advance:click')
     try {
       const response = await fetch(`${API_URL}/api/bluetooth/start-race`, {
         method: 'POST',
       })
-      return await response.json()
+      traceStart('advance:http:response', { status: response.status })
+      const data = await response.json()
+      if (!data.success) traceStart('failed')
+      return data
     } catch (error) {
+      traceStart('failed')
       console.error('[DeviceContext] Start race error:', error)
       return { success: false, error: error.message }
     }
