@@ -83,7 +83,14 @@
     "startSaveError": "Impossible d’enregistrer le carburant de départ. Actualisez ; la session peut démarrer ou la sélection avoir changé.",
     "fullRange": "Réservoir virtuel plein : autonomie estimée jusqu’à {{laps}} tours.",
     "refillPreview": "Aperçu de la saisie au niveau affiché : ajouter {{added}} % de la capacité pour atteindre {{percent}} % ; autonomie estimée ensuite : {{laps}} tours. La consommation avant l’arrêt peut modifier cette quantité.",
-    "refillUnavailable": "Quantité à ajouter pas encore calculable : le niveau virtuel actuel est indisponible."
+    "refillUnavailable": "Quantité à ajouter pas encore calculable : le niveau virtuel actuel est indisponible.",
+    "targetMode": "Définir la cible par",
+    "mode_laps": "Tours (estimation)",
+    "mode_percent": "Niveau (%)",
+    "targetPercent": "Niveau cible après le prochain arrêt (0–100 %, entier)",
+    "pendingPercent": "Enregistré : niveau cible minimum de {{percent}} %.",
+    "percentPreview": "Niveau cible : au moins {{percent}} %",
+    "refillWithoutRange": "Aperçu au niveau affiché : ajouter {{added}} % de la capacité pour atteindre {{percent}} %. Autonomie pas encore calculable. La consommation peut continuer avant l’arrêt."
   },
   "personalSession": "Ce lien personnel de pilote est lié à cette session."
 }

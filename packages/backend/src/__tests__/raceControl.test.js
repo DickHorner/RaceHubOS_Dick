@@ -1101,43 +1101,51 @@ describe('driver-scoped fuel plans', () => {
     jest.restoreAllMocks();
   });
 
-  test('fuel plans use the signed assignment and never trust a body-supplied driver or session', async () => {
-    const { app, session } = setup();
-    session.requestFuelTarget = jest
-      .fn()
-      .mockResolvedValue({ pendingFuelLaps: 25, pendingFuelUnits: 2500, fuelPlanVersion: 1 });
-    const token = await issueToken(app);
-    const url = '/api/race-control/driver/fuel';
-    await request(app).post(url).send({ targetLaps: 25 }).expect(403);
-    await request(app).post(url).set('Authorization', 'Bearer forged').send({ targetLaps: 25 }).expect(403);
-    const res = await request(app)
-      .post(url)
-      .set('Authorization', `Bearer ${token}`)
-      .send({ targetLaps: 25, expectedVersion: 0, sessionId: 'foreign', sessionDriverId: 'foreign', controller: 0 })
-      .expect(200);
-    expect(res.body.data.pendingFuelUnits).toBe(2500);
-    expect(session.requestFuelTarget).toHaveBeenCalledWith('race-1', 'sd-1', 25, 0);
-    for (const rows of [
-      [],
-      [{ ...assignment, controller: 1 }],
-      [{ ...assignment, id: 'replacement' }],
-      [assignment, assignment],
-    ]) {
-      session.prisma.sessionDriver.findMany.mockResolvedValueOnce(rows);
+  test.each([{ targetLaps: 25 }, { targetUnits: 2500 }])(
+    'fuel plans use the signed assignment and never trust a body-supplied driver or session',
+    async (target) => {
+      const { app, session } = setup();
+      session.requestFuelTarget = jest
+        .fn()
+        .mockResolvedValue({ pendingFuelLaps: 25, pendingFuelUnits: 2500, fuelPlanVersion: 1 });
+      const token = await issueToken(app);
+      const url = '/api/race-control/driver/fuel';
+      await request(app).post(url).send(target).expect(403);
+      await request(app).post(url).set('Authorization', 'Bearer forged').send(target).expect(403);
+      const res = await request(app)
+        .post(url)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ ...target, expectedVersion: 0, sessionId: 'foreign', sessionDriverId: 'foreign', controller: 0 })
+        .expect(200);
+      expect(res.body.data.pendingFuelUnits).toBe(2500);
+      expect(session.requestFuelTarget).toHaveBeenCalledWith(
+        'race-1',
+        'sd-1',
+        { targetLaps: target.targetLaps, targetUnits: target.targetUnits },
+        0
+      );
+      for (const rows of [
+        [],
+        [{ ...assignment, controller: 1 }],
+        [{ ...assignment, id: 'replacement' }],
+        [assignment, assignment],
+      ]) {
+        session.prisma.sessionDriver.findMany.mockResolvedValueOnce(rows);
+        await request(app)
+          .post(url)
+          .set('Authorization', `Bearer ${token}`)
+          .send({ ...target, expectedVersion: 0 })
+          .expect(403);
+      }
+      session.activeSessionId = 'different';
       await request(app)
         .post(url)
         .set('Authorization', `Bearer ${token}`)
-        .send({ targetLaps: 25, expectedVersion: 0 })
-        .expect(403);
+        .send({ ...target, expectedVersion: 0 })
+        .expect(409);
+      expect(session.requestFuelTarget).toHaveBeenCalledTimes(1);
     }
-    session.activeSessionId = 'different';
-    await request(app)
-      .post(url)
-      .set('Authorization', `Bearer ${token}`)
-      .send({ targetLaps: 25, expectedVersion: 0 })
-      .expect(409);
-    expect(session.requestFuelTarget).toHaveBeenCalledTimes(1);
-  });
+  );
 
   test('expired tokens and rejected/stale fuel plans cannot report success', async () => {
     const { app, session } = setup();

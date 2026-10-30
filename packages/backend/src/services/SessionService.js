@@ -902,7 +902,7 @@ export class SessionService extends EventEmitter {
                   },
                 });
               }
-              if (refuel && driver.pendingFuelLaps != null) {
+              if (refuel && driver.pendingFuelUnits != null) {
                 await tx.sessionDriver.update({
                   where: { id: driver.id },
                   data: { pendingFuelLaps: null, pendingFuelUnits: null, fuelPlanVersion: { increment: 1 } },
@@ -930,7 +930,7 @@ export class SessionService extends EventEmitter {
             }
             if (result.event) {
               driver.virtualFuelUnits = virtualFuelAfter(driver.virtualFuelUnits ?? VIRTUAL_FUEL_FULL, result.event);
-              if (driver.pendingFuelLaps != null) driver.fuelPlanVersion++;
+              if (driver.pendingFuelUnits != null) driver.fuelPlanVersion++;
               driver.pendingFuelLaps = null;
               driver.pendingFuelUnits = null;
             }
@@ -1034,10 +1034,16 @@ export class SessionService extends EventEmitter {
     });
   }
 
-  requestFuelTarget(sessionId, sessionDriverId, targetLaps, expectedVersion) {
+  requestFuelTarget(sessionId, sessionDriverId, { targetLaps, targetUnits }, expectedVersion) {
     return this.queueTyre(() =>
       this.queueVirtualFuel(async () => {
-        if (targetLaps !== null && !validVirtualFuelLaps(targetLaps)) {
+        if ((targetLaps !== undefined) === (targetUnits !== undefined)) {
+          throw Object.assign(new Error('Provide one fuel target'), { status: 400 });
+        }
+        if (targetUnits !== undefined && !validVirtualFuelUnits(targetUnits)) {
+          throw Object.assign(new Error('Invalid tank target'), { status: 400 });
+        }
+        if (targetLaps !== undefined && targetLaps !== null && !validVirtualFuelLaps(targetLaps)) {
           throw Object.assign(new Error('Invalid lap target'), { status: 400 });
         }
         if (
@@ -1058,8 +1064,9 @@ export class SessionService extends EventEmitter {
         if (driver.fuelPlanVersion !== expectedVersion) {
           throw Object.assign(new Error('Fuel plan has changed; refresh before saving'), { status: 409 });
         }
-        let pendingFuelUnits = null;
-        if (targetLaps !== null) {
+        let pendingFuelUnits = targetUnits ?? null;
+        const pendingFuelLaps = targetLaps ?? null;
+        if (pendingFuelLaps !== null) {
           const events = await this.prisma.virtualFuelEvent.findMany({
             where: { sessionId, sessionDriverId, kind: 'lap' },
             orderBy: { id: 'desc' },
@@ -1074,15 +1081,15 @@ export class SessionService extends EventEmitter {
         }
         const saved = await this.prisma.sessionDriver.updateMany({
           where: { id: driver.id, fuelPlanVersion: expectedVersion },
-          data: { pendingFuelLaps: targetLaps, pendingFuelUnits, fuelPlanVersion: { increment: 1 } },
+          data: { pendingFuelLaps, pendingFuelUnits, fuelPlanVersion: { increment: 1 } },
         });
         if (saved.count !== 1)
           throw Object.assign(new Error('Fuel plan has changed; refresh before saving'), { status: 409 });
         driver.fuelPlanVersion++;
-        driver.pendingFuelLaps = targetLaps;
+        driver.pendingFuelLaps = pendingFuelLaps;
         driver.pendingFuelUnits = pendingFuelUnits;
         this.emitLeaderboard();
-        return { pendingFuelLaps: targetLaps, pendingFuelUnits, fuelPlanVersion: driver.fuelPlanVersion };
+        return { pendingFuelLaps, pendingFuelUnits, fuelPlanVersion: driver.fuelPlanVersion };
       })
     );
   }

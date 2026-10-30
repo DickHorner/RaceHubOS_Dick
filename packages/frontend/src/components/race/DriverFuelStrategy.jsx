@@ -18,6 +18,12 @@ export default function DriverFuelStrategy({ session, assignment, live, accessTo
   const [targetLaps, setTargetLaps] = useState(
     assignment.pendingFuelLaps == null ? '' : String(assignment.pendingFuelLaps)
   )
+  const [targetMode, setTargetMode] = useState(
+    assignment.pendingFuelUnits != null && assignment.pendingFuelLaps == null ? 'percent' : 'laps'
+  )
+  const [targetPercent, setTargetPercent] = useState(
+    assignment.pendingFuelUnits == null ? '' : String(assignment.pendingFuelUnits / 100)
+  )
   const [initialPercent, setInitialPercent] = useState(String((assignment.initialFuelUnits ?? VIRTUAL_FUEL_FULL) / 100))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -31,7 +37,11 @@ export default function DriverFuelStrategy({ session, assignment, live, accessTo
   )
   const units = live?.virtualFuelUnits ?? assignment.virtualFuelUnits
   const estimatedLaps = perLap && validVirtualFuelUnits(units) ? Math.floor(units / perLap) : null
-  const targetUnits = virtualFuelTarget(Number(targetLaps), perLap)
+  const percentUnits = Number(targetPercent) * 100
+  const percentValid =
+    targetPercent.trim() !== '' && Number.isInteger(Number(targetPercent)) && validVirtualFuelUnits(percentUnits)
+  const targetUnits =
+    targetMode === 'percent' ? (percentValid ? percentUnits : null) : virtualFuelTarget(Number(targetLaps), perLap)
   const resultingUnits = targetUnits !== null && validVirtualFuelUnits(units) ? Math.max(units, targetUnits) : null
   const available =
     accessToken &&
@@ -77,7 +87,7 @@ export default function DriverFuelStrategy({ session, assignment, live, accessTo
     }
   }
 
-  async function save(laps) {
+  async function save(target) {
     if (pending.current || !available) return
     pending.current = true
     setBusy(true)
@@ -87,7 +97,7 @@ export default function DriverFuelStrategy({ session, assignment, live, accessTo
       const response = await fetch(`${API_URL}/api/race-control/driver/fuel`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ targetLaps: laps, expectedVersion: assignment.fuelPlanVersion ?? 0 }),
+        body: JSON.stringify({ ...target, expectedVersion: assignment.fuelPlanVersion ?? 0 }),
       })
       const result = await response.json()
       if (!response.ok || !result.success) {
@@ -95,7 +105,7 @@ export default function DriverFuelStrategy({ session, assignment, live, accessTo
         throw new Error(t('fuelStrategy.saveError'))
       }
       if (!(await fetchSession(session.id))) throw new Error(t('fuelStrategy.refreshError'))
-      setTargetLaps(laps == null ? '' : String(laps))
+      if (target.targetLaps !== undefined) setTargetLaps(target.targetLaps == null ? '' : String(target.targetLaps))
       setMessage(t('fuelStrategy.saved'))
     } catch (cause) {
       setError(cause.message)
@@ -152,46 +162,76 @@ export default function DriverFuelStrategy({ session, assignment, live, accessTo
                 laps: assignment.pendingFuelLaps,
                 percent: assignment.pendingFuelUnits / 100,
               })
-            : t('fuelStrategy.fullTank')}
+            : assignment.pendingFuelUnits != null
+              ? t('fuelStrategy.pendingPercent', { percent: assignment.pendingFuelUnits / 100 })
+              : t('fuelStrategy.fullTank')}
       </p>
       <p className="text-xs text-muted-foreground">{t('fuelStrategy.pitNote')}</p>
       <form
         className="space-y-3"
         onSubmit={(event) => {
           event.preventDefault()
-          if (targetUnits !== null) save(Number(targetLaps))
+          if (targetUnits !== null)
+            save(targetMode === 'percent' ? { targetUnits } : { targetLaps: Number(targetLaps) })
         }}
       >
-        <label htmlFor="fuel-target-laps" className="text-sm font-medium block">
-          {t('fuelStrategy.target')}
+        <fieldset disabled={!available || busy} className="space-y-2">
+          <legend className="text-sm font-medium">{t('fuelStrategy.targetMode')}</legend>
+          <div className="flex flex-wrap gap-4">
+            {['laps', 'percent'].map((mode) => (
+              <label key={mode} className="flex items-center gap-2 min-h-11">
+                <input
+                  type="radio"
+                  name="fuel-target-mode"
+                  data-testid={`fuel-mode-${mode}`}
+                  value={mode}
+                  checked={targetMode === mode}
+                  onChange={() => setTargetMode(mode)}
+                />
+                {t(`fuelStrategy.mode_${mode}`)}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <label htmlFor="fuel-target-value" className="text-sm font-medium block">
+          {t(targetMode === 'percent' ? 'fuelStrategy.targetPercent' : 'fuelStrategy.target')}
         </label>
         <Input
-          id="fuel-target-laps"
-          data-testid="fuel-target-laps"
+          id="fuel-target-value"
+          data-testid={targetMode === 'percent' ? 'fuel-target-percent' : 'fuel-target-laps'}
           type="number"
-          min={1}
-          max={VIRTUAL_FUEL_FULL}
+          min={targetMode === 'percent' ? 0 : 1}
+          max={targetMode === 'percent' ? 100 : VIRTUAL_FUEL_FULL}
           step={1}
-          value={targetLaps}
+          value={targetMode === 'percent' ? targetPercent : targetLaps}
           disabled={!available || busy}
-          onChange={(event) => setTargetLaps(event.target.value)}
+          onChange={(event) =>
+            targetMode === 'percent' ? setTargetPercent(event.target.value) : setTargetLaps(event.target.value)
+          }
         />
         <p data-testid="fuel-target-preview" className="text-sm text-muted-foreground">
-          {perLap === null
+          {targetMode === 'laps' && perLap === null
             ? t('fuelStrategy.noEstimate')
             : targetUnits === null
-              ? t('fuelStrategy.invalidTarget')
-              : t('fuelStrategy.preview', { percent: targetUnits / 100 })}
+              ? t(targetMode === 'percent' ? 'fuelStrategy.startInvalid' : 'fuelStrategy.invalidTarget')
+              : t(targetMode === 'percent' ? 'fuelStrategy.percentPreview' : 'fuelStrategy.preview', {
+                  percent: targetUnits / 100,
+                })}
         </p>
         {session.virtualFuelRate != null && targetUnits !== null && (
           <p data-testid="fuel-refill-preview" className="text-sm text-muted-foreground">
             {resultingUnits === null
               ? t('fuelStrategy.refillUnavailable')
-              : t('fuelStrategy.refillPreview', {
-                  added: (resultingUnits - units) / 100,
-                  percent: resultingUnits / 100,
-                  laps: Math.floor(resultingUnits / perLap),
-                })}
+              : perLap === null
+                ? t('fuelStrategy.refillWithoutRange', {
+                    added: (resultingUnits - units) / 100,
+                    percent: resultingUnits / 100,
+                  })
+                : t('fuelStrategy.refillPreview', {
+                    added: (resultingUnits - units) / 100,
+                    percent: resultingUnits / 100,
+                    laps: Math.floor(resultingUnits / perLap),
+                  })}
           </p>
         )}
         <div className="flex flex-wrap gap-2">
@@ -202,8 +242,8 @@ export default function DriverFuelStrategy({ session, assignment, live, accessTo
             type="button"
             variant="outline"
             data-testid="fuel-plan-clear"
-            disabled={!available || busy || assignment.pendingFuelLaps == null}
-            onClick={() => save(null)}
+            disabled={!available || busy || assignment.pendingFuelUnits == null}
+            onClick={() => save({ targetLaps: null })}
           >
             {t('fuelStrategy.clear')}
           </Button>
