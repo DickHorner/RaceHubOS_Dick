@@ -522,6 +522,7 @@ export class SessionService extends EventEmitter {
       throw penaltyError('Another session transition is already in progress.', 409);
     }
     this.startingSessionId = sessionId;
+    this.syncService?.beginStartTrace?.(sessionId);
     try {
       // Reject before touching the CU or replacing the running session in memory.
       const running = await this.assertNoOtherRunningSession(sessionId);
@@ -543,9 +544,15 @@ export class SessionService extends EventEmitter {
 
       // Apply vehicle profiles while the CU is stopped, before starting the lights.
       // A failed write must not leave the session active or start the race.
+      this.syncService.traceStart?.('reset:begin');
       await this.syncService.reset();
+      this.syncService.traceStart?.('reset:end');
+      this.syncService.traceStart?.('load:begin');
       await this.loadSession(sessionId);
+      this.syncService.traceStart?.('load:end');
+      this.syncService.traceStart?.('profiles:begin');
       await this.applyCarConfigs();
+      this.syncService.traceStart?.('profiles:end');
       await this.syncService.prepareRace();
 
       await this.prisma.session.update({
@@ -553,12 +560,16 @@ export class SessionService extends EventEmitter {
         data: { status: SessionStatus.ACTIVE },
       });
       this.sessionStatus = SessionStatus.ACTIVE;
+      this.syncService.traceStart?.('session:active');
 
       this.startHeartbeat();
       this.emit('session:started', { sessionId });
       this.emitStatusChanged('active', 'draft');
 
       return this.getState();
+    } catch (error) {
+      this.syncService?.traceStart?.('failed');
+      throw error;
     } finally {
       this.startingSessionId = null;
     }
@@ -1813,11 +1824,17 @@ export class SessionService extends EventEmitter {
 
       let field = 'speed';
       try {
+        this.syncService.traceStart?.('profile:request', { controller: addr, field });
         await this.writeRaceSpeed(addr, speed);
+        this.syncService.traceStart?.('profile:ack', { controller: addr, field });
         field = 'brake';
+        this.syncService.traceStart?.('profile:request', { controller: addr, field });
         await device.setBrake(addr, brake);
+        this.syncService.traceStart?.('profile:ack', { controller: addr, field });
         field = 'fuel';
+        this.syncService.traceStart?.('profile:request', { controller: addr, field });
         await device.setFuel(addr, fuel);
+        this.syncService.traceStart?.('profile:ack', { controller: addr, field });
       } catch (error) {
         throw new Error(`CU ${field} programming failed for controller ${addr + 1}: ${error.message}`, {
           cause: error,

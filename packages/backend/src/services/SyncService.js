@@ -22,12 +22,15 @@ export class SyncService {
     this.pitSessionId = null;
     this.pollInterval = 500;
     this.pollTimer = null;
+    this.startTrace = null;
+    this.startTraceSequence = 0;
 
     // Bound handlers for cleanup
     this._onTimer = (event) => this.handleTimerEvent(event);
     this._onStatus = (status) => this.handleStatus(status);
     this._onConnected = () => this.io?.emit('cu:connected');
     this._onDisconnected = () => {
+      this.traceStart('disconnected');
       this.pitStates.clear();
       this.pitSessionId = null;
       this.sessionService?.onVscDisconnect?.();
@@ -39,6 +42,38 @@ export class SyncService {
     this.sessionService = sessionService;
   }
 
+  // Opt-in, bounded backend diagnostics; never records BLE payloads or credentials.
+  beginStartTrace(sessionId) {
+    this.startTrace = null;
+    if (process.env.RACEHUB_START_TRACE !== '1') return;
+    this.startTrace = {
+      id: `${process.pid}-${++this.startTraceSequence}`,
+      sessionId,
+      started: performance.now(),
+    };
+    this.traceStart('accepted', { startedAt: new Date().toISOString() });
+  }
+
+  traceStart(phase, details) {
+    const trace = this.startTrace;
+    if (!trace) return;
+    const elapsed = performance.now() - trace.started;
+    if (elapsed > 60_000) {
+      phase = 'expired';
+      details = undefined;
+    }
+    console.info('[StartTrace]', {
+      traceId: trace.id,
+      sessionId: trace.sessionId,
+      elapsedMs: Math.round(elapsed * 1000) / 1000,
+      phase,
+      ...details,
+    });
+    if (['racing', 'failed', 'disconnected', 'device_changed', 'closed', 'expired'].includes(phase)) {
+      this.startTrace = null;
+    }
+  }
+
   // ==================== Device Management ====================
 
   /**
@@ -46,6 +81,7 @@ export class SyncService {
    * @param {ControlUnit|CarreraSimulator} device
    */
   setDevice(device) {
+    if (this.source !== device) this.traceStart('device_changed');
     if (this.source && this.source !== device) this.sessionService?.onVscDisconnect?.();
     // Remove listeners from old device
     if (this.source) {
@@ -122,6 +158,9 @@ export class SyncService {
    * Handle status event from CU
    */
   handleStatus(status) {
+    if (status?.start !== this.cuStatus?.start) {
+      this.traceStart('status', { start: status?.start });
+    }
     const wasInLights = this.isInLightsSequence(this.cuStatus);
     const isInLights = this.isInLightsSequence(status);
     const isNowRacing = status?.start === 0;
@@ -136,11 +175,13 @@ export class SyncService {
 
     // Reset CU when entering 1/5 lights (clean slate before race)
     if (isFirstLight && wasNotInLights) {
+      this.traceStart('reset:lights');
       this.reset();
     }
 
     // Detect transition to racing (GO!) - start the timer
     if (isNowRacing && wasNotRacing && wasInLights) {
+      this.traceStart('racing');
       this.sessionService?.onRaceStart();
     }
 
@@ -248,9 +289,12 @@ export class SyncService {
     const poll = async () => {
       try {
         if (this.source?.poll && this.source?.isConnected?.()) {
+          this.traceStart('poll:begin');
           await this.source.poll();
+          this.traceStart('poll:end');
         }
       } catch (error) {
+        this.traceStart('poll:error');
         console.warn('[SyncService] Poll error:', error.message);
       }
       this.pollTimer = setTimeout(poll, this.pollInterval);
@@ -277,14 +321,21 @@ export class SyncService {
 
     // Stop polling and wait for any in-flight poll to settle
     this.stopPolling();
+    this.traceStart('wait:before_start:begin', { plannedMs: 1000 });
     await new Promise((r) => setTimeout(r, 1000));
+    this.traceStart('wait:before_start:end');
 
     // Send START — CU will respond with 'T' ack
+    this.traceStart('prepare_start:request');
     await this.source.start();
+    this.traceStart('prepare_start:ack');
     // Wait for CU to process and discard stale BLE responses
+    this.traceStart('wait:after_start:begin', { plannedMs: 1000 });
     await new Promise((r) => setTimeout(r, 1000));
+    this.traceStart('wait:after_start:end');
 
     // Resume polling — next poll should see L1
+    this.traceStart('polling:resume');
     this.startPolling();
   }
 
@@ -294,7 +345,14 @@ export class SyncService {
   async startRace() {
     if (!this.source) return;
     if (this.source.start) {
-      await this.source.start();
+      this.traceStart('advance_start:request');
+      try {
+        await this.source.start();
+        this.traceStart('advance_start:ack');
+      } catch (error) {
+        this.traceStart('failed');
+        throw error;
+      }
     }
   }
 
@@ -359,6 +417,7 @@ export class SyncService {
   }
 
   close() {
+    this.traceStart('closed');
     this.stopPolling();
   }
 }
