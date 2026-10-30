@@ -90,7 +90,17 @@
     "targetPercent": "Target fuel level after the next pit stop (0–100 %, whole number)",
     "pendingPercent": "Saved: target at least {{percent}} % fuel level.",
     "percentPreview": "Tank target: at least {{percent}} %",
-    "refillWithoutRange": "Input preview at the displayed fuel level: add {{added}} % of tank capacity to a level of {{percent}} %. Range is not yet calculable. Further consumption may occur before the pit stop."
+    "refillWithoutRange": "Input preview at the displayed fuel level: add {{added}} % of tank capacity to a level of {{percent}} %. Range is not yet calculable. Further consumption may occur before the pit stop.",
+    "finishTitle": "To your lap target",
+    "finishUnknown": "Fuel demand to the target cannot be calculated without a fixed lap target and your completed lap count.",
+    "finishReached": "Your lap target has been reached.",
+    "finishRemaining": "{{laps}} laps remaining to your own lap target.",
+    "finishDemand": "Estimated fuel needed from now: {{percent}} % fuel level, without an extra safety reserve.",
+    "finishCapacity": "At the current estimate, one full tank cannot reach your lap target. Plan further refuelling.",
+    "finishReserve": "Estimated reserve at the lap target with your current tank: {{percent}} % of tank capacity.",
+    "finishShortfall": "Your current tank is short by an estimated {{percent}} % of tank capacity to reach the lap target.",
+    "finishBalanceUnknown": "Reserve not yet calculable: the current virtual fuel level is unavailable.",
+    "finishUse": "Use remaining laps as input"
   },
   "personalSession": "This personal driver link is bound to this session."
 }

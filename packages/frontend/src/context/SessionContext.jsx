@@ -698,6 +698,7 @@ export function SessionProvider({ children }) {
         simulatedTotalTime: p.simulatedTotalTime,
         simulatedBestLapTime: p.simulatedBestLapTime,
         virtualFuelUnits: p.virtualFuelUnits ?? null,
+        totalLaps: p.totalLaps ?? null,
         stats: {
           laps: p.classifiedLaps ?? p.totalLaps ?? 0,
           bestLap: p.bestLapTime || null,

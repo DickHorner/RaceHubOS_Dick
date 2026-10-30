@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 
 test.use({ locale: 'en-US' })
 
-async function mockSession(page) {
+async function mockSession(page, { withLive = false } = {}) {
   const driver = { id: 'driver-1', name: 'Driver One', color: '#ef4444' }
   const state = {
     current: {
@@ -63,7 +63,24 @@ async function mockSession(page) {
     failRead: false,
     rejectPlan: false,
   }
-  await page.routeWebSocket('**/socket.io/**', (socket) => socket.close())
+  const sockets = []
+  await page.routeWebSocket('**/socket.io/**', (socket) => {
+    if (!withLive) return socket.close()
+    const connection = { socket, ready: false }
+    sockets.push(connection)
+    socket.onMessage((message) => {
+      if (message === '40') {
+        socket.send('40{"sid":"fuel-test"}')
+        connection.ready = true
+      }
+    })
+    socket.send('0{"sid":"fuel-test","upgrades":[],"pingInterval":25000,"pingTimeout":20000}')
+  })
+  state.connected = () => sockets.filter((connection) => connection.ready).length
+  state.sendLeaderboard = (rows) => {
+    for (const connection of sockets.filter((socket) => socket.ready))
+      connection.socket.send('42' + JSON.stringify(['session:leaderboard', rows]))
+  }
   await page.route('**/socket.io/**', (route) => route.abort())
   await page.route('**/api/**', async (route) => {
     const request = route.request()
@@ -734,4 +751,147 @@ test('percent target shares pending, refresh failure and read-only locks', async
   await expect(page.getByTestId('fuel-target-percent')).toBeDisabled()
   await expect(page.getByTestId('fuel-mode-laps')).toBeDisabled()
   await expect(page.getByTestId('fuel-plan-clear')).toBeDisabled()
+})
+
+for (const type of ['race', 'qualif']) {
+  test(`${type} shows own finish fuel demand and copies it without changing the saved plan`, async ({ page }) => {
+    const state = await mockSession(page)
+    Object.assign(state.current, { type, status: 'paused', maxLaps: 20 })
+    Object.assign(state.current.drivers[0], {
+      totalLaps: 10,
+      virtualFuelUnits: 1700,
+      pendingFuelLaps: 25,
+      pendingFuelUnits: 2500,
+    })
+    state.current.drivers[1].totalLaps = 19
+    state.current.virtualFuelEvents = [1, 2, 3].map((id) => ({
+      id,
+      sessionDriverId: 'entry-1',
+      kind: 'lap',
+      units: 100,
+    }))
+    state.current.virtualFuelEvents.push({ id: 4, sessionDriverId: 'entry-2', kind: 'lap', units: 9000 })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/display/driver/driver-1#chaos=personal-test-token')
+    await expect(page.getByTestId('fuel-finish-laps')).toContainText('10 laps remaining')
+    await expect(page.getByTestId('fuel-finish-demand')).toContainText('10 % fuel level')
+    await expect(page.getByTestId('fuel-finish-balance')).toContainText('reserve')
+    await expect(page.getByTestId('fuel-finish-balance')).toContainText('7 %')
+    await page.getByTestId('fuel-mode-percent').check()
+    await page.getByTestId('fuel-finish-use').click()
+    await expect(page.getByTestId('fuel-target-laps')).toHaveValue('10')
+    await expect(page.getByTestId('fuel-target-preview')).toContainText('10 %')
+    await expect(page.getByTestId('fuel-saved-plan')).toContainText('25 laps')
+    expect(state.writes).toEqual([])
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  })
+}
+
+test('live finish demand uses completed laps rather than penalty classification and preserves an existing plan', async ({
+  page,
+}) => {
+  const state = await mockSession(page, { withLive: true })
+  state.current.maxLaps = 20
+  Object.assign(state.current.drivers[0], {
+    totalLaps: 10,
+    virtualFuelUnits: 1700,
+    pendingFuelLaps: 25,
+    pendingFuelUnits: 2500,
+  })
+  state.current.virtualFuelEvents = [1, 2, 3].map((id) => ({ id, sessionDriverId: 'entry-1', kind: 'lap', units: 100 }))
+  await page.goto('/display/driver/driver-1#chaos=personal-test-token')
+  await expect(page.getByTestId('fuel-finish-laps')).toContainText('10 laps remaining')
+  await expect.poll(state.connected).toBe(2)
+  const entry = {
+    ...state.current.drivers[0],
+    sessionId: state.current.id,
+    totalLaps: 13,
+    classifiedLaps: 10,
+    penaltyLaps: 3,
+    virtualFuelUnits: 700,
+  }
+  state.sendLeaderboard([entry])
+  await expect(page.getByTestId('fuel-finish-laps')).toContainText('7 laps remaining')
+  await expect(page.getByTestId('fuel-finish-demand')).toContainText('7 % fuel level')
+  await expect(page.getByTestId('fuel-finish-balance')).toContainText('0 %')
+  state.sendLeaderboard([{ ...entry, totalLaps: 14, virtualFuelUnits: 400 }])
+  await expect(page.getByTestId('fuel-finish-laps')).toContainText('6 laps remaining')
+  await expect(page.getByTestId('fuel-finish-balance')).toContainText('short by an estimated 2 %')
+  await expect(page.getByTestId('fuel-saved-plan')).toContainText('25 laps')
+  expect(state.writes).toEqual([])
+  await page.getByTestId('fuel-finish-use').click()
+  await expect(page.getByTestId('fuel-target-laps')).toHaveValue('6')
+  expect(state.writes).toEqual([])
+  await page.getByTestId('fuel-plan-save').click()
+  await expect(page.getByTestId('fuel-saved-plan')).toContainText('6 laps')
+  expect(state.writes[0].body).toEqual({ targetLaps: 6, expectedVersion: 0 })
+})
+
+test('finish demand keeps timed sessions, missing data, capacity and reached targets explicit', async ({ page }) => {
+  const state = await mockSession(page)
+  state.current.virtualFuelEvents = [1, 2, 3].map((id) => ({ id, sessionDriverId: 'entry-1', kind: 'lap', units: 100 }))
+  await page.goto('/display/driver/driver-1#chaos=personal-test-token')
+  for (const setup of [
+    { maxLaps: null, totalLaps: 10, expected: 'cannot be calculated' },
+    { maxLaps: 20, totalLaps: null, expected: 'cannot be calculated' },
+    { maxLaps: 20, totalLaps: -1, expected: 'cannot be calculated' },
+    { maxLaps: 20, totalLaps: 20, expected: 'has been reached' },
+    { maxLaps: 20, totalLaps: 21, expected: 'has been reached' },
+  ]) {
+    state.current.maxLaps = setup.maxLaps
+    state.current.maxDuration = 60000
+    state.current.drivers[0].totalLaps = setup.totalLaps
+    await page.reload()
+    await expect(page.getByTestId('fuel-finish-laps')).toContainText(setup.expected)
+    await expect(page.getByTestId('fuel-finish-demand')).toHaveCount(0)
+    await expect(page.getByTestId('fuel-finish-use')).toBeDisabled()
+  }
+  state.current.maxLaps = 102
+  state.current.drivers[0].totalLaps = 1
+  await page.reload()
+  await expect(page.getByTestId('fuel-finish-demand')).toContainText('one full tank cannot reach')
+  await expect(page.getByTestId('fuel-finish-use')).toBeDisabled()
+  state.current.maxLaps = 101
+  await page.reload()
+  await expect(page.getByTestId('fuel-finish-demand')).toContainText('100 % fuel level')
+  await expect(page.getByTestId('fuel-finish-use')).toBeEnabled()
+  state.current.virtualFuelEvents = []
+  await page.reload()
+  await expect(page.getByTestId('fuel-finish-demand')).toContainText('not yet calculable')
+  await expect(page.getByTestId('fuel-finish-use')).toBeDisabled()
+  state.current.virtualFuelEvents = [1, 2, 3].map((id) => ({ id, sessionDriverId: 'entry-1', kind: 'lap', units: 100 }))
+  state.current.drivers[0].virtualFuelUnits = null
+  await page.reload()
+  await expect(page.getByTestId('fuel-finish-balance')).toContainText('current virtual fuel level is unavailable')
+  expect(state.writes).toEqual([])
+})
+
+test('finish target input obeys access, DNF, finish and pending-save locks', async ({ page }) => {
+  const state = await mockSession(page)
+  state.current.maxLaps = 20
+  state.current.virtualFuelEvents = [1, 2, 3].map((id) => ({ id, sessionDriverId: 'entry-1', kind: 'lap', units: 100 }))
+  await page.goto('/display/driver/driver-1')
+  await expect(page.getByTestId('fuel-finish-use')).toBeDisabled()
+  state.current.drivers[0].isDNF = true
+  await page.goto('/display/driver/driver-1#chaos=personal-test-token')
+  await expect(page.getByTestId('fuel-finish-use')).toBeDisabled()
+  state.current.drivers[0].isDNF = false
+  state.current.status = 'finishing'
+  await page.reload()
+  await expect(page.getByTestId('fuel-finish-use')).toBeDisabled()
+  state.current.status = 'active'
+  await page.reload()
+  await page.getByTestId('fuel-finish-use').click()
+  let release
+  state.planGate = new Promise((resolve) => {
+    release = resolve
+  })
+  await page.getByTestId('fuel-plan-save').click()
+  await expect(page.getByTestId('fuel-finish-use')).toBeDisabled()
+  release()
+  await expect(page.getByTestId('fuel-finish-use')).toBeEnabled()
+  expect(state.writes).toHaveLength(1)
+  state.current.virtualFuelRate = null
+  await page.reload()
+  await expect(page.getByTestId('fuel-finish-plan')).toHaveCount(0)
 })

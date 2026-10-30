@@ -90,7 +90,17 @@
     "targetPercent": "Niveau cible après le prochain arrêt (0–100 %, entier)",
     "pendingPercent": "Enregistré : niveau cible minimum de {{percent}} %.",
     "percentPreview": "Niveau cible : au moins {{percent}} %",
-    "refillWithoutRange": "Aperçu au niveau affiché : ajouter {{added}} % de la capacité pour atteindre {{percent}} %. Autonomie pas encore calculable. La consommation peut continuer avant l’arrêt."
+    "refillWithoutRange": "Aperçu au niveau affiché : ajouter {{added}} % de la capacité pour atteindre {{percent}} %. Autonomie pas encore calculable. La consommation peut continuer avant l’arrêt.",
+    "finishTitle": "Jusqu’à votre objectif de tours",
+    "finishUnknown": "Besoin jusqu’à l’objectif non calculable sans limite de tours fixe et votre nombre de tours parcourus.",
+    "finishReached": "Votre objectif de tours est atteint.",
+    "finishRemaining": "Encore {{laps}} tours jusqu’à votre propre objectif.",
+    "finishDemand": "Besoin estimé à partir de maintenant : {{percent}} % du réservoir, sans réserve de sécurité supplémentaire.",
+    "finishCapacity": "Selon l’estimation actuelle, un plein ne suffit pas pour atteindre votre objectif. Prévoyez un autre ravitaillement.",
+    "finishReserve": "Réserve estimée à l’objectif avec votre niveau actuel : {{percent}} % de la capacité.",
+    "finishShortfall": "Il manque au réservoir actuel environ {{percent}} % de la capacité pour atteindre l’objectif.",
+    "finishBalanceUnknown": "Réserve pas encore calculable : niveau virtuel actuel indisponible.",
+    "finishUse": "Reprendre les tours restants dans la saisie"
   },
   "personalSession": "Ce lien personnel de pilote est lié à cette session."
 }
