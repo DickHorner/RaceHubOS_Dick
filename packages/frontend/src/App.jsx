@@ -34,6 +34,7 @@ const SpectatorScoreboard = lazy(() => import('./pages/SpectatorScoreboard'))
 const DriverDisplay = lazy(() => import('./pages/DriverDisplay'))
 const MobileRaceControl = lazy(() => import('./pages/MobileRaceControl'))
 const SoundboardOperator = lazy(() => import('./pages/SoundboardOperator'))
+const SoundboardSettings = lazy(() => import('./pages/SoundboardSettings'))
 
 function App() {
   return (
@@ -187,6 +188,14 @@ function App() {
                       }
                     />
                     {/* Utils */}
+                    <Route
+                      path="soundboard-settings"
+                      element={
+                        <Suspense>
+                          <SoundboardSettings />
+                        </Suspense>
+                      }
+                    />
                     <Route
                       path="stats"
                       element={

@@ -29,7 +29,8 @@
       "garage": "Prepare cars, drivers, teams and tracks.",
       "show": "Sounds, atmosphere and live displays.",
       "analysis": "Explore lap times, results and records."
-    }
+    },
+    "soundboardSettings": "Manage sounds"
   },
   "theme": {
     "dayMode": "Day mode",

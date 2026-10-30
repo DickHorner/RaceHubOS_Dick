@@ -9,6 +9,7 @@ import {
   Users2,
   LayoutGrid,
   Volume2,
+  Music2,
   Scale,
   Terminal,
   Settings,
@@ -55,6 +56,7 @@ export const navGroups = [
     artwork: '/illustrations/show.svg',
     tileClass: 'bg-violet-100 dark:bg-violet-950/50',
     items: [
+      { to: '/soundboard-settings', labelKey: 'nav.soundboardSettings', Icon: Music2 },
       { to: '/soundboard', labelKey: 'nav.soundboard', Icon: Volume2, standalone: true },
       { to: '/display/scoreboard', labelKey: 'nav.scoreboard', Icon: Monitor, standalone: true },
     ],

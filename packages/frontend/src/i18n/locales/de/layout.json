@@ -29,7 +29,8 @@
       "garage": "Autos, Fahrer, Teams und Strecken vorbereiten.",
       "show": "Sounds, Stimmung und Live-Anzeigen.",
       "analysis": "Rundenzeiten, Ergebnisse und Rekorde entdecken."
-    }
+    },
+    "soundboardSettings": "Sounds verwalten"
   },
   "theme": {
     "dayMode": "Tagmodus",

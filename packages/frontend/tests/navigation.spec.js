@@ -5,7 +5,7 @@ test.use({ locale: 'de-DE' })
 const areas = [
   { id: 'race', title: 'Rennzentrale', routes: ['/dashboard', '/race', '/championships', '/display/control'] },
   { id: 'garage', title: 'Garage & Fahrerlager', routes: ['/cars', '/drivers', '/teams', '/tracks'] },
-  { id: 'show', title: 'Show & Sound', routes: ['/soundboard', '/display/scoreboard'] },
+  { id: 'show', title: 'Show & Sound', routes: ['/soundboard-settings', '/soundboard', '/display/scoreboard'] },
   { id: 'analysis', title: 'Datenlabor', routes: ['/history', '/stats', '/balancing'] },
 ]
 
@@ -71,12 +71,65 @@ test('soundboard and vehicle balancing appear in their intended areas', async ({
   await expect(soundboard).toBeVisible()
   await expect(soundboard).toHaveAttribute('target', '_blank')
   await expect(show.locator('a[href="/display/scoreboard"]')).toBeVisible()
+  const settings = show.getByRole('link', { name: 'Sounds verwalten' })
+  await expect(settings).toHaveAttribute('href', '/soundboard-settings')
+  await expect(settings).not.toHaveAttribute('target', '_blank')
 
   await page.goto('/areas/analysis')
   await expect(page.getByRole('main').locator('a[href="/balancing"]')).toBeVisible()
 
   await page.goto('/areas/garage')
   await expect(page.getByRole('main').locator('a[href="/balancing"]')).toHaveCount(0)
+})
+
+test('Show & Sound opens shared preset and trigger settings without race controls', async ({ page }) => {
+  const presets = (await (await page.request.get('/api/preferences/soundboard:presets')).json()).data
+  const mappings = (await (await page.request.get('/api/preferences/soundboard:auto')).json()).data
+  try {
+    await page.request.put('/api/preferences/soundboard:presets', { data: { value: [] } })
+    await page.request.put('/api/preferences/soundboard:auto', { data: { value: {} } })
+    await page.goto('/areas/show')
+    await page.getByRole('main').getByRole('link', { name: 'Sounds verwalten' }).click()
+    await expect(page).toHaveURL(/\/soundboard-settings$/)
+    const main = page.getByRole('main')
+    await expect(main.getByRole('heading', { name: 'Sounds verwalten', level: 2 })).toBeVisible()
+    await expect(main.getByRole('group', { name: 'Automatische Rennsounds' }).getByRole('combobox')).toHaveCount(19)
+    const show = page.locator('[data-sidebar="group"]').filter({ has: page.locator('a[href="/areas/show"]') })
+    await expect(show.locator('a[href="/soundboard-settings"]')).toHaveAttribute('data-active', 'true')
+    await expect(show.locator('a[href="/soundboard"]')).not.toHaveAttribute('data-active', 'true')
+    await expect(main.getByRole('button', { name: 'Start', exact: true })).toHaveCount(0)
+    await main.getByRole('button', { name: 'Ansage oder Sound hinzufügen' }).click()
+    await main.locator('form input[maxlength="60"]').fill('Tankhinweis Einrichtung')
+    await main.locator('form textarea').fill('Virtuellen Tank prüfen')
+    await main.getByRole('button', { name: 'Speichern', exact: true }).click()
+    await expect(main.getByRole('button', { name: 'Tankhinweis Einrichtung', exact: true })).toBeVisible()
+    const saved = (await (await page.request.get('/api/preferences/soundboard:presets')).json()).data
+    expect(saved).toHaveLength(1)
+    expect(saved[0]).toMatchObject({ label: 'Tankhinweis Einrichtung', kind: 'speech', text: 'Virtuellen Tank prüfen' })
+    await main.getByRole('combobox', { name: 'Virtueller Tank: höchstens 20 %' }).selectOption(saved[0].id)
+    await expect
+      .poll(async () => (await (await page.request.get('/api/preferences/soundboard:auto')).json()).data?.fuellow)
+      .toBe(saved[0].id)
+    await page.reload()
+    await expect(main.getByRole('combobox', { name: 'Virtueller Tank: höchstens 20 %' })).toHaveValue(saved[0].id)
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    await expect(main.getByRole('button', { name: 'Ansage oder Sound hinzufügen' })).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+
+    await page.goto('/race')
+    await expect(page.getByRole('button', { name: 'Ansage oder Sound hinzufügen' })).not.toBeVisible()
+    await page.getByRole('button', { name: 'Soundboard', exact: true }).click()
+    await expect(page.getByRole('combobox', { name: 'Virtueller Tank: höchstens 20 %' })).toHaveValue(saved[0].id)
+
+    await page.goto('/soundboard')
+    await expect(page.getByRole('button', { name: 'Tankhinweis Einrichtung', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Ansage oder Sound hinzufügen' })).toHaveCount(0)
+    await expect(page.getByRole('combobox')).toHaveCount(0)
+  } finally {
+    await page.request.put('/api/preferences/soundboard:presets', { data: { value: presets ?? null } })
+    await page.request.put('/api/preferences/soundboard:auto', { data: { value: mappings ?? null } })
+  }
 })
 
 test('system tools remain global and old dashboard lives in the race center', async ({ page }) => {

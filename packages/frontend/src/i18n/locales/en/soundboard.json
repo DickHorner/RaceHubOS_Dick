@@ -76,5 +76,6 @@
   },
   "operatorMode": "Open sound pads",
   "operatorHint": "Tap a pad to play its sound on this device. Race controls and editing are not available here.",
-  "backToRace": "Back to race"
+  "backToRace": "Back to race",
+  "managementHint": "Save sounds and announcements, assign them to automatic race events and choose the audio output. The separate sound pads are for playback and contain no editing or race controls."
 }
