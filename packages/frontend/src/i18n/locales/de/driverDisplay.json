@@ -90,7 +90,17 @@
     "targetPercent": "Zielfüllstand nach dem nächsten Boxenstopp (0–100 %, ganze Zahl)",
     "pendingPercent": "Gespeichert: Ziel mindestens {{percent}} % Füllstand.",
     "percentPreview": "Tankziel: mindestens {{percent}} %",
-    "refillWithoutRange": "Eingabevorschau beim angezeigten Tankstand: {{added}} % der Tankkapazität nachfüllen auf {{percent}} % Füllstand. Reichweite noch nicht berechenbar. Bis zum Boxenstopp kann weiterer Verbrauch hinzukommen."
+    "refillWithoutRange": "Eingabevorschau beim angezeigten Tankstand: {{added}} % der Tankkapazität nachfüllen auf {{percent}} % Füllstand. Reichweite noch nicht berechenbar. Bis zum Boxenstopp kann weiterer Verbrauch hinzukommen.",
+    "finishTitle": "Bis zu Deinem Rundenziel",
+    "finishUnknown": "Ohne festes Rundenziel und die Zahl Deiner gefahrenen Runden lässt sich der Bedarf nicht berechnen.",
+    "finishReached": "Dein Rundenziel ist erreicht.",
+    "finishRemaining": "Noch {{laps}} Runden bis zu Deinem eigenen Rundenziel.",
+    "finishDemand": "Geschätzter Bedarf ab jetzt: {{percent}} % Tankfüllstand, ohne zusätzliche Sicherheitsreserve.",
+    "finishCapacity": "Nach aktueller Schätzung reicht ein voller Tank nicht bis zu Deinem Rundenziel. Weitere Betankung einplanen.",
+    "finishReserve": "Geschätzte Reserve am Rundenziel mit dem aktuellen Tank: {{percent}} % der Tankkapazität.",
+    "finishShortfall": "Bis zum Rundenziel fehlen dem aktuellen Tank geschätzt {{percent}} % der Tankkapazität.",
+    "finishBalanceUnknown": "Reserve noch nicht berechenbar: Der aktuelle virtuelle Tankstand fehlt.",
+    "finishUse": "Restliche Runden als Eingabe übernehmen"
   },
   "personalSession": "Dieser persönliche Fahrerlink ist an diese Session gebunden."
 }

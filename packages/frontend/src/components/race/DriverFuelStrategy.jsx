@@ -59,6 +59,21 @@ export default function DriverFuelStrategy({ session, assignment, live, accessTo
     [SessionType.RACE, SessionType.QUALIF].includes(session.type) &&
     session.status === SessionStatus.DRAFT
 
+  const completedLaps = live?.totalLaps ?? assignment.totalLaps
+  const remainingLaps =
+    Number.isSafeInteger(session.maxLaps) &&
+    session.maxLaps > 0 &&
+    Number.isSafeInteger(completedLaps) &&
+    completedLaps >= 0
+      ? Math.max(0, session.maxLaps - completedLaps)
+      : null
+  const finishUnits = virtualFuelTarget(remainingLaps, perLap)
+  const finishBalance = finishUnits !== null && validVirtualFuelUnits(units) ? units - finishUnits : null
+  const showFinishPlan =
+    session.virtualFuelRate != null &&
+    [SessionType.RACE, SessionType.QUALIF].includes(session.type) &&
+    [SessionStatus.ACTIVE, SessionStatus.PAUSED, SessionStatus.FINISHING].includes(session.status)
+
   async function saveInitial(event) {
     event.preventDefault()
     if (pending.current || !initialAvailable || !initialValid) return
@@ -153,6 +168,50 @@ export default function DriverFuelStrategy({ session, assignment, live, accessTo
         <p data-testid="fuel-full-range" className="text-sm text-muted-foreground">
           {t('fuelStrategy.fullRange', { laps: Math.floor(VIRTUAL_FUEL_FULL / perLap) })}
         </p>
+      )}
+      {showFinishPlan && (
+        <section data-testid="fuel-finish-plan" className="rounded-lg bg-muted p-3 space-y-2">
+          <h3 className="text-sm font-semibold">{t('fuelStrategy.finishTitle')}</h3>
+          <p data-testid="fuel-finish-laps" className="text-sm">
+            {remainingLaps === null
+              ? t('fuelStrategy.finishUnknown')
+              : remainingLaps === 0
+                ? t('fuelStrategy.finishReached')
+                : t('fuelStrategy.finishRemaining', { laps: remainingLaps })}
+          </p>
+          {remainingLaps > 0 && (
+            <>
+              <p data-testid="fuel-finish-demand" className="text-sm">
+                {perLap === null
+                  ? t('fuelStrategy.noEstimate')
+                  : finishUnits === null
+                    ? t('fuelStrategy.finishCapacity')
+                    : t('fuelStrategy.finishDemand', { percent: finishUnits / 100 })}
+              </p>
+              {finishUnits !== null && (
+                <p data-testid="fuel-finish-balance" className="text-sm">
+                  {finishBalance === null
+                    ? t('fuelStrategy.finishBalanceUnknown')
+                    : t(finishBalance >= 0 ? 'fuelStrategy.finishReserve' : 'fuelStrategy.finishShortfall', {
+                        percent: Math.abs(finishBalance) / 100,
+                      })}
+                </p>
+              )}
+            </>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            data-testid="fuel-finish-use"
+            disabled={!available || busy || finishUnits === null || remainingLaps === 0}
+            onClick={() => {
+              setTargetMode('laps')
+              setTargetLaps(String(remainingLaps))
+            }}
+          >
+            {t('fuelStrategy.finishUse')}
+          </Button>
+        </section>
       )}
       <p className="text-sm" data-testid="fuel-saved-plan">
         {session.virtualFuelRate == null
