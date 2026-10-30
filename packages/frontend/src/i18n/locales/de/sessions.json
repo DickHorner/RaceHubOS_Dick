@@ -175,6 +175,12 @@
       "progress": "Bestätigte Stopps: {{completed}} / {{required}} · noch offen: {{remaining}}",
       "incomplete": "Pflichtstopp-Vorgabe noch nicht erfüllt",
       "fulfilled": "Pflichtstopp-Vorgabe erfüllt"
+    },
+    "lapFuel": {
+      "title": "Virtueller Tank vor / nach der Runde",
+      "note": "Aus dem gespeicherten Tankprotokoll rekonstruiert; keine CU-Messwerte. Ohne passendes Rundenereignis bleibt der Verlauf unbekannt.",
+      "levels": "{{before}} % → {{after}} %",
+      "unavailable": "Unbekannt"
     }
   }
 }

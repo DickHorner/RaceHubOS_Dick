@@ -895,3 +895,99 @@ test('finish target input obeys access, DNF, finish and pending-save locks', asy
   await page.reload()
   await expect(page.getByTestId('fuel-finish-plan')).toHaveCount(0)
 })
+
+async function mockLapFuelHistory(page, type = 'race') {
+  const state = await mockSession(page)
+  state.current.type = type
+  state.current.status = 'finished'
+  state.current.drivers = state.current.drivers.map((driver, index) => ({
+    ...driver,
+    carId: `car-${index + 1}`,
+    car: { brand: 'Carrera', model: `Car ${index + 1}` },
+    initialFuelUnits: index === 0 ? 2500 : 0,
+    virtualFuelUnits: index === 0 ? 4900 : 0,
+  }))
+  const lap = (id, index, lapNumber, lapTime) => ({
+    id,
+    driverId: state.current.drivers[index].driverId,
+    carId: `car-${index + 1}`,
+    controller: 0,
+    lapNumber,
+    lapTime,
+    phase: type,
+    timestamp: `2026-10-30T10:00:0${lapNumber}Z`,
+  })
+  // The visible lap order is deliberately different from the fuel event order.
+  state.current.laps = [
+    lap('a2', 0, 2, 11000),
+    lap('b1', 1, 1, 10000),
+    lap('a1', 0, 1, 10000),
+    lap('no-event', 0, 3, 12000),
+  ]
+  state.current.virtualFuelEvents = [
+    { id: 1, sessionDriverId: 'entry-1', controller: 0, kind: 'lap', units: 100, reference: 'lap:a1' },
+    { id: 2, sessionDriverId: 'entry-2', controller: 0, kind: 'lap', units: 200, reference: 'lap:b1' },
+    {
+      id: 3,
+      sessionDriverId: 'entry-1',
+      controller: 0,
+      kind: 'refuel',
+      units: 0,
+      targetUnits: 5000,
+      source: 'simulator',
+      reference: 'pit:sim-1',
+      createdAt: '2026-10-30T10:00:02Z',
+    },
+    { id: 4, sessionDriverId: 'entry-1', controller: 0, kind: 'lap', units: 100, reference: 'lap:a2' },
+  ]
+  return state
+}
+
+for (const type of ['race', 'qualif']) {
+  test(`${type} lap history reconstructs fuel before and after each recorded lap and refill`, async ({ page }) => {
+    const state = await mockLapFuelHistory(page, type)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/sessions/pit-session')
+    await expect(page.getByTestId('lap-fuel-heading')).toHaveText('Virtual tank before / after lap')
+    await expect(page.getByTestId('lap-fuel-a1')).toHaveText('25 % → 24 %')
+    await expect(page.getByTestId('lap-fuel-b1')).toHaveText('0 % → 0 %')
+    await expect(page.getByTestId('lap-fuel-a2')).toHaveText('50 % → 49 %')
+    await expect(page.getByTestId('lap-fuel-no-event')).toHaveText('Unknown')
+    await expect(page.getByTestId('lap-fuel-b1').locator('..')).toContainText('Driver Two')
+    await expect(page.getByTestId('lap-fuel-b1').locator('..')).toContainText('Car 2')
+    await expect(page.getByTestId('lap-fuel-a2').locator('..')).toContainText('Driver One')
+    expect(state.writes).toEqual([])
+    state.current.drivers[0].virtualFuelUnits = 10000
+    await page.reload()
+    await expect(page.getByTestId('lap-fuel-a1')).toHaveText('25 % → 24 %')
+    await expect(page.getByTestId('lap-fuel-a2')).toHaveText('50 % → 49 %')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    expect(state.writes).toEqual([])
+  })
+}
+
+test('lap fuel history leaves changed assignments and mismatching references unknown', async ({ page }) => {
+  const state = await mockLapFuelHistory(page)
+  state.current.laps[0].carId = 'different-car'
+  state.current.laps[1].driverId = 'different-driver'
+  state.current.virtualFuelEvents[0].controller = 1
+  await page.goto('/sessions/pit-session')
+  for (const id of ['a1', 'a2', 'b1', 'no-event'])
+    await expect(page.getByTestId(`lap-fuel-${id}`)).toHaveText('Unknown')
+  state.current.drivers = state.current.drivers.filter((driver) => driver.id !== 'entry-1')
+  await page.reload()
+  await expect(page.getByTestId('lap-fuel-a2')).toHaveText('Unknown')
+  expect(state.writes).toEqual([])
+})
+
+test('lap fuel history is hidden when virtual fuel is disabled and raw lap times remain visible', async ({ page }) => {
+  const state = await mockLapFuelHistory(page)
+  state.current.virtualFuelRate = null
+  state.current.virtualFuelEvents = []
+  await page.goto('/sessions/pit-session')
+  await expect(page.getByTestId('lap-fuel-heading')).toHaveCount(0)
+  await expect(page.getByTestId('lap-fuel-a1')).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Lap history (4)' })).toBeVisible()
+  await expect(page.getByRole('cell', { name: '11.000', exact: true })).toBeVisible()
+  expect(state.writes).toEqual([])
+})

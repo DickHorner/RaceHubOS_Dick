@@ -175,6 +175,12 @@
       "progress": "Verified stops: {{completed}} / {{required}} · remaining: {{remaining}}",
       "incomplete": "Pit-stop requirement not yet fulfilled",
       "fulfilled": "Pit-stop requirement fulfilled"
+    },
+    "lapFuel": {
+      "title": "Virtual tank before / after lap",
+      "note": "Reconstructed from the saved fuel log; not CU measurements. Without a matching lap event, the history remains unknown.",
+      "levels": "{{before}} % → {{after}} %",
+      "unavailable": "Unknown"
     }
   }
 }

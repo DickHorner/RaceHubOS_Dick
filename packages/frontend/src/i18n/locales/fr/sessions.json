@@ -175,6 +175,12 @@
       "progress": "Arrêts vérifiés : {{completed}} / {{required}} · restants : {{remaining}}",
       "incomplete": "Arrêts obligatoires pas encore effectués",
       "fulfilled": "Arrêts obligatoires effectués"
+    },
+    "lapFuel": {
+      "title": "Réservoir virtuel avant / après le tour",
+      "note": "Reconstitué depuis le journal de carburant enregistré ; aucune mesure CU. Sans événement de tour correspondant, l’historique reste inconnu.",
+      "levels": "{{before}} % → {{after}} %",
+      "unavailable": "Inconnu"
     }
   }
 }
