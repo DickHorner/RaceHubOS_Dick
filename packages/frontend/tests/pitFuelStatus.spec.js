@@ -218,6 +218,10 @@ test('personal fuel plan previews 25 laps, persists without approval and applies
   await expect(page.getByTestId('fuel-range')).toContainText('17 laps')
   await page.getByTestId('fuel-target-laps').fill('25')
   await expect(page.getByTestId('fuel-target-preview')).toContainText('25 %')
+  await expect(page.getByTestId('fuel-full-range')).toContainText('100 laps')
+  await expect(page.getByTestId('fuel-refill-preview')).toContainText('add 8 % of tank capacity')
+  await expect(page.getByTestId('fuel-refill-preview')).toContainText('level of 25 %')
+  await expect(page.getByTestId('fuel-refill-preview')).toContainText('afterwards: 25 laps')
   expect(state.writes).toEqual([])
   await page.getByTestId('fuel-plan-save').click()
   await expect(page.getByTestId('fuel-saved-plan')).toContainText('25 laps')
@@ -227,6 +231,7 @@ test('personal fuel plan previews 25 laps, persists without approval and applies
   ])
   await page.reload()
   await expect(page.getByTestId('fuel-target-laps')).toHaveValue('25')
+  await expect(page.getByTestId('fuel-refill-preview')).toContainText('add 8 % of tank capacity')
   state.current.drivers[0] = {
     ...state.current.drivers[0],
     pendingFuelLaps: null,
@@ -246,6 +251,7 @@ test('personal fuel plan previews 25 laps, persists without approval and applies
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('session:pit_stop')))
   await expect(page.getByTestId('fuel-saved-plan')).toContainText('No individual target')
   await expect(page.getByTestId('fuel-range')).toContainText('25 laps')
+  await expect(page.getByTestId('fuel-refill-preview')).toContainText('add 0 % of tank capacity')
   await expect(page.getByTestId('pit-refuel-4')).toContainText('25 % at this event')
   expect(state.writes).toHaveLength(1)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
@@ -538,5 +544,116 @@ test('switching the driver URL immediately revokes controls while personal looku
   await expect(page.getByTestId('start-fuel-save')).toBeDisabled()
   release()
   await expect(page.getByRole('alert')).toContainText('Could not refresh session data')
+  expect(state.writes).toEqual([])
+})
+
+test('fuel preview keeps a higher current level and isolates the assigned driver consumption', async ({ page }) => {
+  const state = await mockSession(page)
+  state.current.virtualFuelEvents = [1, 2, 3].flatMap((id) => [
+    { id, sessionDriverId: 'entry-1', kind: 'lap', units: 100 },
+    { id: id + 3, sessionDriverId: 'entry-2', kind: 'lap', units: 9000 },
+  ])
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/display/driver/driver-1#chaos=personal-test-token')
+  await page.getByTestId('fuel-target-laps').fill('10')
+  const preview = page.getByTestId('fuel-refill-preview')
+  await expect(preview).toContainText('add 0 % of tank capacity')
+  await expect(preview).toContainText('level of 72.5 %')
+  await expect(preview).toContainText('afterwards: 72 laps')
+  await expect(preview).toContainText('Further consumption before the pit stop')
+  await expect(page.getByTestId('fuel-full-range')).toContainText('100 laps')
+  expect(state.current.drivers[0].virtualFuelUnits).toBe(7250)
+  expect(state.writes).toEqual([])
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+})
+
+test('empty qualifying tank previews capacity exactly and hides impossible input amounts', async ({ page }) => {
+  const state = await mockSession(page)
+  state.current.type = 'qualif'
+  state.current.status = 'paused'
+  state.current.drivers[0].virtualFuelUnits = 0
+  state.current.virtualFuelEvents = [1, 2, 3].map((id) => ({
+    id,
+    sessionDriverId: 'entry-1',
+    kind: 'lap',
+    units: 1000,
+  }))
+  await page.goto('/display/driver/driver-1#chaos=personal-test-token')
+  await expect(page.getByTestId('fuel-range')).toContainText('0 laps')
+  await expect(page.getByTestId('fuel-full-range')).toContainText('10 laps')
+  await page.getByTestId('fuel-target-laps').fill('10')
+  await expect(page.getByTestId('fuel-refill-preview')).toContainText('add 100 % of tank capacity')
+  await expect(page.getByTestId('fuel-refill-preview')).toContainText('level of 100 %')
+  await expect(page.getByTestId('fuel-refill-preview')).toContainText('afterwards: 10 laps')
+  await page.getByTestId('fuel-target-laps').fill('11')
+  await expect(page.getByTestId('fuel-refill-preview')).toHaveCount(0)
+  await expect(page.getByTestId('fuel-plan-save')).toBeDisabled()
+  expect(state.writes).toEqual([])
+})
+
+test('fuel preview never invents a current level or calculates from missing or disabled consumption', async ({
+  page,
+}) => {
+  const state = await mockSession(page)
+  state.current.drivers[0].virtualFuelUnits = null
+  state.current.virtualFuelEvents = [1, 2, 3].map((id) => ({
+    id,
+    sessionDriverId: 'entry-1',
+    kind: 'lap',
+    units: 100,
+  }))
+  await page.goto('/display/driver/driver-1#chaos=personal-test-token')
+  await page.getByTestId('fuel-target-laps').fill('25')
+  await expect(page.getByTestId('fuel-refill-preview')).toContainText('current virtual fuel level is unavailable')
+  await expect(page.getByTestId('fuel-range')).toContainText('not yet calculable')
+  await expect(page.getByTestId('fuel-full-range')).toContainText('100 laps')
+
+  state.current.virtualFuelEvents.pop()
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('session:pit_stop')))
+  await expect(page.getByTestId('fuel-full-range')).toHaveCount(0)
+  await expect(page.getByTestId('fuel-refill-preview')).toHaveCount(0)
+  await expect(page.getByTestId('fuel-target-preview')).toContainText('not yet calculable')
+
+  state.current.virtualFuelEvents.push({ id: 3, sessionDriverId: 'entry-1', kind: 'lap', units: 100 })
+  state.current.virtualFuelRate = null
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('session:pit_stop')))
+  await expect(page.getByTestId('fuel-saved-plan')).toContainText('disabled')
+  await expect(page.getByTestId('fuel-full-range')).toHaveCount(0)
+  await expect(page.getByTestId('fuel-refill-preview')).toHaveCount(0)
+  expect(state.writes).toEqual([])
+})
+
+test('fuel preview follows current consumption without rewriting a previously saved target', async ({ page }) => {
+  const state = await mockSession(page)
+  state.current.drivers[0] = {
+    ...state.current.drivers[0],
+    virtualFuelUnits: 1700,
+    pendingFuelLaps: 25,
+    pendingFuelUnits: 2500,
+  }
+  state.current.virtualFuelEvents = [1, 2, 3].map((id) => ({
+    id,
+    sessionDriverId: 'entry-1',
+    kind: 'lap',
+    units: 100,
+  }))
+  await page.goto('/display/driver/driver-1#chaos=personal-test-token')
+  await expect(page.getByTestId('fuel-refill-preview')).toContainText('add 8 % of tank capacity')
+  state.current.virtualFuelEvents.push(
+    ...[4, 5, 6].map((id) => ({
+      id,
+      sessionDriverId: 'entry-1',
+      kind: 'lap',
+      units: 200,
+    }))
+  )
+  state.current.drivers[0].virtualFuelUnits = 1100
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('session:pit_stop')))
+  await expect(page.getByTestId('fuel-refill-preview')).toContainText('add 39 % of tank capacity')
+  await expect(page.getByTestId('fuel-refill-preview')).toContainText('level of 50 %')
+  await expect(page.getByTestId('fuel-full-range')).toContainText('50 laps')
+  await expect(page.getByTestId('fuel-saved-plan')).toContainText('target at least 25 %')
+  await expect(page.getByTestId('fuel-target-laps')).toHaveValue('25')
+  expect(state.current.drivers[0].pendingFuelUnits).toBe(2500)
   expect(state.writes).toEqual([])
 })

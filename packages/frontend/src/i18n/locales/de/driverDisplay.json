@@ -80,7 +80,10 @@
     "startSave": "Startfüllstand speichern",
     "startSaved": "Virtueller Startfüllstand gespeichert.",
     "startInvalid": "Ganze Prozentzahl zwischen 0 und 100 eingeben.",
-    "startSaveError": "Startfüllstand konnte nicht gespeichert werden. Prüfe den gespeicherten Stand; die Session könnte bereits starten oder die Auswahl geändert worden sein."
+    "startSaveError": "Startfüllstand konnte nicht gespeichert werden. Prüfe den gespeicherten Stand; die Session könnte bereits starten oder die Auswahl geändert worden sein.",
+    "fullRange": "Mit vollem virtuellen Tank: geschätzt bis zu {{laps}} Runden.",
+    "refillPreview": "Eingabevorschau beim angezeigten Tankstand: {{added}} % der Tankkapazität nachfüllen auf {{percent}} % Füllstand; danach geschätzt {{laps}} Runden. Bis zum Boxenstopp kann weiterer Verbrauch hinzukommen.",
+    "refillUnavailable": "Nachfüllmenge noch nicht berechenbar: Der aktuelle virtuelle Tankstand ist nicht verfügbar."
   },
   "personalSession": "Dieser persönliche Fahrerlink ist an diese Session gebunden."
 }

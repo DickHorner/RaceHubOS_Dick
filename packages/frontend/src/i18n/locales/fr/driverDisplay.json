@@ -80,7 +80,10 @@
     "startSave": "Enregistrer le niveau de départ",
     "startSaved": "Niveau virtuel de départ enregistré.",
     "startInvalid": "Saisir un pourcentage entier de 0 à 100.",
-    "startSaveError": "Impossible d’enregistrer le carburant de départ. Actualisez ; la session peut démarrer ou la sélection avoir changé."
+    "startSaveError": "Impossible d’enregistrer le carburant de départ. Actualisez ; la session peut démarrer ou la sélection avoir changé.",
+    "fullRange": "Réservoir virtuel plein : autonomie estimée jusqu’à {{laps}} tours.",
+    "refillPreview": "Aperçu de la saisie au niveau affiché : ajouter {{added}} % de la capacité pour atteindre {{percent}} % ; autonomie estimée ensuite : {{laps}} tours. La consommation avant l’arrêt peut modifier cette quantité.",
+    "refillUnavailable": "Quantité à ajouter pas encore calculable : le niveau virtuel actuel est indisponible."
   },
   "personalSession": "Ce lien personnel de pilote est lié à cette session."
 }
