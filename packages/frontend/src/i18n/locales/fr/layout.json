@@ -29,7 +29,8 @@
       "garage": "Préparer voitures, pilotes, équipes et circuits.",
       "show": "Sons, ambiance et affichages en direct.",
       "analysis": "Explorer chronos, résultats et records."
-    }
+    },
+    "soundboardSettings": "Gérer les sons"
   },
   "theme": {
     "dayMode": "Mode jour",

@@ -76,5 +76,6 @@
   },
   "operatorMode": "Soundpult öffnen",
   "operatorHint": "Tippe auf einen Knopf, um den Sound auf diesem Gerät abzuspielen. Hier gibt es keine Rennsteuerung oder Bearbeitung.",
-  "backToRace": "Zurück zum Rennen"
+  "backToRace": "Zurück zum Rennen",
+  "managementHint": "Speichere Sounds und Durchsagen, ordne sie automatischen Rennereignissen zu und wähle die Audioausgabe. Das separate Soundpult ist zum Abspielen gedacht und enthält keine Bearbeitung oder Rennsteuerung."
 }

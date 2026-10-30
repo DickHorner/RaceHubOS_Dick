@@ -76,5 +76,6 @@
   },
   "operatorMode": "Ouvrir les boutons sonores",
   "operatorHint": "Touchez un bouton pour jouer le son sur cet appareil. Pas de commandes de course ni de modifications ici.",
-  "backToRace": "Retour à la course"
+  "backToRace": "Retour à la course",
+  "managementHint": "Enregistrez des sons et annonces, associez-les aux événements de course et choisissez la sortie audio. Le pupitre séparé permet la lecture sans édition ni commandes de course."
 }

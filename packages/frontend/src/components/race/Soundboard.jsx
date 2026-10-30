@@ -50,11 +50,16 @@ function validPreset(preset) {
   )
 }
 
-export default function Soundboard({ directorKey = '', allowDirectorWithoutKey = false, operatorOnly = false }) {
+export default function Soundboard({
+  directorKey = '',
+  allowDirectorWithoutKey = false,
+  operatorOnly = false,
+  defaultOpen = false,
+}) {
   const { t } = useTranslation('soundboard')
   const { speak, formatTimeVoice } = useVoice()
   const directorAccess = Boolean(directorKey || allowDirectorWithoutKey)
-  const [open, setOpen] = useState(directorAccess)
+  const [open, setOpen] = useState(directorAccess || defaultOpen)
   const [presets, setPresets] = useState([])
   const [autoMappings, setAutoMappings] = useState({})
   const [autoLoaded, setAutoLoaded] = useState(false)
