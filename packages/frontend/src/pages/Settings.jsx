@@ -151,7 +151,11 @@ export default function Settings() {
       const response = await fetch(`${API_URL}/api/settings/start-trace/records`)
       const result = await response.json()
       if (!response.ok || !result.success || !Array.isArray(result.data)) throw new Error('Trace unavailable')
-      const report = { exportedAt: new Date().toISOString(), backend: result.data, browser: getStartTraceRecords() }
+      const report = {
+        exportedAt: new Date().toISOString(),
+        backend: result.data,
+        browser: getStartTraceRecords(),
+      }
       if (!report.backend.length && !report.browser.length) {
         setTraceError(t('startTrace.empty'))
         return
@@ -942,7 +946,9 @@ export default function Settings() {
           <div className="flex items-start gap-2">
             <Activity className="size-4 mt-0.5 text-muted-foreground" />
             <div>
-              <p id="start-trace-label" className="text-sm font-semibold">{t('startTrace.title')}</p>
+              <p id="start-trace-label" className="text-sm font-semibold">
+                {t('startTrace.title')}
+              </p>
               <p className="text-xs text-muted-foreground">{t('startTrace.description')}</p>
             </div>
           </div>

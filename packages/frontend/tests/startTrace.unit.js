@@ -1,6 +1,12 @@
 import test, { beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { beginStartTrace, traceStart, traceStartStatus, getStartTraceRecords, setStartTraceEnabled } from '../src/lib/startTrace.js'
+import {
+  beginStartTrace,
+  traceStart,
+  traceStartStatus,
+  getStartTraceRecords,
+  setStartTraceEnabled,
+} from '../src/lib/startTrace.js'
 
 let rows
 let now
