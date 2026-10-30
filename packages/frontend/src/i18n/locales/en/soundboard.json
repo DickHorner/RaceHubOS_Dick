@@ -72,7 +72,9 @@
     "fuellow": "Virtual fuel: at most 20%",
     "fuelempty": "Virtual tank empty",
     "fuelrefilled": "Virtual tank refilled",
-    "fuelDescription": "Fuel warnings use virtual consumption only: once when crossing down to 20% or empty. They re-arm only after refilling above the respective threshold; a direct drop to empty triggers only the empty warning. Fuel events support {driver}, {car} and {controller}."
+    "fuelDescription": "Fuel warnings use virtual consumption only: once when crossing down to 20% or empty. They re-arm only after refilling above the respective threshold; a direct drop to empty triggers only the empty warning. Fuel events support {driver}, {car} and {controller}.",
+    "unavailable": "Sound unavailable",
+    "missingPreset": "The assigned sound is missing or invalid. Choose another sound or turn this trigger off."
   },
   "operatorMode": "Open sound pads",
   "operatorHint": "Tap a pad to play its sound on this device. Race controls and editing are not available here.",
