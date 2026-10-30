@@ -68,7 +68,11 @@
     "tyrechanged": "Reifenwechsel bestätigt",
     "damage": "Schaden ausgelöst (Simulation)",
     "repaired": "Schaden repariert (Simulation)",
-    "dnf": "Schadensbedingter Ausfall (Simulation)"
+    "dnf": "Schadensbedingter Ausfall (Simulation)",
+    "fuellow": "Virtueller Tank: höchstens 20 %",
+    "fuelempty": "Virtueller Tank leer",
+    "fuelrefilled": "Virtueller Tank nachgefüllt",
+    "fuelDescription": "Tankwarnungen gelten nur für virtuellen Verbrauch: einmal beim Unterschreiten von 20 % bzw. beim Leeren. Erneut erst nach Auffüllen über die jeweilige Schwelle; beim Sprung direkt auf leer ertönt nur die Leer-Warnung. Tankereignisse unterstützen {driver}, {car} und {controller}."
   },
   "operatorMode": "Soundpult öffnen",
   "operatorHint": "Tippe auf einen Knopf, um den Sound auf diesem Gerät abzuspielen. Hier gibt es keine Rennsteuerung oder Bearbeitung.",
