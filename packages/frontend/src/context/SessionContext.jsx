@@ -5,6 +5,7 @@ import { useVoice } from './VoiceContext'
 import { SessionStatus, SessionType, rankRaceDrivers } from '@racehubos/shared'
 import i18n from '../i18n'
 import { sessionNames } from '../lib/sessionNames'
+import { beginStartTrace, traceStart } from '../lib/startTrace'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 const WS_URL = import.meta.env.VITE_WS_URL || ''
@@ -525,17 +526,21 @@ export function SessionProvider({ children }) {
 
   // Start session
   const startSession = useCallback(async (sessionId) => {
+    beginStartTrace(sessionId)
     try {
       const response = await fetch(`${API_URL}/api/sessions/${sessionId}/start`, {
         method: 'POST',
       })
+      traceStart('http:response', { status: response.status })
       const data = await response.json()
+      if (!data.success) traceStart('failed')
 
       if (data.success) {
         setSession(data.data)
       }
       return data
     } catch (error) {
+      traceStart('failed')
       console.error('[SessionContext] Error starting session:', error)
       return { success: false, error: error.message }
     }

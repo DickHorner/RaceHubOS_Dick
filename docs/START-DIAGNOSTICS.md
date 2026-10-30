@@ -1,6 +1,6 @@
 # Start timing diagnostics (#67)
 
-This backend-only diagnostic slice measures the existing start path. It does not fix or claim to explain the reported physical CU delay. Browser click, Socket.IO receipt and audio scheduling timestamps are not yet instrumented.
+The opt-in backend and browser captures measure the existing start path. They do not fix or claim to explain the reported physical CU delay. Start commands, polling and audio behavior are unchanged.
 
 ## Capture
 
@@ -8,6 +8,35 @@ This backend-only diagnostic slice measures the existing start path. It does not
 2. Capture backend console output. `[StartTrace]` records carry a process-local attempt ID, session ID, phase and monotonic `elapsedMs` since backend start acceptance. The `accepted` row also has a UTC wall-clock `startedAt` for identifying the capture. Wall-clock changes do not change elapsed durations.
 3. Start one prepared session normally. A second click during its transition is rejected by the existing guard; it cannot replace that attempt's trace. Advance the lights normally after L1. Do not send extra START commands for the measurement.
 4. Disable the variable and restart after capture. Logging is off by default. A trace ends at the first observed lights-to-racing transition, failure, disconnect, device replacement or service close. After 60 seconds, the next trace call emits `expired` and stops logging. It keeps no event buffer or diagnostic timer.
+
+## Browser capture
+
+In the tab that will start the session, open developer tools and run:
+
+```js
+sessionStorage.setItem('racehubos-start-trace', '1')
+```
+
+Keep the console open, filter for `[BrowserStartTrace]`, and start the prepared session from free racing or a championship. Advance at L1 normally. No reload or frontend rebuild is needed. The opt-in is tab-local; other displays do not automatically capture. To disable, run `sessionStorage.removeItem('racehubos-start-trace')` and reload the tab (this also discards an active capture).
+
+Each row contains a page-local trace ID, session ID and monotonic `elapsedMs` from the call to the session start action. The initial `click` row includes UTC `startedAt` for matching captures. The action is measured immediately before fetch, after any caller-side validation. Repeated start calls retain an active capture's origin. A capture ends at observed GO in the light effect, failed start, cancellation, socket/CU disconnect or expiry on the next record after 60 seconds. It adds no timers or event buffer.
+
+| Browser phase | Observation |
+| --- | --- |
+| `click` | Session start action immediately before HTTP request |
+| `http:response` | Fetch returned response headers, with HTTP status; JSON parsing and state update follow |
+| `advance:click`, `advance:http:response` | Existing L1 advance action and its HTTP response |
+| `status:received` | Changed start value received by DeviceContext's Socket.IO handler, before setting React state; identical repeated values are omitted |
+| `light:effect` | StartLights effect processed a start value; this is **not** a measured browser paint or completed CSS transition |
+| `audio:scheduled` | Existing oscillator start/stop calls completed, with frequency, duration, AudioContext state and its `currentTime` |
+| `audio:failed` | Existing audio try block threw; no exception message is recorded |
+| `racing`, `failed`, `disconnected`, `expired` | End of capture |
+
+A suspended AudioContext may queue a beep without audible output. `audio:scheduled` is not speaker playback evidence, and AudioContext time is not the browser performance clock. The trace does not resume audio or suppress existing cues. A rapid sequence can be received in full while React only processes its latest value; compare received values with effects instead of assuming every received value was rendered. On navigation to another page the light component may unmount; the remaining capture is still bounded by disconnect or expiry.
+
+Only fixed diagnostic fields are written to this tab's console. No URL, fragment, driver token, director key, device address, raw status payload or error message is copied; no telemetry is sent to the server or persisted. Default-off cost is a function call and null check at each instrumented boundary. Active status logging is limited to changes, not repeated polls.
+
+Browser and backend trace IDs and elapsed origins are independent. Match the session ID, capture wall-clock and sequence manually; **do not subtract timestamps from different clocks to infer network latency**. Use intervals inside each capture to locate delays. Preserve both logs plus a physical CU light/audio recording for the hardware check.
 
 ## Interpretation
 
@@ -36,4 +65,4 @@ Only fixed phase names, timing, session/attempt IDs, controller/field and change
 
 The diagnostic integration exposed a simulator bug: the full reset on entering L1 changed its start state back to stopped (9). The L1 handler now requests a timing-only reset, using the simulator's existing `resetTimer()` and retaining the full reset for explicit reset operations. The integrated simulator sequence is tested through 9 → 1 → 2 → 3 → 4 → 5 → 7 → 0. Devices without `resetTimer()` retain their existing `reset()` call; this does not establish physical CU behavior. The simulator's advance call completes after GO, when the trace has already ended, so its final `advance_start:ack` is outside the capture window.
 
-Capture the same scenario with the simulator and the real CU: fresh versus warm connection, one versus multiple assigned cars. Keep the session ID, capture start time, vehicle count and connection state with each result. Compare reset, profiles, both planned waits, START completion, first L1 and subsequent status spacing. Record the real lights and sound separately; backend timestamps cannot establish when a browser rendered a light or scheduled a beep. Only optimize a demonstrated bottleneck after this comparison; do not remove the fixed waits based on simulator results alone.
+Capture the same scenario with the simulator and the real CU: fresh versus warm connection, one versus multiple assigned cars. Keep the session ID, capture start time, vehicle count and connection state with each result. Compare reset, profiles, both planned waits, START completion, first L1 and subsequent status spacing. Record the real lights and sound separately; browser effects and audio scheduling cannot establish the visible paint time or when a speaker sounded. Only optimize a demonstrated bottleneck after this comparison; do not remove the fixed waits based on simulator results alone.
