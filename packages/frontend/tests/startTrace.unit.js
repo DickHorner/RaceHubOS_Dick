@@ -1,6 +1,6 @@
 import test, { beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { beginStartTrace, traceStart, traceStartStatus } from '../src/lib/startTrace.js'
+import { beginStartTrace, traceStart, traceStartStatus, getStartTraceRecords, setStartTraceEnabled } from '../src/lib/startTrace.js'
 
 let rows
 let now
@@ -19,6 +19,7 @@ beforeEach((t) => {
 afterEach(() => {
   traceStart('failed')
   delete globalThis.sessionStorage
+  delete globalThis.localStorage
 })
 
 test('disabled or unavailable tab storage produces no diagnostic output', () => {
@@ -93,4 +94,21 @@ test('unchanged status after the deadline also expires the capture', () => {
     rows.map((row) => row.phase),
     ['click', 'status:received', 'expired']
   )
+})
+
+test('settings switch controls browser capture and keeps downloadable records after disable', () => {
+  let stored = null
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: { getItem: () => stored, setItem: (_, value) => { stored = value } },
+  })
+  const before = getStartTraceRecords().length
+  assert.equal(setStartTraceEnabled(true), true)
+  beginStartTrace('ui-switch')
+  traceStartStatus(6)
+  traceStart('racing')
+  assert.deepEqual(getStartTraceRecords().slice(before).map((row) => row.phase), ['click', 'status:received', 'racing'])
+  assert.equal(setStartTraceEnabled(false), true)
+  beginStartTrace('disabled-again')
+  assert.equal(getStartTraceRecords().length, before + 3)
 })

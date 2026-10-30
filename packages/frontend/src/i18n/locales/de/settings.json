@@ -97,5 +97,15 @@
     "migrated_other": "{{count}} Runden {{name}} zugeordnet",
     "error": "Fehler: {{message}}",
     "migrateButton": "Zuordnen"
+  },
+  "startTrace": {
+    "title": "Startdiagnose",
+    "description": "Startzustände und Zeitabläufe aufzeichnen. Nach dem Test herunterladen und ausschalten.",
+    "download": "Diagnose herunterladen",
+    "loadError": "Diagnosestatus konnte nicht geladen werden",
+    "saveError": "Diagnose konnte nicht umgeschaltet werden",
+    "storageError": "Browser-Speicher gesperrt: Browser-Trace nicht verfügbar",
+    "downloadError": "Diagnose konnte nicht heruntergeladen werden (ggf. nur am RaceHub-PC)",
+    "empty": "Noch keine Startdiagnose aufgezeichnet"
   }
 }

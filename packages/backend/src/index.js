@@ -25,7 +25,7 @@ import tracksRouter from './routes/tracks.js';
 import teamsRouter from './routes/teams.js';
 import championshipsRouter, { setChampionshipService } from './routes/championships.js';
 import statsRouter from './routes/stats.js';
-import settingsRouter, { setSettingsIo } from './routes/settings.js';
+import settingsRouter, { setSettingsIo, setSettingsSyncService } from './routes/settings.js';
 import bluetoothRouter, { setControlUnit, setSimulator, setSyncService } from './routes/bluetooth.js';
 import sessionsRouter, { setSessionService } from './routes/sessions.js';
 import raceControlRouter, { setRaceControlServices, remoteWriteGuard, mayControlSocket } from './routes/raceControl.js';
@@ -106,6 +106,7 @@ sessionService.on('sessionDeleted', async ({ sessionId, championshipId }) => {
 
 // Pass io to settings
 setSettingsIo(io);
+setSettingsSyncService(syncService);
 setUpdateIo(io);
 
 // Connect services
@@ -398,6 +399,14 @@ httpServer.listen(PORT, async () => {
 ║  Devices: Simulator + Control Unit    ║
 ╚═══════════════════════════════════════╝
   `);
+
+  // Restore the persisted trace switch before ordinary device activity.
+  try {
+    const tracePref = await prisma.preference.findUnique({ where: { key: 'startTraceEnabled' } });
+    if (tracePref) syncService.setStartTraceEnabled(JSON.parse(tracePref.value) === true);
+  } catch (err) {
+    console.warn('Start trace preference check failed:', err.message);
+  }
 
   // Auto-connect to last device if enabled
   try {

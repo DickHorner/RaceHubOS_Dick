@@ -100,7 +100,7 @@ function requireDirector(req, res, next) {
   next();
 }
 
-function requireLocalOrDirector(req, res, next) {
+export function requireLocalOrDirector(req, res, next) {
   if (isLoopback(req.socket.remoteAddress) && trustedOrigin(req.get('origin'), req.get('host'))) return next();
   return requireDirector(req, res, next);
 }

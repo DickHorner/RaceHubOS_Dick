@@ -24,6 +24,8 @@ export class SyncService {
     this.pollTimer = null;
     this.startTrace = null;
     this.startTraceSequence = 0;
+    this.startTraceEnabled = null;
+    this.startTraceRecords = [];
 
     // Bound handlers for cleanup
     this._onTimer = (event) => this.handleTimerEvent(event);
@@ -42,10 +44,23 @@ export class SyncService {
     this.sessionService = sessionService;
   }
 
+  setStartTraceEnabled(enabled) {
+    this.startTraceEnabled = enabled;
+    if (!enabled) this.startTrace = null;
+  }
+
+  getStartTraceEnabled() {
+    return this.startTraceEnabled ?? process.env.RACEHUB_START_TRACE === '1';
+  }
+
+  getStartTraceRecords() {
+    return this.startTraceRecords.slice();
+  }
+
   // Opt-in, bounded backend diagnostics; never records BLE payloads or credentials.
   beginStartTrace(sessionId) {
     this.startTrace = null;
-    if (process.env.RACEHUB_START_TRACE !== '1') return;
+    if (!this.getStartTraceEnabled()) return;
     this.startTrace = {
       id: `${process.pid}-${++this.startTraceSequence}`,
       sessionId,
@@ -62,13 +77,16 @@ export class SyncService {
       phase = 'expired';
       details = undefined;
     }
-    console.info('[StartTrace]', {
+    const record = {
       traceId: trace.id,
       sessionId: trace.sessionId,
       elapsedMs: Math.round(elapsed * 1000) / 1000,
       phase,
       ...details,
-    });
+    };
+    console.info('[StartTrace]', record);
+    this.startTraceRecords.push(record);
+    if (this.startTraceRecords.length > 2000) this.startTraceRecords.shift();
     if (['racing', 'failed', 'disconnected', 'device_changed', 'closed', 'expired'].includes(phase)) {
       this.startTrace = null;
     }
