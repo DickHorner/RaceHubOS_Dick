@@ -122,7 +122,7 @@ export default function Settings() {
           })
           .catch(() => {})
       })
-  }, [])
+  }, [t])
 
   async function handleTraceToggle() {
     setTraceBusy(true)
@@ -956,14 +956,20 @@ export default function Settings() {
               onClick={handleTraceToggle}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${traceEnabled ? 'bg-blue-600' : 'bg-muted'}`}
             >
-              <span className={`inline-block size-4 transform rounded-full bg-white shadow-sm transition-transform ${traceEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+              <span
+                className={`inline-block size-4 transform rounded-full bg-white shadow-sm transition-transform ${traceEnabled ? 'translate-x-6' : 'translate-x-1'}`}
+              />
             </button>
             <Button variant="outline" size="sm" onClick={downloadTrace} disabled={traceDownloading}>
               <Download className="size-3.5" />
               {t('startTrace.download')}
             </Button>
           </div>
-          {traceError && <p role="alert" className="w-full text-xs text-destructive">{traceError}</p>}
+          {traceError && (
+            <p role="alert" className="w-full text-xs text-destructive">
+              {traceError}
+            </p>
+          )}
         </div>
         <div className="flex items-center justify-between px-4 py-2 border-b border-border">
           <h3 className="text-sm font-semibold">{t('logs.title')}</h3>

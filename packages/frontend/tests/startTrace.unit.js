@@ -100,14 +100,24 @@ test('settings switch controls browser capture and keeps downloadable records af
   let stored = null
   Object.defineProperty(globalThis, 'localStorage', {
     configurable: true,
-    value: { getItem: () => stored, setItem: (_, value) => { stored = value } },
+    value: {
+      getItem: () => stored,
+      setItem: (_, value) => {
+        stored = value
+      },
+    },
   })
   const before = getStartTraceRecords().length
   assert.equal(setStartTraceEnabled(true), true)
   beginStartTrace('ui-switch')
   traceStartStatus(6)
   traceStart('racing')
-  assert.deepEqual(getStartTraceRecords().slice(before).map((row) => row.phase), ['click', 'status:received', 'racing'])
+  assert.deepEqual(
+    getStartTraceRecords()
+      .slice(before)
+      .map((row) => row.phase),
+    ['click', 'status:received', 'racing']
+  )
   assert.equal(setStartTraceEnabled(false), true)
   beginStartTrace('disabled-again')
   assert.equal(getStartTraceRecords().length, before + 3)

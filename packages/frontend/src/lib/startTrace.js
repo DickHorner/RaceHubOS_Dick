@@ -21,7 +21,9 @@ function isStartTraceEnabled() {
   try {
     const setting = localStorage.getItem('racehubos-start-trace')
     if (setting !== null) return setting === '1'
-  } catch {}
+  } catch {
+    // Use the existing tab-scoped switch if persistent storage is inaccessible.
+  }
   try {
     return sessionStorage.getItem('racehubos-start-trace') === '1'
   } catch {

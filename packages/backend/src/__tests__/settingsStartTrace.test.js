@@ -48,9 +48,15 @@ describe('start trace settings API', () => {
   test('invalid writes and untrusted browser cannot read diagnosis', async () => {
     await request(app).put('/api/settings/start-trace').send({ enabled: 'yes' }).expect(400);
     expect(sync.getStartTraceEnabled()).toBe(false);
-    const denied = await request(app).get('/api/settings/start-trace/records').set('Origin', 'https://untrusted.example');
+    const denied = await request(app)
+      .get('/api/settings/start-trace/records')
+      .set('Origin', 'https://untrusted.example');
     expect([403, 503]).toContain(denied.status);
     expect(denied.body.data).toBeUndefined();
-    await request(app).put('/api/settings/start-trace').set('Origin', 'https://untrusted.example').send({ enabled: true }).expect(403);
+    await request(app)
+      .put('/api/settings/start-trace')
+      .set('Origin', 'https://untrusted.example')
+      .send({ enabled: true })
+      .expect(403);
   });
 });
