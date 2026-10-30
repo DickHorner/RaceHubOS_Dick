@@ -20,6 +20,7 @@ import {
   tyreAdjustedLapTime,
   validDamageConfig,
   validVirtualFuelRate,
+  validVirtualFuelUnits,
   validRequiredPitStops,
   virtualFuelBurn,
   virtualFuelPerLap,
@@ -412,7 +413,7 @@ export class SessionService extends EventEmitter {
     this.sessionPenalties = (session.penalties || []).filter((penalty) => penalty.status === PenaltyStatus.ACTIVE);
 
     // Replay saved fuel events in database order; the cache is not the source of truth.
-    const fuelLevels = replayVirtualFuel(session.virtualFuelEvents);
+    const fuelLevels = replayVirtualFuel(session.virtualFuelEvents, session.drivers);
     this.sessionDrivers = session.drivers.map((sd) => ({
       id: sd.id,
       sessionId: session.id,
@@ -430,6 +431,7 @@ export class SessionService extends EventEmitter {
       tyreType: sd.tyreType,
       pendingTyreType: sd.pendingTyreType,
       pendingFuelLaps: sd.pendingFuelLaps,
+      initialFuelUnits: sd.initialFuelUnits,
       fuelPlanVersion: sd.fuelPlanVersion,
       pendingFuelUnits: sd.pendingFuelUnits,
       bestLapTime: sd.bestLapTime || null,
@@ -956,6 +958,69 @@ export class SessionService extends EventEmitter {
     const result = this.virtualFuelWrites.then(action);
     this.virtualFuelWrites = result.catch(() => {});
     return result;
+  }
+
+  setInitialFuel({ sessionId, sessionDriverId, driverId, controller, initialFuelUnits, expectedVersion }) {
+    return this.queueTyre(async () => {
+      if (!validVirtualFuelUnits(initialFuelUnits) || !Number.isInteger(expectedVersion) || expectedVersion < 0) {
+        throw Object.assign(new Error('Invalid starting fuel or version'), { status: 400 });
+      }
+      if (this.startingSessionId || this.loadingSessionId || this.resettingSessionId || this.recoveringSessionId) {
+        throw Object.assign(new Error('Session transition in progress; refresh before saving'), { status: 409 });
+      }
+      const assigned = await this.prisma.sessionDriver.findUnique({
+        where: { id: sessionDriverId },
+        include: { session: true },
+      });
+      if (
+        !assigned ||
+        assigned.sessionId !== sessionId ||
+        assigned.driverId !== driverId ||
+        assigned.controller !== controller ||
+        assigned.deletedAt ||
+        !assigned.carId ||
+        assigned.session.deletedAt ||
+        assigned.session.status !== SessionStatus.DRAFT ||
+        ![SessionType.RACE, SessionType.QUALIF].includes(assigned.session.type) ||
+        assigned.session.virtualFuelRate == null
+      ) {
+        throw Object.assign(
+          new Error(
+            'Starting fuel is only available for an assigned draft race or qualifying session with virtual fuel'
+          ),
+          { status: 409 }
+        );
+      }
+      const saved = await this.prisma.sessionDriver.updateMany({
+        where: {
+          id: sessionDriverId,
+          sessionId,
+          driverId,
+          controller,
+          deletedAt: null,
+          fuelPlanVersion: expectedVersion,
+          session: {
+            status: SessionStatus.DRAFT,
+            deletedAt: null,
+            type: { in: [SessionType.RACE, SessionType.QUALIF] },
+            virtualFuelRate: { not: null },
+          },
+        },
+        data: { initialFuelUnits, fuelPlanVersion: { increment: 1 } },
+      });
+      if (saved.count !== 1)
+        throw Object.assign(new Error('Session or fuel selection changed; refresh before saving'), { status: 409 });
+      if (this.activeSessionId === sessionId) {
+        const cached = this.sessionDrivers.find((driver) => driver.id === sessionDriverId);
+        if (cached) {
+          cached.initialFuelUnits = initialFuelUnits;
+          cached.virtualFuelUnits = initialFuelUnits;
+          cached.fuelPlanVersion = expectedVersion + 1;
+          this.emitLeaderboard();
+        }
+      }
+      return { initialFuelUnits, fuelPlanVersion: expectedVersion + 1 };
+    });
   }
 
   requestFuelTarget(sessionId, sessionDriverId, targetLaps, expectedVersion) {

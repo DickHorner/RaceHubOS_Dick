@@ -1,6 +1,13 @@
 import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { SessionStatus, SessionType, VIRTUAL_FUEL_FULL, virtualFuelPerLap, virtualFuelTarget } from '@racehubos/shared'
+import {
+  SessionStatus,
+  SessionType,
+  VIRTUAL_FUEL_FULL,
+  virtualFuelPerLap,
+  virtualFuelTarget,
+  validVirtualFuelUnits,
+} from '@racehubos/shared'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -11,6 +18,7 @@ export default function DriverFuelStrategy({ session, assignment, live, accessTo
   const [targetLaps, setTargetLaps] = useState(
     assignment.pendingFuelLaps == null ? '' : String(assignment.pendingFuelLaps)
   )
+  const [initialPercent, setInitialPercent] = useState(String((assignment.initialFuelUnits ?? VIRTUAL_FUEL_FULL) / 100))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
@@ -30,6 +38,43 @@ export default function DriverFuelStrategy({ session, assignment, live, accessTo
     [SessionType.RACE, SessionType.QUALIF].includes(session.type) &&
     [SessionStatus.ACTIVE, SessionStatus.PAUSED].includes(session.status) &&
     !assignment.isDNF
+
+  const initialUnits = Number(initialPercent) * 100
+  const initialValid =
+    initialPercent.trim() !== '' && Number.isInteger(Number(initialPercent)) && validVirtualFuelUnits(initialUnits)
+  const initialAvailable =
+    accessToken &&
+    session.virtualFuelRate != null &&
+    [SessionType.RACE, SessionType.QUALIF].includes(session.type) &&
+    session.status === SessionStatus.DRAFT
+
+  async function saveInitial(event) {
+    event.preventDefault()
+    if (pending.current || !initialAvailable || !initialValid) return
+    pending.current = true
+    setBusy(true)
+    setError('')
+    setMessage('')
+    try {
+      const response = await fetch(`${API_URL}/api/race-control/driver/start-fuel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ initialFuelUnits: initialUnits, expectedVersion: assignment.fuelPlanVersion ?? 0 }),
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) {
+        if (response.status === 409) await fetchSession(session.id)
+        throw new Error(t('fuelStrategy.startSaveError'))
+      }
+      if (!(await fetchSession(session.id))) throw new Error(t('fuelStrategy.refreshError'))
+      setMessage(t('fuelStrategy.startSaved'))
+    } catch (cause) {
+      setError(cause.message)
+    } finally {
+      pending.current = false
+      setBusy(false)
+    }
+  }
 
   async function save(laps) {
     if (pending.current || !available) return
@@ -61,7 +106,32 @@ export default function DriverFuelStrategy({ session, assignment, live, accessTo
 
   return (
     <section data-testid="driver-fuel-strategy" className="rounded-xl border border-border bg-card p-5 space-y-3">
-      <h2 className="font-semibold">{t('fuelStrategy.title')}</h2>
+      <form onSubmit={saveInitial} className="space-y-3" data-testid="driver-start-fuel">
+        <h2 className="font-semibold">{t('fuelStrategy.startTitle')}</h2>
+        <p data-testid="start-fuel-saved" className="text-sm">
+          {t('fuelStrategy.startConfigured', { percent: (assignment.initialFuelUnits ?? VIRTUAL_FUEL_FULL) / 100 })}
+        </p>
+        <p className="text-xs text-muted-foreground">{t('fuelStrategy.startHint')}</p>
+        <label className="text-sm font-medium block" htmlFor="start-fuel-percent">
+          {t('fuelStrategy.startPercent')}
+        </label>
+        <Input
+          id="start-fuel-percent"
+          data-testid="start-fuel-percent"
+          type="number"
+          min="0"
+          max="100"
+          step="1"
+          value={initialPercent}
+          disabled={!initialAvailable || busy}
+          onChange={(event) => setInitialPercent(event.target.value)}
+        />
+        <Button type="submit" data-testid="start-fuel-save" disabled={!initialAvailable || busy || !initialValid}>
+          {t(busy ? 'fuelStrategy.saving' : 'fuelStrategy.startSave')}
+        </Button>
+        {!initialValid && <p className="text-sm text-muted-foreground">{t('fuelStrategy.startInvalid')}</p>}
+      </form>
+      <h2 className="font-semibold border-t border-border pt-3">{t('fuelStrategy.title')}</h2>
       <p data-testid="fuel-range" className="text-2xl font-bold tabular-nums">
         {session.virtualFuelRate != null && estimatedLaps !== null
           ? t('fuelStrategy.range', { laps: estimatedLaps })

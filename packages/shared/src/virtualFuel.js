@@ -18,8 +18,8 @@ export function virtualFuelAfter(units, event) {
   return units;
 }
 
-export function replayVirtualFuel(events = []) {
-  const levels = new Map();
+export function replayVirtualFuel(events = [], drivers = []) {
+  const levels = new Map(drivers.map((driver) => [driver.id, driver.initialFuelUnits ?? VIRTUAL_FUEL_FULL]));
   for (const event of events) {
     const previous = levels.get(event.sessionDriverId) ?? VIRTUAL_FUEL_FULL;
     levels.set(event.sessionDriverId, virtualFuelAfter(previous, event));
@@ -52,4 +52,8 @@ export function virtualFuelTarget(laps, unitsPerLap) {
   if (!validVirtualFuelLaps(laps) || !Number.isInteger(unitsPerLap) || unitsPerLap <= 0) return null;
   const target = laps * unitsPerLap;
   return target <= VIRTUAL_FUEL_FULL ? target : null;
+}
+
+export function validVirtualFuelUnits(units) {
+  return Number.isInteger(units) && units >= 0 && units <= VIRTUAL_FUEL_FULL;
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "SessionDriver" ADD COLUMN "initialFuelUnits" INTEGER NOT NULL DEFAULT 10000;

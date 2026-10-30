@@ -488,6 +488,69 @@ router.post('/driver-link', requireDirector, async (req, res) => {
   }
 });
 
+// Resolve a personal link before choosing a session, including a prepared draft.
+router.get('/driver/session', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const access = decodeDriverAccess(bearer(req));
+  if (!access) return res.status(403).json({ success: false, error: 'Invalid or expired driver access' });
+  try {
+    const assignments = await sessionService.prisma.sessionDriver.findMany({
+      where: { sessionId: access.sid, driverId: access.did, deletedAt: null },
+    });
+    if (
+      assignments.length !== 1 ||
+      assignments[0].id !== access.sdid ||
+      assignments[0].controller !== access.controller
+    ) {
+      return res.status(403).json({ success: false, error: 'Driver assignment has changed; request a new link' });
+    }
+    const session = await sessionService.prisma.session.findUnique({ where: { id: access.sid } });
+    if (!session || session.deletedAt)
+      return res.status(409).json({ success: false, error: 'Session is no longer available' });
+    res.json({ success: true, data: { sessionId: access.sid, sessionDriverId: access.sdid, driverId: access.did } });
+  } catch (error) {
+    console.error('[RaceControl] Personal session lookup failed:', error);
+    res.status(500).json({ success: false, error: 'Could not load personal session' });
+  }
+});
+
+router.post('/driver/start-fuel', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const access = decodeDriverAccess(bearer(req));
+  if (!access) return res.status(403).json({ success: false, error: 'Invalid or expired driver access' });
+  try {
+    const result = await serialize(async () => {
+      const assignments = await sessionService.prisma.sessionDriver.findMany({
+        where: { sessionId: access.sid, driverId: access.did, deletedAt: null },
+      });
+      if (
+        assignments.length !== 1 ||
+        assignments[0].id !== access.sdid ||
+        assignments[0].controller !== access.controller
+      ) {
+        return { status: 403, error: 'Driver assignment has changed; request a new link' };
+      }
+      return {
+        status: 200,
+        data: await sessionService.setInitialFuel({
+          sessionId: access.sid,
+          sessionDriverId: access.sdid,
+          driverId: access.did,
+          controller: access.controller,
+          initialFuelUnits: req.body?.initialFuelUnits,
+          expectedVersion: req.body?.expectedVersion,
+        }),
+      };
+    });
+    if (result.error) return res.status(result.status).json({ success: false, error: result.error });
+    res.json({ success: true, data: result.data });
+  } catch (error) {
+    const status = error.status || 500;
+    if (status === 500) console.error('[RaceControl] Starting fuel failed:', error);
+    res.status(status).json({ success: false, error: status === 500 ? 'Could not save starting fuel' : error.message });
+  }
+});
+
 // A driver can plan their own tyres, but cannot claim that a pit stop has occurred.
 router.post('/driver/tyres', async (req, res) => {
   res.set('Cache-Control', 'no-store');

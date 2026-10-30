@@ -18,7 +18,7 @@
   "gap": "Rückstand",
   "fuel": "Tankstand",
   "unavailable": "Nicht verfügbar",
-  "readOnly": "Rennsteuerung nur durch die Rennleitung; Reifenwunsch über persönlichen Fahrerlink.",
+  "readOnly": "Rennsteuerung erfordert die Rennleitung; Reifen- und Tankauswahl einen persönlichen Fahrerlink.",
   "linksTitle": "Persönliche Fahrerdisplays",
   "copyLink": "Link für {{name}} kopieren",
   "linkCopied": "Link kopiert",
@@ -70,8 +70,17 @@
     "saved": "Boxenplan gespeichert.",
     "clear": "Wieder vollständig auftanken",
     "tokenRequired": "Nutze Deinen persönlichen Fahrerlink für die Tankplanung.",
-    "unavailable": "In laufenden oder pausierten Renn-/Qualifying-Sessions mit virtuellem Verbrauch verfügbar.",
+    "unavailable": "Der Boxenplan ist in laufenden oder pausierten Renn-/Qualifying-Sessions mit virtuellem Verbrauch verfügbar.",
     "saveError": "Boxenplan konnte nicht gespeichert werden. Aktuelle Fahrerzuordnung, gemessene Runden und Tankkapazität prüfen; vor erneutem Speichern aktualisieren.",
-    "refreshError": "Der Server hat den Plan angenommen, der gespeicherte Stand konnte aber nicht geladen werden. Lade die Seite vor einem erneuten Versuch neu."
-  }
+    "refreshError": "Der Server hat den Plan angenommen, der gespeicherte Stand konnte aber nicht geladen werden. Lade die Seite vor einem erneuten Versuch neu.",
+    "startTitle": "Virtueller Starttank",
+    "startConfigured": "Gespeicherter Startfüllstand: {{percent}} %",
+    "startHint": "Vor Rennen oder Qualifying über Deinen persönlichen Link einstellbar, wenn virtueller Verbrauch aktiviert ist. Nach dem Start gesperrt; die CU-Tankanzeige bleibt unabhängig. Reichweite ist erst mit gemessenen Runden schätzbar.",
+    "startPercent": "Startfüllstand in % (0–100, ganze Zahl)",
+    "startSave": "Startfüllstand speichern",
+    "startSaved": "Virtueller Startfüllstand gespeichert.",
+    "startInvalid": "Ganze Prozentzahl zwischen 0 und 100 eingeben.",
+    "startSaveError": "Startfüllstand konnte nicht gespeichert werden. Prüfe den gespeicherten Stand; die Session könnte bereits starten oder die Auswahl geändert worden sein."
+  },
+  "personalSession": "Dieser persönliche Fahrerlink ist an diese Session gebunden."
 }
