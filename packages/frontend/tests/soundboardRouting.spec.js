@@ -406,3 +406,125 @@ test('operator soundboard handles empty presets', async ({ page }) => {
     await page.request.put('/api/preferences/soundboard:presets', { data: { value: previous.data ?? null } })
   }
 })
+
+test('missing sound assignments stay explicit until a replacement or Off is successfully saved', async ({ page }) => {
+  const oldPresets = (await (await page.request.get('/api/preferences/soundboard:presets')).json()).data
+  const oldMappings = (await (await page.request.get('/api/preferences/soundboard:auto')).json()).data
+  const preset = { id: 'available-voice', label: 'Available voice', kind: 'speech', text: 'Ready' }
+  const mappings = { bestlap: 'deleted-voice', finished: 'deleted-voice', fuellow: preset.id }
+  const writes = []
+  try {
+    await page.request.put('/api/preferences/soundboard:presets', {
+      data: {
+        value: [preset, { id: 'deleted-voice', label: 'Invalid stored sound', kind: 'clip', url: '/not-a-sound' }],
+      },
+    })
+    await page.request.put('/api/preferences/soundboard:auto', { data: { value: mappings } })
+    page.on('request', (request) => {
+      if (request.method() === 'PUT' && request.url().includes('/api/preferences/')) writes.push(request.url())
+    })
+    await page.goto('/soundboard-settings')
+    const best = page.getByRole('combobox', { name: 'New best lap' })
+    await expect(best).toHaveValue('deleted-voice')
+    await expect(best.locator('option:checked')).toHaveText('Sound unavailable')
+    await expect(best).toHaveAttribute('aria-invalid', 'true')
+    await expect(best).toHaveAccessibleDescription(/assigned sound is missing or invalid/)
+    await expect(page.getByRole('status').filter({ hasText: 'The assigned sound is missing or invalid' })).toHaveCount(
+      2
+    )
+    await page.reload()
+    await expect(best).toHaveValue('deleted-voice')
+    expect(writes).toEqual([])
+
+    await page.route('**/api/preferences/soundboard:auto', async (route) => {
+      if (route.request().method() === 'PUT') await route.fulfill({ status: 500, json: { success: false } })
+      else await route.continue()
+    })
+    await best.selectOption(preset.id)
+    await expect(page.getByRole('alert')).toHaveText('Could not save soundboard.')
+    await expect(best).toHaveValue('deleted-voice')
+    expect((await (await page.request.get('/api/preferences/soundboard:auto')).json()).data).toEqual(mappings)
+    await page.unroute('**/api/preferences/soundboard:auto')
+    await best.selectOption(preset.id)
+    await expect(best).not.toHaveAttribute('aria-invalid', 'true')
+    await page.getByRole('combobox', { name: 'Session finished' }).selectOption('')
+    await expect
+      .poll(async () => (await (await page.request.get('/api/preferences/soundboard:auto')).json()).data)
+      .toEqual({ ...mappings, bestlap: preset.id, finished: '' })
+    await page.reload()
+    await expect(page.getByRole('status').filter({ hasText: 'The assigned sound is missing or invalid' })).toHaveCount(
+      0
+    )
+    await expect(page.getByRole('combobox', { name: 'Virtual fuel: at most 20%' })).toHaveValue(preset.id)
+  } finally {
+    await page.request.put('/api/preferences/soundboard:presets', { data: { value: oldPresets ?? null } })
+    await page.request.put('/api/preferences/soundboard:auto', { data: { value: oldMappings ?? null } })
+  }
+})
+
+test('deleting an assigned preset marks its trigger without clearing other stored assignments', async ({ page }) => {
+  const oldPresets = (await (await page.request.get('/api/preferences/soundboard:presets')).json()).data
+  const oldMappings = (await (await page.request.get('/api/preferences/soundboard:auto')).json()).data
+  const presets = [
+    { id: 'remove-me', label: 'Old voice', kind: 'speech', text: 'Old' },
+    { id: 'keep-me', label: 'Keep voice', kind: 'speech', text: 'Keep' },
+  ]
+  const mappings = { bestlap: 'remove-me', finished: 'keep-me' }
+  try {
+    await page.request.put('/api/preferences/soundboard:presets', { data: { value: presets } })
+    await page.request.put('/api/preferences/soundboard:auto', { data: { value: mappings } })
+    await page.goto('/soundboard-settings')
+    await page.getByRole('button', { name: 'Delete: Old voice' }).click()
+    await expect(page.getByRole('button', { name: 'Old voice', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('combobox', { name: 'New best lap' })).toHaveAttribute('aria-invalid', 'true')
+    await expect(page.getByRole('combobox', { name: 'Session finished' })).toHaveValue('keep-me')
+    expect((await (await page.request.get('/api/preferences/soundboard:auto')).json()).data).toEqual(mappings)
+    await page.reload()
+    await expect(page.getByRole('combobox', { name: 'New best lap' }).locator('option:checked')).toHaveText(
+      'Sound unavailable'
+    )
+  } finally {
+    await page.request.put('/api/preferences/soundboard:presets', { data: { value: oldPresets ?? null } })
+    await page.request.put('/api/preferences/soundboard:auto', { data: { value: oldMappings ?? null } })
+  }
+})
+
+for (const key of ['soundboard:auto', 'soundboard:presets']) {
+  for (const failure of [
+    { name: 'HTTP failure', status: 503, json: { success: false } },
+    { name: 'application failure', status: 200, json: { success: false } },
+    { name: 'invalid data shape', status: 200, json: { success: true, data: key === 'soundboard:auto' ? [] : {} } },
+  ]) {
+    test(`${key} ${failure.name} cannot enable editing of unloaded settings`, async ({ page }) => {
+      const writes = []
+      await page.route(`**/api/preferences/${key}`, (route) =>
+        route.fulfill({ status: failure.status, json: failure.json })
+      )
+      page.on('request', (request) => {
+        if (request.method() === 'PUT' && request.url().includes('/api/preferences/soundboard:'))
+          writes.push(request.url())
+      })
+      await page.goto('/soundboard-settings')
+      await expect(page.getByRole('alert')).toHaveText('Could not load soundboard.')
+      await expect(page.getByRole('combobox', { name: 'New best lap' })).toBeDisabled()
+      if (key === 'soundboard:presets')
+        await expect(page.getByRole('button', { name: 'Add announcement or sound' })).toBeDisabled()
+      expect(writes).toEqual([])
+      await page.reload()
+      await expect(page.getByRole('alert')).toHaveText('Could not load soundboard.')
+      await expect(page.getByRole('combobox', { name: 'New best lap' })).toBeDisabled()
+      expect(writes).toEqual([])
+    })
+  }
+}
+
+test('a new soundboard with null preferences remains editable', async ({ page }) => {
+  for (const key of ['soundboard:auto', 'soundboard:presets']) {
+    await page.route(`**/api/preferences/${key}`, (route) => route.fulfill({ json: { success: true, data: null } }))
+  }
+  await page.goto('/soundboard-settings')
+  await expect(page.getByRole('combobox', { name: 'New best lap' })).toBeEnabled()
+  await expect(page.getByRole('combobox', { name: 'New best lap' })).toHaveValue('')
+  await expect(page.getByRole('button', { name: 'Add announcement or sound' })).toBeEnabled()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+})

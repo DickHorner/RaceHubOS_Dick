@@ -61,6 +61,7 @@ export default function Soundboard({
   const directorAccess = Boolean(directorKey || allowDirectorWithoutKey)
   const [open, setOpen] = useState(directorAccess || defaultOpen)
   const [presets, setPresets] = useState([])
+  const [presetsLoaded, setPresetsLoaded] = useState(false)
   const [autoMappings, setAutoMappings] = useState({})
   const [autoLoaded, setAutoLoaded] = useState(false)
   const [autoPreview, setAutoPreview] = useState('')
@@ -102,11 +103,18 @@ export default function Soundboard({
         return res.json()
       })
       .then((result) => {
-        if (!result.success) throw new Error(result.error)
-        if (active && Array.isArray(result.data)) setPresets(result.data.filter(validPreset).slice(0, 32))
+        if (!result.success || (result.data != null && !Array.isArray(result.data)))
+          throw new Error(result.error || 'Invalid sound library')
+        if (active) {
+          setPresets(Array.isArray(result.data) ? result.data.filter(validPreset).slice(0, 32) : [])
+          setPresetsLoaded(true)
+        }
       })
       .catch(() => {
-        if (active) setError(t('loadError'))
+        if (active) {
+          setPresetsLoaded(false)
+          setError(t('loadError'))
+        }
       })
     fetch(`${API_URL}/api/preferences/${AUTO_PREF_KEY}`)
       .then((res) => {
@@ -114,22 +122,29 @@ export default function Soundboard({
         return res.json()
       })
       .then((result) => {
-        if (active && result.success && result.data && typeof result.data === 'object') {
+        if (
+          !result.success ||
+          (result.data != null && (typeof result.data !== 'object' || Array.isArray(result.data)))
+        ) {
+          throw new Error('Invalid automatic sound settings')
+        }
+        if (active) {
           setAutoMappings(
             Object.fromEntries(
-              AUTO_CUE_TYPES.filter((type) => typeof result.data[type] === 'string').map((type) => [
+              AUTO_CUE_TYPES.filter((type) => typeof result.data?.[type] === 'string').map((type) => [
                 type,
                 result.data[type],
               ])
             )
           )
+          setAutoLoaded(true)
         }
       })
       .catch(() => {
-        if (active) setError(t('loadError'))
-      })
-      .finally(() => {
-        if (active) setAutoLoaded(true)
+        if (active) {
+          setAutoLoaded(false)
+          setError(t('loadError'))
+        }
       })
     return () => {
       active = false
@@ -461,7 +476,7 @@ export default function Soundboard({
   }
 
   async function saveAutoMapping(type, presetId) {
-    if (!autoLoaded || busy) return
+    if (!autoLoaded || !presetsLoaded || busy) return
     setBusy(true)
     setError('')
     const next = { ...autoMappings, [type]: presetId }
@@ -493,6 +508,7 @@ export default function Soundboard({
   }
 
   async function persist(next) {
+    if (!presetsLoaded) throw new Error(t('loadError'))
     const res = await fetch(`${API_URL}/api/preferences/${PREF_KEY}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -512,7 +528,7 @@ export default function Soundboard({
 
   async function savePreset(event) {
     event.preventDefault()
-    if (busy) return
+    if (busy || !presetsLoaded) return
     const name = label.trim()
     if (!name || name.length > 60 || (kind === 'speech' && (!speechText.trim() || speechText.length > 300))) {
       setError(t('invalidPreset'))
@@ -569,7 +585,7 @@ export default function Soundboard({
   }
 
   async function deletePreset(preset) {
-    if (busy) return
+    if (busy || !presetsLoaded) return
     setBusy(true)
     setError('')
     try {
@@ -584,7 +600,7 @@ export default function Soundboard({
   }
 
   async function movePreset(index, delta) {
-    if (busy || index + delta < 0 || index + delta >= presets.length) return
+    if (busy || !presetsLoaded || index + delta < 0 || index + delta >= presets.length) return
     const next = [...presets]
     const moving = next[index]
     next[index] = next[index + delta]
@@ -753,25 +769,44 @@ export default function Soundboard({
             <fieldset className="rounded-md border p-2 space-y-2">
               <legend className="text-sm font-medium">{t('auto.title')}</legend>
               <div className="grid gap-2 sm:grid-cols-2">
-                {AUTO_CUE_TYPES.map((type) => (
-                  <label key={type} className="flex flex-wrap items-center gap-2 text-xs">
-                    <span className="min-w-24">{t(`auto.${type}`)}</span>
-                    <select
-                      className="min-h-11 min-w-0 flex-1 rounded-md border bg-background p-2"
-                      aria-label={t(`auto.${type}`)}
-                      value={autoMappings[type] || ''}
-                      disabled={!autoLoaded || busy}
-                      onChange={(event) => void saveAutoMapping(type, event.target.value)}
-                    >
-                      <option value="">{t('auto.off')}</option>
-                      {presets.map((preset) => (
-                        <option key={preset.id} value={preset.id}>
-                          {preset.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ))}
+                {AUTO_CUE_TYPES.map((type) => {
+                  const selectedId = autoMappings[type] || ''
+                  const missing = Boolean(selectedId) && !presets.some((preset) => preset.id === selectedId)
+                  const warningId = `soundboard-${type}-missing`
+                  return (
+                    <div key={type} className="space-y-1">
+                      <label className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="min-w-24">{t(`auto.${type}`)}</span>
+                        <select
+                          className="min-h-11 min-w-0 flex-1 rounded-md border bg-background p-2"
+                          aria-label={t(`auto.${type}`)}
+                          value={selectedId}
+                          disabled={!autoLoaded || !presetsLoaded || busy}
+                          aria-invalid={presetsLoaded && missing ? true : undefined}
+                          aria-describedby={presetsLoaded && missing ? warningId : undefined}
+                          onChange={(event) => void saveAutoMapping(type, event.target.value)}
+                        >
+                          <option value="">{t('auto.off')}</option>
+                          {missing && (
+                            <option value={selectedId} disabled>
+                              {t('auto.unavailable')}
+                            </option>
+                          )}
+                          {presets.map((preset) => (
+                            <option key={preset.id} value={preset.id}>
+                              {preset.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      {presetsLoaded && missing && (
+                        <p id={warningId} role="status" className="text-xs text-amber-700 dark:text-amber-300">
+                          {t('auto.missingPreset')}
+                        </p>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
               <p className="text-xs text-muted-foreground">{t('auto.description')}</p>
               <p className="text-xs text-muted-foreground">{t('auto.fuelDescription')}</p>
@@ -793,7 +828,7 @@ export default function Soundboard({
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    disabled={busy}
+                    disabled={busy || !presetsLoaded}
                     onClick={() => editPreset(preset)}
                     aria-label={`${t('edit')}: ${preset.label}`}
                   >
@@ -804,7 +839,7 @@ export default function Soundboard({
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    disabled={busy || index === 0}
+                    disabled={busy || !presetsLoaded || index === 0}
                     onClick={() => movePreset(index, -1)}
                     aria-label={`${t('up')}: ${preset.label}`}
                   >
@@ -815,7 +850,7 @@ export default function Soundboard({
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    disabled={busy || index === presets.length - 1}
+                    disabled={busy || !presetsLoaded || index === presets.length - 1}
                     onClick={() => movePreset(index, 1)}
                     aria-label={`${t('down')}: ${preset.label}`}
                   >
@@ -826,7 +861,7 @@ export default function Soundboard({
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    disabled={busy}
+                    disabled={busy || !presetsLoaded}
                     onClick={() => deletePreset(preset)}
                     aria-label={`${t('delete')}: ${preset.label}`}
                   >
@@ -838,7 +873,12 @@ export default function Soundboard({
           </div>
           {presets.length === 0 && <p className="text-sm text-muted-foreground">{t('empty')}</p>}
           {!directorAccess && !formOpen && (
-            <Button variant="outline" size="sm" onClick={() => editPreset()} disabled={busy || presets.length >= 32}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => editPreset()}
+              disabled={busy || !presetsLoaded || presets.length >= 32}
+            >
               <Plus className="size-4" /> {t('add')}
             </Button>
           )}
@@ -888,7 +928,7 @@ export default function Soundboard({
                 </>
               )}
               <div className="flex gap-2">
-                <Button type="submit" size="sm" disabled={busy}>
+                <Button type="submit" size="sm" disabled={busy || !presetsLoaded}>
                   {t(busy ? 'saving' : 'save')}
                 </Button>
                 <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => setFormOpen(false)}>

@@ -72,7 +72,9 @@
     "fuellow": "Carburant virtuel : 20 % ou moins",
     "fuelempty": "Réservoir virtuel vide",
     "fuelrefilled": "Réservoir virtuel rempli",
-    "fuelDescription": "Les alertes concernent uniquement le carburant virtuel : une fois au passage à 20 % ou à zéro. Réarmement après remplissage au-dessus du seuil ; un passage direct à zéro déclenche seulement l’alerte vide. Les événements carburant acceptent {driver}, {car} et {controller}."
+    "fuelDescription": "Les alertes concernent uniquement le carburant virtuel : une fois au passage à 20 % ou à zéro. Réarmement après remplissage au-dessus du seuil ; un passage direct à zéro déclenche seulement l’alerte vide. Les événements carburant acceptent {driver}, {car} et {controller}.",
+    "unavailable": "Son indisponible",
+    "missingPreset": "Le son associé est manquant ou invalide. Choisissez un autre son ou désactivez ce déclencheur."
   },
   "operatorMode": "Ouvrir les boutons sonores",
   "operatorHint": "Touchez un bouton pour jouer le son sur cet appareil. Pas de commandes de course ni de modifications ici.",
