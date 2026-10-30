@@ -588,7 +588,7 @@ router.post('/driver/fuel', async (req, res) => {
   res.set('Cache-Control', 'no-store');
   const access = decodeDriverAccess(bearer(req));
   if (!access) return res.status(403).json({ success: false, error: 'Invalid or expired driver access' });
-  const { targetLaps, expectedVersion } = req.body || {};
+  const { targetLaps, targetUnits, expectedVersion } = req.body || {};
   try {
     const result = await serialize(async () => {
       const assignments = await sessionService.prisma.sessionDriver.findMany({
@@ -606,7 +606,12 @@ router.post('/driver/fuel', async (req, res) => {
       }
       return {
         status: 200,
-        data: await sessionService.requestFuelTarget(access.sid, access.sdid, targetLaps, expectedVersion),
+        data: await sessionService.requestFuelTarget(
+          access.sid,
+          access.sdid,
+          { targetLaps, targetUnits },
+          expectedVersion
+        ),
       };
     });
     if (result.error) return res.status(result.status).json({ success: false, error: result.error });

@@ -83,7 +83,14 @@
     "startSaveError": "Startfüllstand konnte nicht gespeichert werden. Prüfe den gespeicherten Stand; die Session könnte bereits starten oder die Auswahl geändert worden sein.",
     "fullRange": "Mit vollem virtuellen Tank: geschätzt bis zu {{laps}} Runden.",
     "refillPreview": "Eingabevorschau beim angezeigten Tankstand: {{added}} % der Tankkapazität nachfüllen auf {{percent}} % Füllstand; danach geschätzt {{laps}} Runden. Bis zum Boxenstopp kann weiterer Verbrauch hinzukommen.",
-    "refillUnavailable": "Nachfüllmenge noch nicht berechenbar: Der aktuelle virtuelle Tankstand ist nicht verfügbar."
+    "refillUnavailable": "Nachfüllmenge noch nicht berechenbar: Der aktuelle virtuelle Tankstand ist nicht verfügbar.",
+    "targetMode": "Tankziel festlegen über",
+    "mode_laps": "Runden (geschätzt)",
+    "mode_percent": "Füllstand (%)",
+    "targetPercent": "Zielfüllstand nach dem nächsten Boxenstopp (0–100 %, ganze Zahl)",
+    "pendingPercent": "Gespeichert: Ziel mindestens {{percent}} % Füllstand.",
+    "percentPreview": "Tankziel: mindestens {{percent}} %",
+    "refillWithoutRange": "Eingabevorschau beim angezeigten Tankstand: {{added}} % der Tankkapazität nachfüllen auf {{percent}} % Füllstand. Reichweite noch nicht berechenbar. Bis zum Boxenstopp kann weiterer Verbrauch hinzukommen."
   },
   "personalSession": "Dieser persönliche Fahrerlink ist an diese Session gebunden."
 }

@@ -293,6 +293,115 @@ describe('virtual fuel event persistence', () => {
     expect(await prisma.virtualFuelEvent.count({ where: { kind: 'refuel' } })).toBe(1);
   });
 
+  test.each(['race', 'qualif'])(
+    'a signed %s percent target needs no history and is consumed once at simulator exit',
+    async (type) => {
+      const data = await fixture();
+      await prisma.session.update({ where: { id: data.session.id }, data: { type } });
+      await prisma.sessionDriver.update({ where: { id: data.assigned.id }, data: { initialFuelUnits: 1700 } });
+      await service.loadSession(data.session.id);
+      process.env.RACE_CONTROL_SECRET = 'fuel-percent-integration-test-director-secret';
+      setRaceControlServices(service, null);
+      const app = express();
+      app.use(express.json());
+      app.use('/api/race-control', raceControl);
+      const issued = await request(app)
+        .post('/api/race-control/driver-link')
+        .set('Authorization', `Bearer ${process.env.RACE_CONTROL_SECRET}`)
+        .send({ sessionId: data.session.id, driverId: data.driver.id })
+        .expect(200);
+      const auth = `Bearer ${issued.body.token}`;
+      await request(app)
+        .post('/api/race-control/driver/fuel')
+        .set('Authorization', auth)
+        .send({ targetUnits: 2500, expectedVersion: 0, sessionDriverId: 'foreign', sessionId: 'foreign' })
+        .expect(200);
+      expect(await prisma.virtualFuelEvent.count()).toBe(0);
+      await service.loadSession(data.session.id);
+      expect(service.getLeaderboard()[0]).toMatchObject({
+        pendingFuelUnits: 2500,
+        pendingFuelLaps: null,
+        virtualFuelUnits: 1700,
+      });
+      const entry = new Date(Date.now() - 5000);
+      const exit = new Date();
+      await service.recordPitStop({ controller: 0, enteredAt: entry, exitedAt: exit, source: 'cu' });
+      expect(service.getLeaderboard()[0]).toMatchObject({
+        pendingFuelUnits: 2500,
+        virtualFuelUnits: 1700,
+        fuelPlanVersion: 1,
+      });
+      await service.recordPitStop({ controller: 0, enteredAt: entry, exitedAt: exit, source: 'simulator' });
+      const stored = await prisma.sessionDriver.findUnique({ where: { id: data.assigned.id } });
+      expect(stored).toMatchObject({ pendingFuelUnits: null, pendingFuelLaps: null, fuelPlanVersion: 2 });
+      const events = await prisma.virtualFuelEvent.findMany();
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({ targetUnits: 2500, kind: 'refuel' });
+      await service.loadSession(data.session.id);
+      expect(service.getLeaderboard()[0].virtualFuelUnits).toBe(2500);
+      await request(app)
+        .post('/api/race-control/driver/fuel')
+        .set('Authorization', auth)
+        .send({ targetUnits: 2500, expectedVersion: 1 })
+        .expect(409);
+      expect(await prisma.lap.count()).toBe(0);
+    }
+  );
+
+  test('percent plans validate one bounded target and retain the existing session and version guards', async () => {
+    const data = await fixture();
+    await service.loadSession(data.session.id);
+    for (const target of [
+      {},
+      { targetUnits: null },
+      { targetUnits: -1 },
+      { targetUnits: 10001 },
+      { targetUnits: 1.5 },
+      { targetUnits: '2500' },
+      { targetUnits: Infinity },
+      { targetUnits: 2500, targetLaps: 25 },
+      { targetUnits: 0, targetLaps: null },
+    ]) {
+      await expect(service.requestFuelTarget(data.session.id, data.assigned.id, target, 0)).rejects.toMatchObject({
+        status: 400,
+      });
+    }
+    await service.requestFuelTarget(data.session.id, data.assigned.id, { targetUnits: 0 }, 0);
+    expect(service.getLeaderboard()[0].pendingFuelUnits).toBe(0);
+    await service.recordPitStop({
+      controller: 0,
+      enteredAt: new Date(Date.now() - 5000),
+      exitedAt: new Date(),
+      source: 'simulator',
+    });
+    expect(service.getLeaderboard()[0]).toMatchObject({
+      virtualFuelUnits: 10000,
+      pendingFuelUnits: null,
+      fuelPlanVersion: 2,
+    });
+    await service.requestFuelTarget(data.session.id, data.assigned.id, { targetUnits: 10000 }, 2);
+    await service.requestFuelTarget(data.session.id, data.assigned.id, { targetLaps: null }, 3);
+    expect(service.getLeaderboard()[0]).toMatchObject({ pendingFuelUnits: null, fuelPlanVersion: 4 });
+    for (const [sessionId, driverId, version] of [
+      ['other', data.assigned.id, 4],
+      [data.session.id, 'other', 4],
+      [data.session.id, data.assigned.id, 3],
+    ]) {
+      await expect(
+        service.requestFuelTarget(sessionId, driverId, { targetUnits: 2500 }, version)
+      ).rejects.toMatchObject({ status: 409 });
+    }
+    service.sessionStatus = 'finished';
+    await expect(
+      service.requestFuelTarget(data.session.id, data.assigned.id, { targetUnits: 2500 }, 4)
+    ).rejects.toMatchObject({ status: 409 });
+    service.sessionStatus = 'active';
+    service.sessionConfig.virtualFuelRate = null;
+    await expect(
+      service.requestFuelTarget(data.session.id, data.assigned.id, { targetUnits: 2500 }, 4)
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
   test('wet tyres plus fuel for 25 laps applies automatically at a real simulator pit cycle and survives replay', async () => {
     const data = await fixture();
     await service.loadSession(data.session.id);
@@ -323,7 +432,9 @@ describe('virtual fuel event persistence', () => {
       .expect(200);
     const plan = response.body.data;
     expect(plan).toMatchObject({ pendingFuelLaps: 25, pendingFuelUnits: 2500, fuelPlanVersion: 1 });
-    await expect(service.requestFuelTarget(data.session.id, data.assigned.id, 25, 0)).rejects.toMatchObject({
+    await expect(
+      service.requestFuelTarget(data.session.id, data.assigned.id, { targetLaps: 25 }, 0)
+    ).rejects.toMatchObject({
       status: 409,
     });
     expect(service.getLeaderboard()[0].virtualFuelUnits).toBe(1700);
@@ -365,7 +476,9 @@ describe('virtual fuel event persistence', () => {
     expect(await prisma.virtualFuelEvent.count({ where: { kind: 'refuel' } })).toBe(1);
     expect(await prisma.tyreChange.count()).toBe(1);
     observe();
-    await expect(service.requestFuelTarget(data.session.id, data.assigned.id, 25, 0)).rejects.toMatchObject({
+    await expect(
+      service.requestFuelTarget(data.session.id, data.assigned.id, { targetLaps: 25 }, 0)
+    ).rejects.toMatchObject({
       status: 409,
     });
     await service.loadSession(data.session.id);
@@ -385,7 +498,7 @@ describe('virtual fuel event persistence', () => {
     const data = await fixture();
     await service.loadSession(data.session.id);
     for (let i = 0; i < 3; i++) await lap(10000);
-    await service.requestFuelTarget(data.session.id, data.assigned.id, 25, 0);
+    await service.requestFuelTarget(data.session.id, data.assigned.id, { targetLaps: 25 }, 0);
     const enteredAt = new Date();
     for (const [source, duration, status] of [
       ['cu', 2000, 'active'],
@@ -418,7 +531,7 @@ describe('virtual fuel event persistence', () => {
     await service.loadSession(data.session.id);
     await lap(800000);
     for (let i = 0; i < 3; i++) await lap(10000);
-    await service.requestFuelTarget(data.session.id, data.assigned.id, 25, 0);
+    await service.requestFuelTarget(data.session.id, data.assigned.id, { targetLaps: 25 }, 0);
     const enteredAt = new Date();
     const stop = () =>
       service.recordPitStop({
@@ -466,33 +579,49 @@ describe('virtual fuel event persistence', () => {
   test('missing history, invalid targets, capacity and unavailable sessions fail without changing fuel', async () => {
     const data = await fixture();
     await service.loadSession(data.session.id);
-    await expect(service.requestFuelTarget(data.session.id, data.assigned.id, 25, 0)).rejects.toMatchObject({
+    await expect(
+      service.requestFuelTarget(data.session.id, data.assigned.id, { targetLaps: 25 }, 0)
+    ).rejects.toMatchObject({
       status: 409,
     });
     for (const value of [undefined, '25', 0, 1.5, -1])
-      await expect(service.requestFuelTarget(data.session.id, data.assigned.id, value, 0)).rejects.toMatchObject({
+      await expect(
+        service.requestFuelTarget(data.session.id, data.assigned.id, { targetLaps: value }, 0)
+      ).rejects.toMatchObject({
         status: 400,
       });
     for (let i = 0; i < 3; i++) await lap(10000);
-    await expect(service.requestFuelTarget(data.session.id, data.assigned.id, 101, 0)).rejects.toMatchObject({
+    await expect(
+      service.requestFuelTarget(data.session.id, data.assigned.id, { targetLaps: 101 }, 0)
+    ).rejects.toMatchObject({
       status: 400,
     });
-    await expect(service.requestFuelTarget(data.session.id, data.assigned.id, 25)).rejects.toMatchObject({
+    await expect(
+      service.requestFuelTarget(data.session.id, data.assigned.id, { targetLaps: 25 })
+    ).rejects.toMatchObject({
       status: 400,
     });
-    await expect(service.requestFuelTarget('another-session', data.assigned.id, 25, 0)).rejects.toMatchObject({
+    await expect(
+      service.requestFuelTarget('another-session', data.assigned.id, { targetLaps: 25 }, 0)
+    ).rejects.toMatchObject({
       status: 409,
     });
-    await expect(service.requestFuelTarget(data.session.id, 'other-driver', 25, 0)).rejects.toMatchObject({
+    await expect(
+      service.requestFuelTarget(data.session.id, 'other-driver', { targetLaps: 25 }, 0)
+    ).rejects.toMatchObject({
       status: 409,
     });
     service.sessionConfig.virtualFuelRate = null;
-    await expect(service.requestFuelTarget(data.session.id, data.assigned.id, 25, 0)).rejects.toMatchObject({
+    await expect(
+      service.requestFuelTarget(data.session.id, data.assigned.id, { targetLaps: 25 }, 0)
+    ).rejects.toMatchObject({
       status: 409,
     });
     service.sessionConfig.virtualFuelRate = 6;
     service.sessionStatus = 'finished';
-    await expect(service.requestFuelTarget(data.session.id, data.assigned.id, 25, 0)).rejects.toMatchObject({
+    await expect(
+      service.requestFuelTarget(data.session.id, data.assigned.id, { targetLaps: 25 }, 0)
+    ).rejects.toMatchObject({
       status: 409,
     });
     expect((await prisma.sessionDriver.findUnique({ where: { id: data.assigned.id } })).pendingFuelLaps).toBeNull();
@@ -504,14 +633,14 @@ describe('virtual fuel event persistence', () => {
     await prisma.session.update({ where: { id: data.session.id }, data: { type: 'qualif' } });
     await service.loadSession(data.session.id);
     for (let i = 0; i < 3; i++) await lap(10000);
-    await service.requestFuelTarget(data.session.id, data.assigned.id, 25, 0);
-    await service.requestFuelTarget(data.session.id, data.assigned.id, null, 1);
+    await service.requestFuelTarget(data.session.id, data.assigned.id, { targetLaps: 25 }, 0);
+    await service.requestFuelTarget(data.session.id, data.assigned.id, { targetLaps: null }, 1);
     expect(service.getLeaderboard()[0]).toMatchObject({
       pendingFuelLaps: null,
       pendingFuelUnits: null,
       virtualFuelUnits: 9700,
     });
-    await service.requestFuelTarget(data.session.id, data.assigned.id, 100, 2);
+    await service.requestFuelTarget(data.session.id, data.assigned.id, { targetLaps: 100 }, 2);
     await service.resetSession(data.session.id);
     const stored = await prisma.sessionDriver.findUnique({ where: { id: data.assigned.id } });
     expect(stored).toMatchObject({ pendingFuelLaps: null, pendingFuelUnits: null, fuelPlanVersion: 4 });

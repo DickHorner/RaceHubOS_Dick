@@ -83,7 +83,14 @@
     "startSaveError": "Could not save starting fuel. Refresh the saved state; the session may be starting or the selection may have changed.",
     "fullRange": "With a full virtual tank: estimated range up to {{laps}} laps.",
     "refillPreview": "Input preview at the displayed fuel level: add {{added}} % of tank capacity for a resulting level of {{percent}} %; estimated range afterwards: {{laps}} laps. Further consumption before the pit stop can change this amount.",
-    "refillUnavailable": "Refill amount not yet calculable: the current virtual fuel level is unavailable."
+    "refillUnavailable": "Refill amount not yet calculable: the current virtual fuel level is unavailable.",
+    "targetMode": "Set tank target by",
+    "mode_laps": "Laps (estimated)",
+    "mode_percent": "Fuel level (%)",
+    "targetPercent": "Target fuel level after the next pit stop (0–100 %, whole number)",
+    "pendingPercent": "Saved: target at least {{percent}} % fuel level.",
+    "percentPreview": "Tank target: at least {{percent}} %",
+    "refillWithoutRange": "Input preview at the displayed fuel level: add {{added}} % of tank capacity to a level of {{percent}} %. Range is not yet calculable. Further consumption may occur before the pit stop."
   },
   "personalSession": "This personal driver link is bound to this session."
 }

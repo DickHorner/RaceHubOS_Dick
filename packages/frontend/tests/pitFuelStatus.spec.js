@@ -86,8 +86,8 @@ async function mockSession(page) {
       if (state.rejectPlan) return route.fulfill({ status: 409, json: { success: false } })
       if (state.planGate) await state.planGate
       const assigned = state.current.drivers[0]
-      assigned.pendingFuelLaps = body.targetLaps
-      assigned.pendingFuelUnits = body.targetLaps == null ? null : body.targetLaps * 100
+      assigned.pendingFuelLaps = body.targetLaps ?? null
+      assigned.pendingFuelUnits = body.targetUnits ?? (body.targetLaps == null ? null : body.targetLaps * 100)
       assigned.fuelPlanVersion = (assigned.fuelPlanVersion || 0) + 1
       return route.fulfill({ json: { success: true, data: assigned } })
     }
@@ -656,4 +656,82 @@ test('fuel preview follows current consumption without rewriting a previously sa
   await expect(page.getByTestId('fuel-target-laps')).toHaveValue('25')
   expect(state.current.drivers[0].pendingFuelUnits).toBe(2500)
   expect(state.writes).toEqual([])
+})
+
+for (const type of ['race', 'qualif']) {
+  test(`${type} percent target saves without measured laps and survives reload`, async ({ page }) => {
+    const state = await mockSession(page)
+    state.current.type = type
+    state.current.drivers[0].virtualFuelUnits = 1700
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/display/driver/driver-1#chaos=personal-test-token')
+    await page.getByTestId('fuel-mode-percent').check()
+    await page.getByTestId('fuel-target-percent').fill('25')
+    await expect(page.getByTestId('fuel-target-preview')).toContainText('at least 25 %')
+    await expect(page.getByTestId('fuel-refill-preview')).toContainText('add 8 %')
+    await expect(page.getByTestId('fuel-refill-preview')).toContainText('not yet calculable')
+    expect(state.writes).toEqual([])
+    await page.getByTestId('fuel-plan-save').click()
+    await expect(page.getByTestId('fuel-saved-plan')).toHaveText('Saved: target at least 25 % fuel level.')
+    expect(state.writes[0].body).toEqual({ targetUnits: 2500, expectedVersion: 0 })
+    await expect(page.getByTestId('pit-fuel-level-entry-1')).toContainText('17 %')
+    await page.reload()
+    await expect(page.getByTestId('fuel-target-percent')).toHaveValue('25')
+    await expect(page.getByTestId('fuel-plan-clear')).toBeEnabled()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  })
+}
+
+test('percent targets validate boundaries and replace or clear the same lap plan', async ({ page }) => {
+  const state = await mockSession(page)
+  state.current.virtualFuelEvents = [1, 2, 3].map((id) => ({ id, sessionDriverId: 'entry-1', kind: 'lap', units: 100 }))
+  Object.assign(state.current.drivers[0], { pendingFuelLaps: 25, pendingFuelUnits: 2500, fuelPlanVersion: 1 })
+  await page.goto('/display/driver/driver-1#chaos=personal-test-token')
+  await page.getByTestId('fuel-mode-percent').check()
+  for (const invalid of ['', '-1', '101', '12.5']) {
+    await page.getByTestId('fuel-target-percent').fill(invalid)
+    await expect(page.getByTestId('fuel-plan-save')).toBeDisabled()
+  }
+  expect(state.writes).toEqual([])
+  await page.getByTestId('fuel-target-percent').fill('0')
+  await expect(page.getByTestId('fuel-refill-preview')).toContainText('add 0 %')
+  await expect(page.getByTestId('fuel-refill-preview')).toContainText('72.5 %')
+  await page.getByTestId('fuel-plan-save').click()
+  await expect(page.getByTestId('fuel-saved-plan')).toHaveText('Saved: target at least 0 % fuel level.')
+  expect(state.writes[0].body).toEqual({ targetUnits: 0, expectedVersion: 1 })
+  await page.getByTestId('fuel-plan-clear').click()
+  await expect(page.getByTestId('fuel-saved-plan')).toContainText('No individual target')
+  expect(state.writes[1].body).toEqual({ targetLaps: null, expectedVersion: 2 })
+  await page.getByTestId('fuel-target-percent').fill('100')
+  await page.getByTestId('fuel-plan-save').click()
+  await expect(page.getByTestId('fuel-saved-plan')).toContainText('100 %')
+  await page.getByTestId('fuel-mode-laps').check()
+  await page.getByTestId('fuel-target-laps').fill('10')
+  await page.getByTestId('fuel-plan-save').click()
+  await expect(page.getByTestId('fuel-saved-plan')).toContainText('10 laps')
+  expect(state.writes[3].body).toEqual({ targetLaps: 10, expectedVersion: 4 })
+})
+
+test('percent target shares pending, refresh failure and read-only locks', async ({ page }) => {
+  const state = await mockSession(page)
+  let release
+  state.planGate = new Promise((resolve) => {
+    release = resolve
+  })
+  await page.goto('/display/driver/driver-1#chaos=personal-test-token')
+  await page.getByTestId('fuel-mode-percent').check()
+  await page.getByTestId('fuel-target-percent').fill('30')
+  await page.getByTestId('fuel-plan-save').click()
+  await expect(page.getByTestId('fuel-target-percent')).toBeDisabled()
+  await expect(page.getByTestId('fuel-mode-laps')).toBeDisabled()
+  await page.getByTestId('fuel-plan-save').evaluate((button) => button.click())
+  state.failRead = true
+  release()
+  await expect(page.getByTestId('fuel-plan-error')).toContainText('server accepted the plan')
+  expect(state.writes).toHaveLength(1)
+  state.failRead = false
+  await page.goto('/display/driver/driver-1')
+  await expect(page.getByTestId('fuel-target-percent')).toBeDisabled()
+  await expect(page.getByTestId('fuel-mode-laps')).toBeDisabled()
+  await expect(page.getByTestId('fuel-plan-clear')).toBeDisabled()
 })
