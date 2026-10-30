@@ -14,7 +14,14 @@ import Podium from '../components/race/Podium'
 import LapTime from '../components/race/LapTime'
 import SessionLapChart from '../components/race/SessionLapChart'
 import PitFuelStatus from '../components/race/PitFuelStatus'
-import { SessionStatus, SessionType, rankRaceDrivers, PenaltyKind, PenaltyStatus } from '@racehubos/shared'
+import {
+  SessionStatus,
+  SessionType,
+  rankRaceDrivers,
+  PenaltyKind,
+  PenaltyStatus,
+  virtualFuelLapHistory,
+} from '@racehubos/shared'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -68,6 +75,11 @@ export default function SessionDetail() {
     if (session?.type !== SessionType.RACE) return []
     return rankRaceDrivers(session.drivers || [], session.penalties || [])
   }, [session])
+
+  const lapFuelHistory = useMemo(
+    () => virtualFuelLapHistory(session?.virtualFuelEvents, session?.drivers),
+    [session?.virtualFuelEvents, session?.drivers]
+  )
 
   // Build entries from session.drivers (same format as SessionContext entries)
   const entries = useMemo(() => {
@@ -504,6 +516,9 @@ export default function SessionDetail() {
             <CardContent className="p-0">
               <div className="px-4 py-3 border-b border-border">
                 <h3 className="text-sm font-semibold">{t('profile.lapHistory', { count: session.laps.length })}</h3>
+                {session.virtualFuelRate != null && (
+                  <p className="text-xs text-muted-foreground mt-1">{t('profile.lapFuel.note')}</p>
+                )}
               </div>
               <div className="max-h-96 overflow-auto">
                 <table className="w-full text-sm">
@@ -513,6 +528,11 @@ export default function SessionDetail() {
                       <th className="px-4 py-2 font-medium">{t('glossary:driver', { count: 1 })}</th>
                       <th className="px-4 py-2 font-medium">{t('glossary:car', { count: 1 })}</th>
                       <th className="px-4 py-2 font-medium text-right">{t('profile.time')}</th>
+                      {session.virtualFuelRate != null && (
+                        <th className="px-4 py-2 font-medium text-right" data-testid="lap-fuel-heading">
+                          {t('profile.lapFuel.title')}
+                        </th>
+                      )}
                       {session.tyreMismatchPercent > 0 && (
                         <th className="px-4 py-2 font-medium text-right">{t('profile.simulatedTime')}</th>
                       )}
@@ -520,7 +540,16 @@ export default function SessionDetail() {
                   </thead>
                   <tbody className="divide-y divide-border">
                     {session.laps.map((lap, i) => {
-                      const driver = session.drivers?.find((d) => d.controller === lap.controller)
+                      const driver = session.drivers?.find(
+                        (d) => d.controller === lap.controller && d.driverId === lap.driverId && d.carId === lap.carId
+                      )
+                      const fuel = lapFuelHistory.get(lap.id)
+                      const fuelMatches =
+                        fuel &&
+                        fuel.carId != null &&
+                        fuel.driverId === lap.driverId &&
+                        fuel.carId === lap.carId &&
+                        fuel.controller === lap.controller
                       return (
                         <tr key={lap.id || i} className={`${lap.lapTime === fastestLap ? 'bg-purple-500/10' : ''}`}>
                           <td className="px-4 py-1.5 font-mono text-muted-foreground">{lap.lapNumber}</td>
@@ -541,6 +570,19 @@ export default function SessionDetail() {
                           <td className="px-4 py-1.5 text-right">
                             <LapTime time={Math.round(lap.lapTime)} size="sm" highlight={lap.lapTime === fastestLap} />
                           </td>
+                          {session.virtualFuelRate != null && (
+                            <td
+                              className="px-4 py-1.5 text-right tabular-nums whitespace-nowrap"
+                              data-testid={`lap-fuel-${lap.id}`}
+                            >
+                              {fuelMatches && fuel.beforeUnits !== null && fuel.afterUnits !== null
+                                ? t('profile.lapFuel.levels', {
+                                    before: fuel.beforeUnits / 100,
+                                    after: fuel.afterUnits / 100,
+                                  })
+                                : t('profile.lapFuel.unavailable')}
+                            </td>
+                          )}
                           {session.tyreMismatchPercent > 0 && (
                             <td className="px-4 py-1.5 text-right">
                               <LapTime time={lap.simulatedLapTime} size="sm" />

@@ -27,6 +27,43 @@ export function replayVirtualFuel(events = [], drivers = []) {
   return levels;
 }
 
+// Events must be in persisted id order, as returned by the session endpoint.
+// Key by recorded lap reference, never by controller or displayed lap order.
+export function virtualFuelLapHistory(events = [], drivers = []) {
+  const assignments = new Map(drivers.map((driver) => [driver.id, driver]));
+  const levels = replayVirtualFuel([], drivers);
+  const history = new Map();
+  for (const event of events) {
+    const driver = assignments.get(event.sessionDriverId);
+    if (!driver) continue;
+    const current = levels.get(driver.id);
+    const beforeUnits = validVirtualFuelUnits(current) ? current : null;
+    let afterUnits = null;
+    switch (event.kind) {
+      case 'lap':
+        if (beforeUnits !== null && validVirtualFuelUnits(event.units))
+          afterUnits = virtualFuelAfter(beforeUnits, event);
+        if (typeof event.reference === 'string' && event.reference.startsWith('lap:')) {
+          history.set(event.reference.slice(4), {
+            sessionDriverId: driver.id,
+            driverId: driver.driverId,
+            carId: driver.carId,
+            controller: event.controller,
+            beforeUnits,
+            afterUnits,
+          });
+        }
+        break;
+      case 'refuel':
+        if (validVirtualFuelUnits(event.targetUnits ?? VIRTUAL_FUEL_FULL))
+          afterUnits = virtualFuelAfter(beforeUnits, event);
+        break;
+    }
+    levels.set(driver.id, afterUnits);
+  }
+  return history;
+}
+
 // Use the median of the last five recorded lap burns; at least three are needed.
 // Pit refills are excluded. The estimate is in the same integer units as the event log.
 export function virtualFuelPerLap(events = []) {

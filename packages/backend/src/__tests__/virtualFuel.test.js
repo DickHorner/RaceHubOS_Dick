@@ -12,6 +12,7 @@ import {
   validVirtualFuelRate,
   virtualFuelBurn,
   replayVirtualFuel,
+  virtualFuelLapHistory,
   virtualFuelPerLap,
   virtualFuelTarget,
   validVirtualFuelUnits,
@@ -77,6 +78,77 @@ describe('virtual fuel arithmetic', () => {
     for (const units of [null, -1, 10001, 1.5, '2500', Infinity]) expect(validVirtualFuelUnits(units)).toBe(false);
   });
 
+  test('lap fuel history follows event order, isolates assignments sharing a controller and includes partial refills', () => {
+    const drivers = [
+      { id: 'a', driverId: 'driver-a', carId: 'car-a', initialFuelUnits: 2500 },
+      { id: 'b', driverId: 'driver-b', carId: 'car-b', initialFuelUnits: 0 },
+    ];
+    const events = [
+      { sessionDriverId: 'a', controller: 0, kind: 'lap', units: 100, reference: 'lap:a-1' },
+      { sessionDriverId: 'b', controller: 0, kind: 'lap', units: 100, reference: 'lap:b-1' },
+      { sessionDriverId: 'a', controller: 0, kind: 'refuel', targetUnits: 5000, reference: 'pit:one' },
+      { sessionDriverId: 'a', controller: 0, kind: 'lap', units: 200, reference: 'lap:a-2' },
+      { sessionDriverId: 'b', controller: 0, kind: 'refuel', targetUnits: 3000, reference: 'pit:two' },
+      { sessionDriverId: 'b', controller: 0, kind: 'lap', units: 400, reference: 'lap:b-2' },
+    ];
+    const before = JSON.stringify({ drivers, events });
+    const history = virtualFuelLapHistory(events, drivers);
+    expect(history.get('a-1')).toEqual({
+      sessionDriverId: 'a',
+      driverId: 'driver-a',
+      carId: 'car-a',
+      controller: 0,
+      beforeUnits: 2500,
+      afterUnits: 2400,
+    });
+    expect(history.get('b-1')).toMatchObject({ beforeUnits: 0, afterUnits: 0 });
+    expect(history.get('a-2')).toMatchObject({ beforeUnits: 5000, afterUnits: 4800 });
+    expect(history.get('b-2')).toMatchObject({ beforeUnits: 3000, afterUnits: 2600 });
+    const levels = replayVirtualFuel(events, drivers);
+    expect(history.get('a-2').afterUnits).toBe(levels.get('a'));
+    expect(history.get('b-2').afterUnits).toBe(levels.get('b'));
+    expect(history.size).toBe(4);
+    expect(JSON.stringify({ drivers, events })).toBe(before);
+  });
+
+  test('lap history keeps missing assignments and invalid fuel unknown, then recovers at a recorded refill', () => {
+    const drivers = [{ id: 'a', driverId: 'd', carId: 'c', initialFuelUnits: 10001 }];
+    const events = [
+      { sessionDriverId: 'missing', kind: 'lap', units: 100, reference: 'lap:foreign' },
+      { sessionDriverId: 'a', kind: 'lap', units: 100, reference: 'lap:unknown-start' },
+      { sessionDriverId: 'a', kind: 'refuel', targetUnits: 2500 },
+      { sessionDriverId: 'a', kind: 'lap', units: 3000, reference: 'lap:empty' },
+      { sessionDriverId: 'a', kind: 'lap', units: -1, reference: 'lap:bad' },
+      { sessionDriverId: 'a', kind: 'lap', units: 100, reference: 'lap:after-bad' },
+      { sessionDriverId: 'a', kind: 'refuel', targetUnits: 10001 },
+      { sessionDriverId: 'a', kind: 'lap', units: 100, reference: 'lap:bad-refill' },
+      { sessionDriverId: 'a', kind: 'refuel', targetUnits: null },
+      { sessionDriverId: 'a', kind: 'lap', units: 0, reference: 'lap:known' },
+    ];
+    const history = virtualFuelLapHistory(events, drivers);
+    expect(history.has('foreign')).toBe(false);
+    for (const id of ['unknown-start', 'after-bad', 'bad-refill'])
+      expect(history.get(id)).toMatchObject({ beforeUnits: null, afterUnits: null });
+    expect(history.get('empty')).toMatchObject({ beforeUnits: 2500, afterUnits: 0 });
+    expect(history.get('bad')).toMatchObject({ beforeUnits: 0, afterUnits: null });
+    expect(history.get('known')).toMatchObject({ beforeUnits: 10000, afterUnits: 10000 });
+    expect(virtualFuelLapHistory().size).toBe(0);
+    expect(virtualFuelLapHistory([{ sessionDriverId: 'a', kind: 'lap', units: 100 }], [{ id: 'a' }]).size).toBe(0);
+  });
+
+  test('legacy lap fuel history starts full and does not infer values for a missing lap reference', () => {
+    const history = virtualFuelLapHistory(
+      [
+        { sessionDriverId: 'a', kind: 'lap', units: 150, reference: 'lap:first' },
+        { sessionDriverId: 'a', kind: 'lap', units: 100, reference: 'lap:third' },
+      ],
+      [{ id: 'a', driverId: 'd', carId: 'c' }]
+    );
+    expect(history.get('first')).toMatchObject({ beforeUnits: 10000, afterUnits: 9850 });
+    expect(history.has('second')).toBe(false);
+    expect(history.get('third')).toMatchObject({ beforeUnits: 9850, afterUnits: 9750 });
+  });
+
   test('ordered events replay exactly and a confirmed refill restores a full tank', () => {
     const events = [
       { sessionDriverId: 'a', kind: 'lap', units: 200 },
@@ -133,6 +205,31 @@ describe('virtual fuel event persistence', () => {
     sync?.close();
     sync = null;
     await service.prisma.$disconnect();
+  });
+
+  test('the stored session endpoint reconstructs lap fuel across a simulator refill without changing raw laps', async () => {
+    const data = await fixture();
+    await prisma.sessionDriver.update({ where: { id: data.assigned.id }, data: { initialFuelUnits: 2500 } });
+    await service.loadSession(data.session.id);
+    await lap(10000);
+    await service.recordPitStop({
+      controller: 0,
+      enteredAt: new Date(Date.now() - 5000),
+      exitedAt: new Date(),
+      source: 'simulator',
+    });
+    await lap(20000);
+    setSessionService(service);
+    const app = express();
+    app.use('/api/sessions', sessionsRouter);
+    const response = await request(app).get(`/api/sessions/${data.session.id}`).expect(200);
+    const saved = response.body.data;
+    const history = virtualFuelLapHistory(saved.virtualFuelEvents, saved.drivers);
+    expect(saved.laps.map((row) => row.lapTime)).toEqual([10000, 20000]);
+    expect(history.get(saved.laps[0].id)).toMatchObject({ beforeUnits: 2500, afterUnits: 2400 });
+    expect(history.get(saved.laps[1].id)).toMatchObject({ beforeUnits: 10000, afterUnits: 9800 });
+    await service.loadSession(data.session.id);
+    expect(history.get(saved.laps[1].id).afterUnits).toBe(service.getLeaderboard()[0].virtualFuelUnits);
   });
 
   test('valid laps persist fuel events and exact raw lap measurements', async () => {
