@@ -181,6 +181,13 @@
       "note": "Aus dem gespeicherten Tankprotokoll rekonstruiert; keine CU-Messwerte. Ohne passendes Rundenereignis bleibt der Verlauf unbekannt.",
       "levels": "{{before}} % → {{after}} %",
       "unavailable": "Unbekannt"
+    },
+    "fuelWeightPreview": {
+      "title": "Tankgewicht – Zeitvorschau",
+      "percent": "Zeitmalus bei vollem Tank (%)",
+      "hint": "0 % deaktiviert die Vorschau. Linearer Malus aus dem Tankstand vor dem gespeicherten Rundenverbrauch; vorhandene Reifen-Zeitkorrekturen werden mitgerechnet. Die gespeicherte Wertung bleibt unverändert.",
+      "invalid": "Ganze Prozentzahl zwischen 0 und {{max}} eingeben.",
+      "time": "Zeit mit Tankgewicht (Vorschau)"
     }
   }
 }

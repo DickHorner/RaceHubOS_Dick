@@ -16,9 +16,45 @@ import {
   virtualFuelPerLap,
   virtualFuelTarget,
   validVirtualFuelUnits,
+  validVirtualFuelWeightPercent,
+  virtualFuelWeightedLapTime,
+  tyreAdjustedLapTime,
+  TyreType,
+  WeatherCondition,
 } from '@racehubos/shared';
 
 describe('virtual fuel arithmetic', () => {
+  test('optional fuel weight scales linearly with the reconstructed tank and is identity when disabled', () => {
+    expect(virtualFuelWeightedLapTime(10000, 10000, 10)).toBe(11000);
+    expect(virtualFuelWeightedLapTime(10000, 5000, 10)).toBe(10500);
+    expect(virtualFuelWeightedLapTime(10000, 0, 10)).toBe(10000);
+    expect(virtualFuelWeightedLapTime(10000, null, 0)).toBe(10000);
+    expect(virtualFuelWeightedLapTime(10000, 10000, 30)).toBe(13000);
+    expect(virtualFuelWeightedLapTime(10000.49, 10000, 5)).toBe(10501);
+  });
+
+  test('fuel weight preview rejects invalid model inputs instead of producing an invented time', () => {
+    for (const percent of [-1, 31, 1.5, '10', null, NaN, Infinity]) {
+      expect(validVirtualFuelWeightPercent(percent)).toBe(false);
+      expect(virtualFuelWeightedLapTime(10000, 5000, percent)).toBeNull();
+    }
+    for (const units of [null, undefined, -1, 10001, 1.5, '5000', NaN, Infinity])
+      expect(virtualFuelWeightedLapTime(10000, units, 10)).toBeNull();
+    for (const time of [null, undefined, 0, -1, '10000', NaN, Infinity])
+      expect(virtualFuelWeightedLapTime(time, 5000, 10)).toBeNull();
+    for (const percent of [0, 5, 30]) expect(validVirtualFuelWeightPercent(percent)).toBe(true);
+  });
+
+  test('weight composes multiplicatively with saved tyre timing rather than adding percentage points', () => {
+    const raw = 10000;
+    const wetRace = tyreAdjustedLapTime(raw, TyreType.DRY, WeatherCondition.RAIN, 10);
+    expect(wetRace).toBe(11000);
+    expect(virtualFuelWeightedLapTime(wetRace, 10000, 10)).toBe(12100);
+    expect(virtualFuelWeightedLapTime(wetRace, 5000, 10)).toBe(11550);
+    expect(virtualFuelWeightedLapTime(wetRace, 0, 10)).toBe(wetRace);
+    expect(raw).toBe(10000);
+  });
+
   test('a 10-second lap at 6% per minute burns 1% of the virtual tank', () => {
     expect(virtualFuelBurn(10000, 6)).toBe(100);
     expect(virtualFuelBurn(20000, 6)).toBe(200);
@@ -228,6 +264,12 @@ describe('virtual fuel event persistence', () => {
     expect(saved.laps.map((row) => row.lapTime)).toEqual([10000, 20000]);
     expect(history.get(saved.laps[0].id)).toMatchObject({ beforeUnits: 2500, afterUnits: 2400 });
     expect(history.get(saved.laps[1].id)).toMatchObject({ beforeUnits: 10000, afterUnits: 9800 });
+    expect(virtualFuelWeightedLapTime(saved.laps[0].lapTime, history.get(saved.laps[0].id).beforeUnits, 10)).toBe(
+      10250
+    );
+    expect(virtualFuelWeightedLapTime(saved.laps[1].lapTime, history.get(saved.laps[1].id).beforeUnits, 10)).toBe(
+      22000
+    );
     await service.loadSession(data.session.id);
     expect(history.get(saved.laps[1].id).afterUnits).toBe(service.getLeaderboard()[0].virtualFuelUnits);
   });
