@@ -139,7 +139,7 @@ describe('opt-in backend start trace', () => {
 
   test('records each status transition before broadcast, excludes duplicates and stops at racing', async () => {
     sync.beginStartTrace('session-1');
-    sync.setSessionService({ onRaceStart: jest.fn() });
+    sync.setSessionService({ onRaceStart: jest.fn(), isActive: () => false });
     for (const start of [1, 1, 2, 3, 4, 5, 7, 0, 0]) {
       device.emit('status', { start, mode: 0, secret: 'not-in-trace' });
       await jest.advanceTimersByTimeAsync(10);
@@ -215,10 +215,10 @@ describe('opt-in backend start trace', () => {
     expect(device.start).toHaveBeenCalledTimes(1);
   });
 
-  test('exposes the existing simulator L1 reset without replaying commands or inventing GO', async () => {
+  test('traces the integrated simulator countdown through GO with one preparation and one advance', async () => {
     const simulator = new CarreraSimulator(service.io);
     sync.setDevice(simulator);
-    sync.setSessionService({ onRaceStart: jest.fn() });
+    sync.setSessionService({ onRaceStart: jest.fn(), isActive: () => false });
     await simulator.connect();
     try {
       sync.beginStartTrace('simulator-session');
@@ -229,18 +229,19 @@ describe('opt-in backend start trace', () => {
       expect(start).toHaveBeenCalledTimes(1);
       expect(phases()).toContain('prepare_start:ack');
       expect(records().some((entry) => entry.phase === 'status' && entry.start === 1)).toBe(true);
-      await sync.startRace();
-      await jest.advanceTimersByTimeAsync(6000);
+      const advancing = sync.startRace();
+      await jest.advanceTimersByTimeAsync(4400);
+      await advancing;
       expect(start).toHaveBeenCalledTimes(2);
       expect(
         records()
           .filter((entry) => entry.phase === 'status')
           .map((entry) => entry.start)
-      ).toEqual([9, 1, 9, 1, 9]);
-      expect(phases().filter((phase) => phase === 'reset:lights')).toHaveLength(2);
-      expect(phases()).toContain('advance_start:ack');
-      expect(phases()).not.toContain('racing');
-      expect(simulator.cuState).toBe(9);
+      ).toEqual([9, 1, 2, 3, 4, 5, 7, 0]);
+      expect(phases().filter((phase) => phase === 'reset:lights')).toHaveLength(1);
+      expect(phases()).toContain('advance_start:request');
+      expect(phases().at(-1)).toBe('racing');
+      expect(simulator.cuState).toBe(0);
     } finally {
       await simulator.disconnect();
     }
