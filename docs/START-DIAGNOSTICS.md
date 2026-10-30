@@ -23,7 +23,7 @@ This backend-only diagnostic slice measures the existing start path. It does not
 | `wait:after_start:begin/end` | Existing intentional 1000 ms wait after START completion |
 | `polling:resume`, `poll:begin/end/error` | Poll restart and individual poll calls, including queue/response time |
 | `status` | A changed `cu:status.start` value immediately before broadcast; repeated values are omitted |
-| `reset:lights` | Existing additional reset triggered upon entering the first light |
+| `reset:lights` | Timing reset triggered upon entering the first light; the simulator keeps its L1 state and tick loop |
 | `advance_start:request/ack` | A subsequent light-advance START call, distinct from preparation |
 | `session:active` | Existing database transition completed; racing time still begins at observed GO |
 | `racing` / `failed` | End of observed start sequence / failed start path. Existing error reporting remains responsible for the error text |
@@ -34,6 +34,6 @@ Only fixed phase names, timing, session/attempt IDs, controller/field and change
 
 ## Hardware evidence still needed
 
-The integrated simulator test exposes an existing distinction: `SyncService.handleStatus()` resets on entering L1, while `CarreraSimulator.reset()` changes its start state to stopped (9). With these services connected, the observed path is 9 → 1 → 9; another START repeats 1 → 9 instead of completing the countdown. The trace explicitly records `reset:lights` and does not invent GO. This slice preserves that behavior for diagnosis; it is not evidence about the physical CU or a passing end-to-end simulator countdown.
+The diagnostic integration exposed a simulator bug: the full reset on entering L1 changed its start state back to stopped (9). The L1 handler now requests a timing-only reset, using the simulator's existing `resetTimer()` and retaining the full reset for explicit reset operations. The integrated simulator sequence is tested through 9 → 1 → 2 → 3 → 4 → 5 → 7 → 0. Devices without `resetTimer()` retain their existing `reset()` call; this does not establish physical CU behavior. The simulator's advance call completes after GO, when the trace has already ended, so its final `advance_start:ack` is outside the capture window.
 
 Capture the same scenario with the simulator and the real CU: fresh versus warm connection, one versus multiple assigned cars. Keep the session ID, capture start time, vehicle count and connection state with each result. Compare reset, profiles, both planned waits, START completion, first L1 and subsequent status spacing. Record the real lights and sound separately; backend timestamps cannot establish when a browser rendered a light or scheduled a beep. Only optimize a demonstrated bottleneck after this comparison; do not remove the fixed waits based on simulator results alone.

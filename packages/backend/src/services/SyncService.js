@@ -176,7 +176,7 @@ export class SyncService {
     // Reset CU when entering 1/5 lights (clean slate before race)
     if (isFirstLight && wasNotInLights) {
       this.traceStart('reset:lights');
-      this.reset();
+      this.reset({ timerOnly: true });
     }
 
     // Detect transition to racing (GO!) - start the timer
@@ -374,10 +374,12 @@ export class SyncService {
     }
   }
 
-  async reset() {
+  async reset({ timerOnly = false } = {}) {
     this.lastTimestamps.clear();
     this.io?.emit('cu:reset');
-    if (this.source?.reset) {
+    if (timerOnly && this.source?.resetTimer) {
+      await this.source.resetTimer();
+    } else if (this.source?.reset) {
       await this.source.reset();
     }
     if (this.source?.clearPosition) {
