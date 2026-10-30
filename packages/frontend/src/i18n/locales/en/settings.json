@@ -97,5 +97,15 @@
     "migrated_other": "{{count}} laps reassigned to {{name}}",
     "error": "Error: {{message}}",
     "migrateButton": "Claim"
+  },
+  "startTrace": {
+    "title": "Start diagnostics",
+    "description": "Record start states and timing. Download after the test, then switch off.",
+    "download": "Download diagnostics",
+    "loadError": "Could not load diagnostics setting",
+    "saveError": "Could not switch diagnostics",
+    "storageError": "Browser storage blocked: browser tracing unavailable",
+    "downloadError": "Could not download diagnostics (race PC or authorized director)",
+    "empty": "No start diagnostics recorded"
   }
 }

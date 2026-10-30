@@ -97,5 +97,15 @@
     "migrated_other": "{{count}} tours réattribués à {{name}}",
     "error": "Erreur : {{message}}",
     "migrateButton": "Attribuer"
+  },
+  "startTrace": {
+    "title": "Diagnostic du départ",
+    "description": "Enregistre les phases et les délais. Télécharger après le test, puis désactiver.",
+    "download": "Télécharger le diagnostic",
+    "loadError": "Chargement du diagnostic impossible",
+    "saveError": "Impossible de modifier le diagnostic",
+    "storageError": "Stockage navigateur bloqué : diagnostic indisponible",
+    "downloadError": "Téléchargement impossible (PC de course ou directeur autorisé)",
+    "empty": "Aucun diagnostic enregistré"
   }
 }

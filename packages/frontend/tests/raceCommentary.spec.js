@@ -238,7 +238,7 @@ test('disabled race commentary does not replay buffered start or finish events',
 test('commentary is opt-in, saved and restored', async ({ page }) => {
   await preferences(page, null)
   await page.goto('/settings')
-  const switches = page.getByRole('switch')
+  const switches = page.getByRole('switch', { name: /^Announce (race start|lead changes|race finish)$/ })
   await expect(switches).toHaveCount(3)
   for (const control of await switches.all()) {
     await expect(control).toHaveAttribute('aria-checked', 'false')

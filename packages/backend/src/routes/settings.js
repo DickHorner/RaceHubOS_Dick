@@ -1,5 +1,6 @@
 import express from 'express';
 import { createPrismaClient } from '../lib/prisma.js';
+import { requireLocalOrDirector } from './raceControl.js';
 
 const router = express.Router();
 const prisma = createPrismaClient();
@@ -13,6 +14,11 @@ let connectionState = {
 
 // Store io instance for emitting events
 let ioInstance = null;
+let syncService = null;
+
+export function setSettingsSyncService(service) {
+  syncService = service;
+}
 
 export function setSettingsIo(io) {
   ioInstance = io;
@@ -28,6 +34,34 @@ export function updateConnectionState(updates) {
     });
   }
 }
+
+// Toggle bounded start diagnostics without restarting the backend.
+router.get('/start-trace', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ success: true, data: { enabled: syncService?.getStartTraceEnabled() ?? false } });
+});
+
+router.put('/start-trace', async (req, res) => {
+  const { enabled } = req.body ?? {};
+  if (typeof enabled !== 'boolean') return res.status(400).json({ success: false, error: 'enabled must be boolean' });
+  if (!syncService) return res.status(503).json({ success: false, error: 'Trace service unavailable' });
+  try {
+    await prisma.preference.upsert({
+      where: { key: 'startTraceEnabled' },
+      update: { value: JSON.stringify(enabled) },
+      create: { key: 'startTraceEnabled', value: JSON.stringify(enabled) },
+    });
+    syncService.setStartTraceEnabled(enabled);
+    res.json({ success: true, data: { enabled } });
+  } catch {
+    res.status(500).json({ success: false, error: 'Failed to save trace setting' });
+  }
+});
+
+router.get('/start-trace/records', requireLocalOrDirector, (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json({ success: true, data: syncService?.getStartTraceRecords() ?? [] });
+});
 
 // GET /api/settings - Get current settings
 router.get('/', async (req, res) => {

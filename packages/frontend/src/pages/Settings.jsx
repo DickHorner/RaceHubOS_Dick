@@ -6,6 +6,7 @@ import { useApp } from '../context/AppContext'
 import { useVoice } from '../context/VoiceContext'
 import { voicesByLanguage } from '../lib/speech'
 import { LANGUAGES } from '../i18n'
+import { getStartTraceRecords, setStartTraceEnabled } from '../lib/startTrace'
 import {
   Wifi,
   Cpu,
@@ -26,6 +27,7 @@ import {
   Languages,
   UserCog,
   AlertTriangle,
+  Activity,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -69,6 +71,10 @@ export default function Settings() {
   const [autoConnect, setAutoConnect] = useState(false)
   const [logs, setLogs] = useState([])
   const logsContainerRef = useRef(null)
+  const [traceEnabled, setTraceEnabled] = useState(false)
+  const [traceBusy, setTraceBusy] = useState(false)
+  const [traceDownloading, setTraceDownloading] = useState(false)
+  const [traceError, setTraceError] = useState(null)
 
   // Update state
   const [updateInfo, setUpdateInfo] = useState(null)
@@ -94,6 +100,14 @@ export default function Settings() {
         if (d.success && d.data !== null) setAutoConnect(d.data)
       })
       .catch(() => {})
+    fetch(`${API_URL}/api/settings/start-trace`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.success || typeof d.data?.enabled !== 'boolean') throw new Error('Invalid trace setting')
+        setTraceEnabled(d.data.enabled)
+        if (!setStartTraceEnabled(d.data.enabled)) setTraceError(t('startTrace.storageError'))
+      })
+      .catch(() => setTraceError(t('startTrace.loadError')))
     // Check for updates on mount
     fetch(`${API_URL}/api/update/check`)
       .then((r) => r.json())
@@ -108,7 +122,56 @@ export default function Settings() {
           })
           .catch(() => {})
       })
-  }, [])
+  }, [t])
+
+  async function handleTraceToggle() {
+    setTraceBusy(true)
+    setTraceError(null)
+    try {
+      const response = await fetch(`${API_URL}/api/settings/start-trace`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: !traceEnabled }),
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error('Trace setting rejected')
+      setTraceEnabled(result.data.enabled)
+      if (!setStartTraceEnabled(result.data.enabled)) setTraceError(t('startTrace.storageError'))
+    } catch {
+      setTraceError(t('startTrace.saveError'))
+    } finally {
+      setTraceBusy(false)
+    }
+  }
+
+  async function downloadTrace() {
+    setTraceDownloading(true)
+    setTraceError(null)
+    try {
+      const response = await fetch(`${API_URL}/api/settings/start-trace/records`)
+      const result = await response.json()
+      if (!response.ok || !result.success || !Array.isArray(result.data)) throw new Error('Trace unavailable')
+      const report = {
+        exportedAt: new Date().toISOString(),
+        backend: result.data,
+        browser: getStartTraceRecords(),
+      }
+      if (!report.backend.length && !report.browser.length) {
+        setTraceError(t('startTrace.empty'))
+        return
+      }
+      const url = URL.createObjectURL(new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `racehub-starttrace-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setTraceError(t('startTrace.downloadError'))
+    } finally {
+      setTraceDownloading(false)
+    }
+  }
 
   function handleAutoConnectChange(value) {
     setAutoConnect(value)
@@ -879,6 +942,41 @@ export default function Settings() {
 
       {/* Logs */}
       <Card className="overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-border">
+          <div className="flex items-start gap-2">
+            <Activity className="size-4 mt-0.5 text-muted-foreground" />
+            <div>
+              <p id="start-trace-label" className="text-sm font-semibold">
+                {t('startTrace.title')}
+              </p>
+              <p className="text-xs text-muted-foreground">{t('startTrace.description')}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              role="switch"
+              aria-labelledby="start-trace-label"
+              aria-checked={traceEnabled}
+              disabled={traceBusy}
+              onClick={handleTraceToggle}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${traceEnabled ? 'bg-blue-600' : 'bg-muted'}`}
+            >
+              <span
+                className={`inline-block size-4 transform rounded-full bg-white shadow-sm transition-transform ${traceEnabled ? 'translate-x-6' : 'translate-x-1'}`}
+              />
+            </button>
+            <Button variant="outline" size="sm" onClick={downloadTrace} disabled={traceDownloading}>
+              <Download className="size-3.5" />
+              {t('startTrace.download')}
+            </Button>
+          </div>
+          {traceError && (
+            <p role="alert" className="w-full text-xs text-destructive">
+              {traceError}
+            </p>
+          )}
+        </div>
         <div className="flex items-center justify-between px-4 py-2 border-b border-border">
           <h3 className="text-sm font-semibold">{t('logs.title')}</h3>
           <Button variant="ghost" size="sm" onClick={() => setLogs([])}>

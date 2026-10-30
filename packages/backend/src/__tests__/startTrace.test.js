@@ -181,6 +181,25 @@ describe('opt-in backend start trace', () => {
     expect(new Set(records().map((entry) => entry.traceId)).size).toBe(2);
   });
 
+  test('operator switch activates tracing without restart and preserves download data after disabling', () => {
+    delete process.env.RACEHUB_START_TRACE;
+    expect(sync.getStartTraceEnabled()).toBe(false);
+    sync.setStartTraceEnabled(true);
+    sync.beginStartTrace('settings-toggle');
+    device.emit('status', { start: 6, mode: 0 });
+    expect(sync.getStartTraceRecords().map((entry) => entry.phase)).toEqual(['accepted', 'status']);
+    expect(sync.getStartTraceRecords().at(-1).start).toBe(6);
+    sync.setStartTraceEnabled(false);
+    sync.traceStart('status', { start: 7 });
+    expect(sync.getStartTraceRecords()).toHaveLength(2);
+  });
+
+  test('download buffer is bounded', () => {
+    sync.beginStartTrace('bounded');
+    for (let i = 0; i < 2005; i++) sync.traceStart('poll:begin');
+    expect(sync.getStartTraceRecords()).toHaveLength(2000);
+  });
+
   test('disabled by default; the same device sequence still runs without trace output', async () => {
     delete process.env.RACEHUB_START_TRACE;
     const starting = service.startSession('session-1');

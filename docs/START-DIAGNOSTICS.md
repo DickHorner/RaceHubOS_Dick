@@ -2,7 +2,11 @@
 
 The opt-in backend and browser captures measure the existing start path. They do not fix or claim to explain the reported physical CU delay. Start commands, polling and audio behavior are unchanged.
 
-## Capture
+## Capture in the settings menu
+
+Under **Settings → Logs → Start diagnostics**, enable the switch, run the normal start sequence, then choose **Download diagnostics**. This enables backend and browser recording without a console command or process restart. The switch persists via the existing preference table; browser logging is local to the browser origin. The JSON contains separate bounded `backend` and `browser` arrays. Do not subtract durations across their different clocks. Download in the same initiating tab before refreshing it or restarting the backend, then turn the switch off. Backend exports are restricted to the race PC and authorized race directors.
+
+## Capture (manual alternative)
 
 1. Set `RACEHUB_START_TRACE=1` in the backend process environment and restart it. For example, on Linux/macOS: `RACEHUB_START_TRACE=1 npm run dev:backend` from the repository root. Existing installer/service users can set the same variable in their process environment.
 2. Capture backend console output. `[StartTrace]` records carry a process-local attempt ID, session ID, phase and monotonic `elapsedMs` since backend start acceptance. The `accepted` row also has a UTC wall-clock `startedAt` for identifying the capture. Wall-clock changes do not change elapsed durations.
