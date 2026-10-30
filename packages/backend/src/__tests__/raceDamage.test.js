@@ -97,6 +97,8 @@ describe('persisted race damage and pit repairs', () => {
   });
 
   test('valid slow race lap triggers once; measured lap and standings stay unmodified', async () => {
+    const sounds = [];
+    service.on('soundboardAutoEvent', (cue) => sounds.push(cue));
     const { session, assignment } = await fixture();
     await lap(12000);
     expect((await prisma.sessionDriver.findUnique({ where: { id: assignment.id } })).damageStatus).toBe(
@@ -118,6 +120,8 @@ describe('persisted race damage and pit repairs', () => {
       12000, 13000, 15000,
     ]);
     expect(service.io.emit.mock.calls.filter(([event]) => event === 'session:damage_changed')).toHaveLength(1);
+    expect(sounds.filter((cue) => cue.type === 'damage')).toHaveLength(1);
+    expect(sounds.find((cue) => cue.type === 'damage').data.driverName).toBe('Damage test driver');
   });
 
   test('disabled, paused, finishing, no-GO, non-race and invalid laps cannot trigger damage', async () => {

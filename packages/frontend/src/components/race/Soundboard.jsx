@@ -18,7 +18,7 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { useVoice } from '../../context/VoiceContext'
 import { io } from 'socket.io-client'
-import { autoCueKey, autoSpeechText } from '../../lib/soundboardAuto'
+import { AUTO_CUE_TYPES, autoCueKey, autoSpeechText } from '../../lib/soundboardAuto'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 const WS_URL = import.meta.env.VITE_WS_URL || ''
@@ -56,7 +56,7 @@ export default function Soundboard({ directorKey = '', allowDirectorWithoutKey =
   const directorAccess = Boolean(directorKey || allowDirectorWithoutKey)
   const [open, setOpen] = useState(directorAccess)
   const [presets, setPresets] = useState([])
-  const [autoMappings, setAutoMappings] = useState({ bestlap: '', finished: '' })
+  const [autoMappings, setAutoMappings] = useState({})
   const [autoLoaded, setAutoLoaded] = useState(false)
   const [autoPreview, setAutoPreview] = useState('')
   const [editingId, setEditingId] = useState(null)
@@ -110,10 +110,14 @@ export default function Soundboard({ directorKey = '', allowDirectorWithoutKey =
       })
       .then((result) => {
         if (active && result.success && result.data && typeof result.data === 'object') {
-          setAutoMappings({
-            bestlap: typeof result.data.bestlap === 'string' ? result.data.bestlap : '',
-            finished: typeof result.data.finished === 'string' ? result.data.finished : '',
-          })
+          setAutoMappings(
+            Object.fromEntries(
+              AUTO_CUE_TYPES.filter((type) => typeof result.data[type] === 'string').map((type) => [
+                type,
+                result.data[type],
+              ])
+            )
+          )
         }
       })
       .catch(() => {
@@ -347,10 +351,11 @@ export default function Soundboard({ directorKey = '', allowDirectorWithoutKey =
         // Browser storage may be unavailable; at least avoid duplicates in this tab.
       }
       if (previous.includes(key) || autoSeenRef.current.has(key)) return
-      if (type === 'bestlap' && autoQueueRef.current.some((entry) => entry.type === 'finished')) return
-      if (type === 'finished') autoQueueRef.current = autoQueueRef.current.filter((entry) => entry.type !== 'bestlap')
-      if (autoQueueRef.current.length >= 2) return
+      if (autoQueueRef.current.some((entry) => entry.type === 'finished')) return
+      if (type === 'finished') autoQueueRef.current = []
+      if (autoQueueRef.current.length >= 8) return
       autoSeenRef.current.add(key)
+      if (autoSeenRef.current.size > 128) autoSeenRef.current.delete(autoSeenRef.current.values().next().value)
       try {
         localStorage.setItem(AUTO_HISTORY_KEY, JSON.stringify([...previous, key].slice(-128)))
       } catch {
@@ -742,25 +747,27 @@ export default function Soundboard({ directorKey = '', allowDirectorWithoutKey =
           {!directorAccess && (
             <fieldset className="rounded-md border p-2 space-y-2">
               <legend className="text-sm font-medium">{t('auto.title')}</legend>
-              {['bestlap', 'finished'].map((type) => (
-                <label key={type} className="flex flex-wrap items-center gap-2 text-xs">
-                  <span className="min-w-24">{t(`auto.${type}`)}</span>
-                  <select
-                    className="rounded-md border bg-background p-1"
-                    aria-label={t(`auto.${type}`)}
-                    value={autoMappings[type]}
-                    disabled={!autoLoaded || busy}
-                    onChange={(event) => void saveAutoMapping(type, event.target.value)}
-                  >
-                    <option value="">{t('auto.off')}</option>
-                    {presets.map((preset) => (
-                      <option key={preset.id} value={preset.id}>
-                        {preset.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ))}
+              <div className="grid gap-2 sm:grid-cols-2">
+                {AUTO_CUE_TYPES.map((type) => (
+                  <label key={type} className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className="min-w-24">{t(`auto.${type}`)}</span>
+                    <select
+                      className="min-h-11 min-w-0 flex-1 rounded-md border bg-background p-2"
+                      aria-label={t(`auto.${type}`)}
+                      value={autoMappings[type] || ''}
+                      disabled={!autoLoaded || busy}
+                      onChange={(event) => void saveAutoMapping(type, event.target.value)}
+                    >
+                      <option value="">{t('auto.off')}</option>
+                      {presets.map((preset) => (
+                        <option key={preset.id} value={preset.id}>
+                          {preset.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+              </div>
               <p className="text-xs text-muted-foreground">{t('auto.description')}</p>
             </fieldset>
           )}
