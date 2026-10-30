@@ -30,8 +30,9 @@ export default function DriverFuelStrategy({ session, assignment, live, accessTo
     [session.virtualFuelEvents, assignment.id]
   )
   const units = live?.virtualFuelUnits ?? assignment.virtualFuelUnits
-  const estimatedLaps = perLap && Number.isInteger(units) ? Math.floor(units / perLap) : null
+  const estimatedLaps = perLap && validVirtualFuelUnits(units) ? Math.floor(units / perLap) : null
   const targetUnits = virtualFuelTarget(Number(targetLaps), perLap)
+  const resultingUnits = targetUnits !== null && validVirtualFuelUnits(units) ? Math.max(units, targetUnits) : null
   const available =
     accessToken &&
     session.virtualFuelRate != null &&
@@ -138,6 +139,11 @@ export default function DriverFuelStrategy({ session, assignment, live, accessTo
           : t('fuelStrategy.noEstimate')}
       </p>
       <p className="text-xs text-muted-foreground">{t('fuelStrategy.estimateNote')}</p>
+      {session.virtualFuelRate != null && perLap !== null && (
+        <p data-testid="fuel-full-range" className="text-sm text-muted-foreground">
+          {t('fuelStrategy.fullRange', { laps: Math.floor(VIRTUAL_FUEL_FULL / perLap) })}
+        </p>
+      )}
       <p className="text-sm" data-testid="fuel-saved-plan">
         {session.virtualFuelRate == null
           ? t('fuelStrategy.off')
@@ -177,6 +183,17 @@ export default function DriverFuelStrategy({ session, assignment, live, accessTo
               ? t('fuelStrategy.invalidTarget')
               : t('fuelStrategy.preview', { percent: targetUnits / 100 })}
         </p>
+        {session.virtualFuelRate != null && targetUnits !== null && (
+          <p data-testid="fuel-refill-preview" className="text-sm text-muted-foreground">
+            {resultingUnits === null
+              ? t('fuelStrategy.refillUnavailable')
+              : t('fuelStrategy.refillPreview', {
+                  added: (resultingUnits - units) / 100,
+                  percent: resultingUnits / 100,
+                  laps: Math.floor(resultingUnits / perLap),
+                })}
+          </p>
+        )}
         <div className="flex flex-wrap gap-2">
           <Button type="submit" data-testid="fuel-plan-save" disabled={!available || busy || targetUnits === null}>
             {t(busy ? 'fuelStrategy.saving' : 'fuelStrategy.save')}
