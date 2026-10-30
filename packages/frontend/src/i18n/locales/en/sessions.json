@@ -181,6 +181,13 @@
       "note": "Reconstructed from the saved fuel log; not CU measurements. Without a matching lap event, the history remains unknown.",
       "levels": "{{before}} % → {{after}} %",
       "unavailable": "Unknown"
+    },
+    "fuelWeightPreview": {
+      "title": "Fuel weight — time preview",
+      "percent": "Time penalty with a full tank (%)",
+      "hint": "0 % disables the preview. Linear penalty from the fuel level before the recorded lap burn; saved tyre time adjustments are included. The saved classification remains unchanged.",
+      "invalid": "Enter a whole percentage from 0 to {{max}}.",
+      "time": "Time with fuel weight (preview)"
     }
   }
 }

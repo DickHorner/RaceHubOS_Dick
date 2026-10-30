@@ -1,6 +1,7 @@
 // Software-only virtual fuel. One percent equals 100 integer units.
 export const VIRTUAL_FUEL_FULL = 10000;
 export const VIRTUAL_FUEL_MAX_RATE = 100;
+export const VIRTUAL_FUEL_MAX_WEIGHT_PERCENT = 30;
 
 export function validVirtualFuelRate(rate) {
   return rate === null || (Number.isInteger(rate) && rate >= 1 && rate <= VIRTUAL_FUEL_MAX_RATE);
@@ -93,4 +94,16 @@ export function virtualFuelTarget(laps, unitsPerLap) {
 
 export function validVirtualFuelUnits(units) {
   return Number.isInteger(units) && units >= 0 && units <= VIRTUAL_FUEL_FULL;
+}
+
+export function validVirtualFuelWeightPercent(percent) {
+  return Number.isInteger(percent) && percent >= 0 && percent <= VIRTUAL_FUEL_MAX_WEIGHT_PERCENT;
+}
+
+// Preview only: apply a linear fuel-weight factor to a measured or saved tyre-adjusted time.
+export function virtualFuelWeightedLapTime(lapTime, units, percent) {
+  if (!Number.isFinite(lapTime) || lapTime <= 0 || !validVirtualFuelWeightPercent(percent)) return null;
+  if (percent === 0) return Math.round(lapTime);
+  if (!validVirtualFuelUnits(units)) return null;
+  return Math.round(lapTime * (1 + (percent * units) / (100 * VIRTUAL_FUEL_FULL)));
 }

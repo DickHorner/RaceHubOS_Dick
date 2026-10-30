@@ -181,6 +181,13 @@
       "note": "Reconstitué depuis le journal de carburant enregistré ; aucune mesure CU. Sans événement de tour correspondant, l’historique reste inconnu.",
       "levels": "{{before}} % → {{after}} %",
       "unavailable": "Inconnu"
+    },
+    "fuelWeightPreview": {
+      "title": "Poids du carburant — aperçu du temps",
+      "percent": "Pénalité de temps avec le plein (%)",
+      "hint": "0 % désactive l’aperçu. Pénalité linéaire selon le niveau avant la consommation du tour enregistré ; les corrections de temps des pneus sont incluses. Le classement enregistré reste inchangé.",
+      "invalid": "Saisissez un pourcentage entier entre 0 et {{max}}.",
+      "time": "Temps avec poids du carburant (aperçu)"
     }
   }
 }

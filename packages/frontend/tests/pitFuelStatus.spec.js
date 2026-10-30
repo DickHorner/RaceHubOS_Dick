@@ -991,3 +991,65 @@ test('lap fuel history is hidden when virtual fuel is disabled and raw lap times
   await expect(page.getByRole('cell', { name: '11.000', exact: true })).toBeVisible()
   expect(state.writes).toEqual([])
 })
+
+for (const type of ['race', 'qualif']) {
+  test(`${type} fuel weight preview uses historical tank levels without rewriting results`, async ({ page }) => {
+    const state = await mockLapFuelHistory(page, type)
+    const saved = JSON.stringify(state.current)
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/sessions/pit-session')
+    await expect(page.getByTestId('fuel-weight-percent')).toHaveValue('0')
+    await expect(page.getByTestId('fuel-weight-heading')).toHaveCount(0)
+    await page.getByTestId('fuel-weight-percent').fill('10')
+    await expect(page.getByTestId('fuel-weight-a1')).toHaveText('10.250')
+    await expect(page.getByTestId('fuel-weight-a2')).toHaveText('11.550')
+    await expect(page.getByTestId('fuel-weight-b1')).toHaveText('10.000')
+    await expect(page.getByTestId('fuel-weight-no-event')).toHaveText('Unknown')
+    await expect(page.getByTestId('lap-fuel-a1')).toHaveText('25 % → 24 %')
+    expect(JSON.stringify(state.current)).toBe(saved)
+    expect(state.writes).toEqual([])
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    await page.reload()
+    await expect(page.getByTestId('fuel-weight-percent')).toHaveValue('0')
+    await expect(page.getByTestId('fuel-weight-heading')).toHaveCount(0)
+    expect(state.writes).toEqual([])
+  })
+}
+
+test('fuel weight preview includes saved tyre correction and keeps missing correction unknown', async ({ page }) => {
+  const state = await mockLapFuelHistory(page)
+  state.current.tyreMismatchPercent = 10
+  state.current.laps[0].simulatedLapTime = 12100
+  state.current.laps[2].simulatedLapTime = 11000
+  await page.goto('/sessions/pit-session')
+  await page.getByTestId('fuel-weight-percent').fill('10')
+  await expect(page.getByTestId('fuel-weight-a1')).toHaveText('11.275')
+  await expect(page.getByTestId('fuel-weight-a2')).toHaveText('12.705')
+  await expect(page.getByTestId('fuel-weight-b1')).toHaveText('Unknown')
+  await expect(page.getByTestId('fuel-weight-no-event')).toHaveText('Unknown')
+  expect(state.current.laps[0]).toMatchObject({ lapTime: 11000, simulatedLapTime: 12100 })
+  expect(state.writes).toEqual([])
+})
+
+test('fuel weight input validates limits and switches off without saving a configuration', async ({ page }) => {
+  const state = await mockLapFuelHistory(page)
+  await page.goto('/sessions/pit-session')
+  for (const value of ['', '-1', '31', '2.5']) {
+    await page.getByTestId('fuel-weight-percent').fill(value)
+    await expect(page.getByTestId('fuel-weight-error')).toContainText('0 to 30')
+    await expect(page.getByTestId('fuel-weight-heading')).toHaveCount(0)
+  }
+  await page.getByTestId('fuel-weight-percent').fill('30')
+  await expect(page.getByTestId('fuel-weight-a1')).toHaveText('10.750')
+  await page.getByTestId('fuel-weight-percent').fill('0')
+  await expect(page.getByTestId('fuel-weight-error')).toHaveCount(0)
+  await expect(page.getByTestId('fuel-weight-heading')).toHaveCount(0)
+  expect(state.writes).toEqual([])
+  state.current.virtualFuelRate = null
+  await page.reload()
+  await expect(page.getByTestId('fuel-weight-preview')).toHaveCount(0)
+  state.current.virtualFuelRate = 5
+  state.current.type = 'practice'
+  await page.reload()
+  await expect(page.getByTestId('fuel-weight-preview')).toHaveCount(0)
+})

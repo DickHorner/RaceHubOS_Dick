@@ -3,6 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Flag, MapPin, Trash2, Trophy, Users2, Clock, Timer, Pause, Scale, Printer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import DeleteButton from '../components/ui/DeleteButton'
 import ExportButton from '../components/ui/ExportButton'
 import { Card, CardContent } from '@/components/ui/card'
@@ -21,6 +22,9 @@ import {
   PenaltyKind,
   PenaltyStatus,
   virtualFuelLapHistory,
+  virtualFuelWeightedLapTime,
+  validVirtualFuelWeightPercent,
+  VIRTUAL_FUEL_MAX_WEIGHT_PERCENT,
 } from '@racehubos/shared'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
@@ -41,6 +45,12 @@ export default function SessionDetail() {
   const navigate = useNavigate()
   const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [weightInput, setWeightInput] = useState('0')
+  const weightPercent = Number(weightInput)
+  const weightValid = weightInput.trim() !== '' && validVirtualFuelWeightPercent(weightPercent)
+  const canPreviewWeight =
+    session?.virtualFuelRate != null && [SessionType.RACE, SessionType.QUALIF].includes(session?.type)
+  const showWeightPreview = canPreviewWeight && weightValid && weightPercent > 0
 
   useEffect(() => {
     async function load() {
@@ -520,6 +530,38 @@ export default function SessionDetail() {
                   <p className="text-xs text-muted-foreground mt-1">{t('profile.lapFuel.note')}</p>
                 )}
               </div>
+              {canPreviewWeight && (
+                <fieldset
+                  className="m-4 rounded-lg border border-border p-3 space-y-2"
+                  data-testid="fuel-weight-preview"
+                >
+                  <legend className="px-1 text-sm font-semibold">{t('profile.fuelWeightPreview.title')}</legend>
+                  <label htmlFor="fuel-weight-percent" className="block text-sm">
+                    {t('profile.fuelWeightPreview.percent')}
+                  </label>
+                  <Input
+                    id="fuel-weight-percent"
+                    data-testid="fuel-weight-percent"
+                    type="number"
+                    min="0"
+                    max={VIRTUAL_FUEL_MAX_WEIGHT_PERCENT}
+                    step="1"
+                    value={weightInput}
+                    onChange={(event) => setWeightInput(event.target.value)}
+                    aria-invalid={!weightValid}
+                    aria-describedby="fuel-weight-hint"
+                    className="min-h-11 max-w-48"
+                  />
+                  <p id="fuel-weight-hint" className="text-xs text-muted-foreground">
+                    {t('profile.fuelWeightPreview.hint')}
+                  </p>
+                  {!weightValid && (
+                    <p role="alert" className="text-sm text-destructive" data-testid="fuel-weight-error">
+                      {t('profile.fuelWeightPreview.invalid', { max: VIRTUAL_FUEL_MAX_WEIGHT_PERCENT })}
+                    </p>
+                  )}
+                </fieldset>
+              )}
               <div className="max-h-96 overflow-auto">
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 bg-card border-b border-border">
@@ -531,6 +573,11 @@ export default function SessionDetail() {
                       {session.virtualFuelRate != null && (
                         <th className="px-4 py-2 font-medium text-right" data-testid="lap-fuel-heading">
                           {t('profile.lapFuel.title')}
+                        </th>
+                      )}
+                      {showWeightPreview && (
+                        <th className="px-4 py-2 font-medium text-right" data-testid="fuel-weight-heading">
+                          {t('profile.fuelWeightPreview.time')}
                         </th>
                       )}
                       {session.tyreMismatchPercent > 0 && (
@@ -550,6 +597,14 @@ export default function SessionDetail() {
                         fuel.driverId === lap.driverId &&
                         fuel.carId === lap.carId &&
                         fuel.controller === lap.controller
+                      const weightTime =
+                        showWeightPreview && fuelMatches && fuel.afterUnits !== null
+                          ? virtualFuelWeightedLapTime(
+                              session.tyreMismatchPercent > 0 ? lap.simulatedLapTime : lap.lapTime,
+                              fuel.beforeUnits,
+                              weightPercent
+                            )
+                          : null
                       return (
                         <tr key={lap.id || i} className={`${lap.lapTime === fastestLap ? 'bg-purple-500/10' : ''}`}>
                           <td className="px-4 py-1.5 font-mono text-muted-foreground">{lap.lapNumber}</td>
@@ -581,6 +636,15 @@ export default function SessionDetail() {
                                     after: fuel.afterUnits / 100,
                                   })
                                 : t('profile.lapFuel.unavailable')}
+                            </td>
+                          )}
+                          {showWeightPreview && (
+                            <td className="px-4 py-1.5 text-right" data-testid={`fuel-weight-${lap.id}`}>
+                              {weightTime === null ? (
+                                t('profile.lapFuel.unavailable')
+                              ) : (
+                                <LapTime time={weightTime} size="sm" />
+                              )}
                             </td>
                           )}
                           {session.tyreMismatchPercent > 0 && (
