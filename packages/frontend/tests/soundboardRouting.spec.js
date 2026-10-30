@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { AUTO_CUE_TYPES } from '../src/lib/soundboardAuto.js'
 
 test.use({ locale: 'en-US' })
 
@@ -165,6 +166,43 @@ test('director auto cues map verified best lap and finish to saved speech and HT
       })
       .toEqual({ bestlap: 'auto-voice', finished: 'auto-clip' })
 
+    const additional = AUTO_CUE_TYPES.filter((type) => !['bestlap', 'finished'].includes(type))
+    const labels = [
+      'Start preparation complete',
+      'Race start (GO)',
+      'Session paused',
+      'Race resumed (GO)',
+      'Finishing phase started',
+      'Rain begins (simulation)',
+      'Track dry (simulation)',
+      'VSC activated',
+      'VSC ended',
+      'Pit stop completed',
+      'Tyre change confirmed',
+      'Damage triggered (simulation)',
+      'Damage repaired (simulation)',
+      'Damage retirement (simulation)',
+    ]
+    const text = { id: 'auto-transition', label: 'Transition voice', kind: 'speech', text: 'Confirmed event' }
+    await page.request.put('/api/preferences/soundboard:presets', { data: { value: [...presets, text] } })
+    await page.reload()
+    await page.getByRole('button', { name: 'Soundboard', exact: true }).click()
+    for (const label of labels) {
+      const select = page.getByRole('combobox', { name: label, exact: true })
+      await expect(select).toHaveValue('')
+      await expect(select).toBeEnabled()
+      await select.selectOption('auto-transition')
+      await expect(select).toBeEnabled()
+    }
+    const mappings = (await (await page.request.get('/api/preferences/soundboard:auto')).json()).data
+    expect(mappings.bestlap).toBe('auto-voice')
+    expect(mappings.finished).toBe('auto-clip')
+    for (const type of additional) expect(mappings[type]).toBe('auto-transition')
+    await page.reload()
+    await page.getByRole('button', { name: 'Soundboard', exact: true }).click()
+    for (const label of labels)
+      await expect(page.getByRole('combobox', { name: label, exact: true })).toHaveValue('auto-transition')
+
     await director.addInitScript(() => {
       window.__autoSpoken = []
       window.__autoClip = []
@@ -251,10 +289,28 @@ test('director auto cues map verified best lap and finish to saved speech and HT
     await expect.poll(() => preferenceReads).toBe(beforeDuplicate + 2)
     expect(await director.evaluate(() => window.__autoSpoken.length)).toBe(1)
 
+    for (const [index, type] of additional.entries()) {
+      const data = { sessionId: 'auto-race', sessionType: 'race', eventId: crypto.randomUUID() }
+      send(type, data)
+      await expect.poll(() => director.evaluate(() => window.__autoSpoken.length)).toBe(index + 2)
+      expect((await director.evaluate(() => window.__autoSpoken)).at(-1)).toBe('Confirmed event')
+      const before = preferenceReads
+      send(type, data)
+      await expect.poll(() => preferenceReads).toBe(before + 2)
+      expect(await director.evaluate(() => window.__autoSpoken.length)).toBe(index + 2)
+    }
+
+    // Disabled mappings suppress an otherwise valid server event.
+    await page.request.put('/api/preferences/soundboard:auto', { data: { value: { ...mappings, rain: '' } } })
+    const beforeOff = preferenceReads
+    send('rain', { sessionId: 'auto-race', sessionType: 'race', eventId: crypto.randomUUID() })
+    await expect.poll(() => preferenceReads).toBe(beforeOff + 2)
+    expect(await director.evaluate(() => window.__autoSpoken.length)).toBe(additional.length + 1)
+
     const beforeMissing = preferenceReads
     send('bestlap', { ...best, driverName: null, totalLaps: 4 })
     await expect.poll(() => preferenceReads).toBe(beforeMissing + 2)
-    expect(await director.evaluate(() => window.__autoSpoken.length)).toBe(1)
+    expect(await director.evaluate(() => window.__autoSpoken.length)).toBe(additional.length + 1)
 
     const finish = { sessionId: 'auto-race', sessionType: 'race', startedAt: '2026-10-28T12:00:00Z' }
     send('finished', finish)
@@ -271,7 +327,8 @@ test('director auto cues map verified best lap and finish to saved speech and HT
 
     await director.getByRole('button', { name: 'Mute' }).click()
     send('bestlap', { ...best, totalLaps: 5 })
-    expect(await director.evaluate(() => window.__autoSpoken.length)).toBe(1)
+    send('rain', { sessionId: 'auto-race', sessionType: 'race', eventId: crypto.randomUUID() })
+    expect(await director.evaluate(() => window.__autoSpoken.length)).toBe(additional.length + 1)
   } finally {
     await directorContext.close()
     if (uploadedUrl) await page.request.delete(uploadedUrl)

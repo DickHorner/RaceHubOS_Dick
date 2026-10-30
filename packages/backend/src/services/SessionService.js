@@ -1,5 +1,6 @@
 import { createPrismaClient } from '../lib/prisma.js';
 import EventEmitter from 'events';
+import { randomUUID } from 'node:crypto';
 import {
   SESSION_TYPES,
   SessionStatus,
@@ -2011,7 +2012,7 @@ export class SessionService extends EventEmitter {
       try {
         await this.restoreVscBaseline(cleanup);
         this.vsc = null;
-        this.emit('session:vsc', this.getVscState());
+        this.emit('session:vsc', { ...this.getVscState(), sessionId: vsc.sessionId });
         return this.getVscState();
       } catch (error) {
         vsc.status = 'restore_failed';
@@ -2423,6 +2424,71 @@ export class SessionService extends EventEmitter {
    */
   emit(event, data) {
     this.io?.emit(event, data);
+    this.emitAutoSound(event, data);
+  }
+
+  // Only confirmed transitions, never heartbeat snapshots or requested pit operations.
+  emitAutoSound(event, data) {
+    if (
+      !data?.sessionId ||
+      data.sessionId !== this.activeSessionId ||
+      ![SessionType.RACE, SessionType.QUALIF, SessionType.PRACTICE].includes(this.currentPhase)
+    )
+      return;
+
+    let type;
+    switch (event) {
+      case 'session:started':
+        type = 'prepared';
+        break;
+      case 'session:race_started':
+        type = 'started';
+        break;
+      case 'session:race_resumed':
+        type = 'resumed';
+        break;
+      case 'session:status_changed':
+        if (data.status === SessionStatus.PAUSED && data.previousStatus !== SessionStatus.PAUSED) type = 'paused';
+        break;
+      case 'session:finishing':
+        type = 'finishing';
+        break;
+      case 'session:weather_changed':
+        if (data.weatherCondition === WeatherCondition.RAIN) type = 'rain';
+        else if (data.weatherCondition === WeatherCondition.DRY) type = 'dry';
+        break;
+      case 'session:pit_stop':
+        type = 'pitstop';
+        break;
+      case 'session:tyre_changed':
+        if (data.change?.id) type = 'tyrechanged';
+        break;
+      case 'session:damage_changed':
+        type = {
+          [DamageStatus.ACTIVE]: 'damage',
+          [DamageStatus.REPAIRED]: 'repaired',
+          [DamageStatus.DNF]: 'dnf',
+        }[data.damageStatus];
+        break;
+      case 'session:vsc':
+        if (data.active === true) type = 'vscon';
+        else if (data.status === 'inactive') type = 'vscoff';
+        break;
+    }
+    if (!type) return;
+    const driver = data.sessionDriverId ? this.sessionDrivers.find((entry) => entry.id === data.sessionDriverId) : null;
+    super.emit('soundboardAutoEvent', {
+      type,
+      data: {
+        sessionId: data.sessionId,
+        sessionType: this.currentPhase,
+        eventId: randomUUID(),
+        driverName: driver?.driver?.name || null,
+        carBrand: driver?.car?.brand || null,
+        carModel: driver?.car?.model || null,
+        controller: driver?.controller ?? null,
+      },
+    });
   }
 
   emitStatusChanged(status, previousStatus) {

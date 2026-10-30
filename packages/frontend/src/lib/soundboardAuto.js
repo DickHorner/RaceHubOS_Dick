@@ -1,3 +1,22 @@
+export const AUTO_CUE_TYPES = [
+  'prepared',
+  'started',
+  'paused',
+  'resumed',
+  'finishing',
+  'finished',
+  'bestlap',
+  'rain',
+  'dry',
+  'vscon',
+  'vscoff',
+  'pitstop',
+  'tyrechanged',
+  'damage',
+  'repaired',
+  'dnf',
+]
+
 // Authoritative socket payloads only: never synthesize a race or a driver from UI state.
 export function autoCueKey(type, data) {
   if (typeof data?.sessionId !== 'string' || !data.sessionId) return null
@@ -15,13 +34,21 @@ export function autoCueKey(type, data) {
     return `finished:${data.sessionId}:${data.startedAt}`
   }
 
+  if (
+    AUTO_CUE_TYPES.includes(type) &&
+    ['race', 'qualif', 'practice'].includes(data.sessionType) &&
+    typeof data.eventId === 'string' &&
+    /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(data.eventId)
+  )
+    return `${type}:${data.sessionId}:${data.eventId}`
+
   return null
 }
 
 // Missing recorded fields suppress the speech cue rather than announcing a fictitious driver.
 export function autoSpeechText(template, type, data, formatTime) {
   if (typeof template !== 'string' || template.length > 300) return null
-  if (type !== 'bestlap') {
+  if (!['bestlap', 'pitstop', 'tyrechanged', 'damage', 'repaired', 'dnf'].includes(type)) {
     return /\{(?:driver|car|controller|lapTime)\}/.test(template) ? null : template
   }
   const values = {

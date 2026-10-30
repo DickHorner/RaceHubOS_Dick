@@ -270,6 +270,8 @@ describe('VSC speed cap and restoration', () => {
   });
 
   it('caps assigned cars and restores each saved speed', async () => {
+    const sounds = [];
+    service.on('soundboardAutoEvent', (cue) => sounds.push(cue));
     expect(await service.startVsc(3)).toMatchObject({ status: 'active', active: true, cap: 3 });
     expect(writes).toEqual([
       [0, 3],
@@ -284,6 +286,8 @@ describe('VSC speed cap and restoration', () => {
       [2, 10],
     ]);
     expect(service.io.emit).toHaveBeenCalledWith('session:vsc', expect.objectContaining({ active: true }));
+    expect(sounds.map((cue) => cue.type)).toEqual(['vscon', 'vscoff']);
+    expect(sounds.every((cue) => cue.data.sessionId === 'race-1')).toBe(true);
   });
 
   it('keeps other speed writes capped during VSC', async () => {
