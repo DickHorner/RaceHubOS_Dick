@@ -930,7 +930,15 @@ export class SessionService extends EventEmitter {
               this.emit('session:tyre_changed', { sessionId, sessionDriverId: driver.id, change: result.change });
             }
             if (result.event) {
-              driver.virtualFuelUnits = virtualFuelAfter(driver.virtualFuelUnits ?? VIRTUAL_FUEL_FULL, result.event);
+              const beforeUnits = driver.virtualFuelUnits;
+              driver.virtualFuelUnits = virtualFuelAfter(beforeUnits ?? VIRTUAL_FUEL_FULL, result.event);
+              this.emitAutoSound('session:virtual_fuel_changed', {
+                sessionId,
+                sessionDriverId: driver.id,
+                kind: result.event.kind,
+                beforeUnits,
+                afterUnits: driver.virtualFuelUnits,
+              });
               if (driver.pendingFuelUnits != null) driver.fuelPlanVersion++;
               driver.pendingFuelLaps = null;
               driver.pendingFuelUnits = null;
@@ -2095,7 +2103,15 @@ export class SessionService extends EventEmitter {
         });
       });
       if (this.activeSessionId === sessionId) {
-        driver.virtualFuelUnits = virtualFuelAfter(driver.virtualFuelUnits ?? VIRTUAL_FUEL_FULL, event);
+        const beforeUnits = driver.virtualFuelUnits;
+        driver.virtualFuelUnits = virtualFuelAfter(beforeUnits ?? VIRTUAL_FUEL_FULL, event);
+        this.emitAutoSound('session:virtual_fuel_changed', {
+          sessionId,
+          sessionDriverId: driver.id,
+          kind: event.kind,
+          beforeUnits,
+          afterUnits: driver.virtualFuelUnits,
+        });
       }
     });
   }
@@ -2459,6 +2475,22 @@ export class SessionService extends EventEmitter {
         break;
       case 'session:pit_stop':
         type = 'pitstop';
+        break;
+      case 'session:virtual_fuel_changed':
+        if (
+          this.sessionConfig?.virtualFuelRate == null ||
+          !validVirtualFuelUnits(data.beforeUnits) ||
+          !validVirtualFuelUnits(data.afterUnits)
+        )
+          break;
+        if (data.kind === 'refuel' && data.afterUnits > data.beforeUnits) type = 'fuelrefilled';
+        else if (data.kind === 'lap' && data.beforeUnits > 0 && data.afterUnits === 0) type = 'fuelempty';
+        else if (
+          data.kind === 'lap' &&
+          data.beforeUnits > VIRTUAL_FUEL_FULL / 5 &&
+          data.afterUnits <= VIRTUAL_FUEL_FULL / 5
+        )
+          type = 'fuellow';
         break;
       case 'session:tyre_changed':
         if (data.change?.id) type = 'tyrechanged';

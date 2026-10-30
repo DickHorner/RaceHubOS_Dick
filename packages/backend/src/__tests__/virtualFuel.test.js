@@ -299,6 +299,66 @@ describe('virtual fuel event persistence', () => {
     expect((await prisma.sessionDriver.findUnique({ where: { id: data.assigned.id } })).totalLaps).toBe(1);
   });
 
+  test.each(['race', 'qualif'])(
+    'confirmed %s fuel crossings warn once, survive reload and re-arm after a real virtual refill',
+    async (type) => {
+      const data = await fixture();
+      await prisma.session.update({ where: { id: data.session.id }, data: { type } });
+      await prisma.sessionDriver.update({ where: { id: data.assigned.id }, data: { initialFuelUnits: 2100 } });
+      const sounds = [];
+      service.on('soundboardAutoEvent', (cue) => {
+        if (cue.type.startsWith('fuel')) sounds.push(cue);
+      });
+      await service.loadSession(data.session.id);
+      await lap(10000);
+      expect(sounds.map((cue) => cue.type)).toEqual(['fuellow']);
+      expect(sounds[0].data).toMatchObject({ driverName: 'Test pilot', carModel: 'Test car', controller: 0 });
+      await service.loadSession(data.session.id);
+      await lap(10000);
+      expect(sounds).toHaveLength(1);
+      const stop = (source) =>
+        service.recordPitStop({ controller: 0, enteredAt: new Date(Date.now() - 5000), exitedAt: new Date(), source });
+      await stop('cu');
+      expect(sounds).toHaveLength(1);
+      await service.requestFuelTarget(data.session.id, data.assigned.id, { targetUnits: 2500 }, 0);
+      await stop('simulator');
+      await lap(50000);
+      await lap(200000);
+      await lap(10000);
+      expect(sounds.map((cue) => cue.type)).toEqual(['fuellow', 'fuelrefilled', 'fuellow', 'fuelempty']);
+      expect(new Set(sounds.map((cue) => cue.data.eventId)).size).toBe(4);
+      await stop('simulator');
+      expect(sounds.at(-1).type).toBe('fuelrefilled');
+      await stop('simulator');
+      expect(sounds).toHaveLength(5);
+    }
+  );
+
+  test('failed fuel transactions cannot announce a burn or refill', async () => {
+    const data = await fixture();
+    await prisma.sessionDriver.update({ where: { id: data.assigned.id }, data: { initialFuelUnits: 2100 } });
+    await service.loadSession(data.session.id);
+    const sounds = [];
+    service.on('soundboardAutoEvent', (cue) => sounds.push(cue));
+    const failure = jest.spyOn(service.prisma, '$transaction').mockRejectedValue(new Error('write failed'));
+    try {
+      await expect(service.saveLap(service.getDriverByController(0), 20000)).rejects.toThrow('write failed');
+      await expect(
+        service.recordPitStop({
+          controller: 0,
+          enteredAt: new Date(Date.now() - 5000),
+          exitedAt: new Date(),
+          source: 'simulator',
+        })
+      ).rejects.toThrow('write failed');
+    } finally {
+      failure.mockRestore();
+    }
+    expect(sounds).toEqual([]);
+    expect(service.getLeaderboard()[0].virtualFuelUnits).toBe(2100);
+    expect(await prisma.virtualFuelEvent.count()).toBe(0);
+  });
+
   test('reload replays lap and simulator pit events, with CU pit observations excluded', async () => {
     const data = await fixture(6, 'active', 'ON');
     await service.loadSession(data.session.id);

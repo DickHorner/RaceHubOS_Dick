@@ -105,4 +105,47 @@ describe('confirmed automatic sound triggers', () => {
     expect(sounds[0].data.controller).toBeNull();
     expect(sounds[0].data.eventId).not.toBe(sounds[1].data.eventId);
   });
+
+  it('warns only on downward virtual-fuel crossings, preferring empty to low', () => {
+    service.sessionConfig = { virtualFuelRate: 6 };
+    const burn = (beforeUnits, afterUnits) =>
+      service.emit('session:virtual_fuel_changed', {
+        sessionId: 's1',
+        sessionDriverId: 'sd1',
+        kind: 'lap',
+        beforeUnits,
+        afterUnits,
+      });
+    burn(2100, 2000);
+    burn(2000, 1900);
+    burn(100, 0);
+    burn(0, 0);
+    burn(2500, 0);
+    expect(sounds.map((cue) => cue.type)).toEqual(['fuellow', 'fuelempty', 'fuelempty']);
+    expect(sounds.every((cue) => cue.data.driverName === 'Alice')).toBe(true);
+  });
+
+  it('ignores disabled, unknown, invalid and unchanged fuel, and only announces an actual increase as refill', () => {
+    const emitFuel = (data) =>
+      service.emit('session:virtual_fuel_changed', {
+        sessionId: 's1',
+        sessionDriverId: 'sd1',
+        kind: 'lap',
+        beforeUnits: 2100,
+        afterUnits: 1900,
+        ...data,
+      });
+    emitFuel({});
+    service.sessionConfig = { virtualFuelRate: 6 };
+    for (const units of [null, undefined, -1, 10001, 1.5, NaN]) {
+      emitFuel({ beforeUnits: units });
+      emitFuel({ afterUnits: units });
+    }
+    emitFuel({ kind: 'refuel', beforeUnits: 2000, afterUnits: 2000 });
+    emitFuel({ kind: 'refuel', beforeUnits: 2000, afterUnits: 1500 });
+    emitFuel({ kind: 'unknown' });
+    expect(sounds).toEqual([]);
+    emitFuel({ kind: 'refuel', beforeUnits: 0, afterUnits: 1500 });
+    expect(sounds.map((cue) => cue.type)).toEqual(['fuelrefilled']);
+  });
 });

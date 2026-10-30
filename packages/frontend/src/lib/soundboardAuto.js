@@ -15,6 +15,9 @@ export const AUTO_CUE_TYPES = [
   'damage',
   'repaired',
   'dnf',
+  'fuellow',
+  'fuelempty',
+  'fuelrefilled',
 ]
 
 // Authoritative socket payloads only: never synthesize a race or a driver from UI state.
@@ -48,7 +51,19 @@ export function autoCueKey(type, data) {
 // Missing recorded fields suppress the speech cue rather than announcing a fictitious driver.
 export function autoSpeechText(template, type, data, formatTime) {
   if (typeof template !== 'string' || template.length > 300) return null
-  if (!['bestlap', 'pitstop', 'tyrechanged', 'damage', 'repaired', 'dnf'].includes(type)) {
+  if (
+    ![
+      'bestlap',
+      'pitstop',
+      'tyrechanged',
+      'damage',
+      'repaired',
+      'dnf',
+      'fuellow',
+      'fuelempty',
+      'fuelrefilled',
+    ].includes(type)
+  ) {
     return /\{(?:driver|car|controller|lapTime)\}/.test(template) ? null : template
   }
   const values = {
