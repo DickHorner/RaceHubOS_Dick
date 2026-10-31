@@ -140,6 +140,7 @@ model Session {
   tyreMismatchPercent Int       @default(0) // Optional virtual lap-time penalty, 0-30%
   requiredPitStops Int           @default(0) // Minimum completed verified pit cycles; 0 disables
   virtualFuelRate Int?            // Virtual fuel burn: % per racing minute; null disables
+  fuelWeightPercent Int          @default(0) // Virtual full-tank time penalty, 0-30%; fixed before start
   status         String          @default("draft") // draft | ready | active | paused | finishing | finished | interrupted — @racehubos/shared
   recoveredAt    DateTime?       // Explicit operator recovery; never a race finish
   recoveredFromStatus String?    // Previous running status retained for audit
@@ -302,6 +303,7 @@ model Lap {
   lapNumber     Int
   lapTime       Float
   simulatedLapTime Float?  // Virtual race calculation; never changes lapTime
+  fuelUnitsAtLap Int?      // Virtual tank before this lap's burn; snapshot when weight timing is enabled
   tyreAtLap     String? // Tyres at this crossing (snapshot)
   weatherAtLap  String? // Weather at this crossing (snapshot)
   sector1       Float?

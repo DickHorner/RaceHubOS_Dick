@@ -28,8 +28,8 @@ export default function SessionLeaderboard({ entries = [], sortBy = 'laps', sess
     switch (sortBy) {
       case 'bestLap': {
         // Best lap ascending (fastest first), null/0 last
-        const bestA = statsA.bestLap || Infinity
-        const bestB = statsB.bestLap || Infinity
+        const bestA = (statsA.rankBestLap ?? statsA.bestLap) || Infinity
+        const bestB = (statsB.rankBestLap ?? statsB.bestLap) || Infinity
         return bestA - bestB
       }
 
@@ -46,7 +46,9 @@ export default function SessionLeaderboard({ entries = [], sortBy = 'laps', sess
         if ((statsB.laps || 0) !== (statsA.laps || 0)) {
           return (statsB.laps || 0) - (statsA.laps || 0)
         }
-        return (statsA.bestLap || Infinity) - (statsB.bestLap || Infinity)
+        return (
+          ((statsA.rankBestLap ?? statsA.bestLap) || Infinity) - ((statsB.rankBestLap ?? statsB.bestLap) || Infinity)
+        )
     }
   })
 
@@ -58,9 +60,9 @@ export default function SessionLeaderboard({ entries = [], sortBy = 'laps', sess
     if (sortBy === 'race' && index > 0) {
       const leader = sortedEntries[0]
       const leaderLaps = leader.stats?.laps || 0
-      const leaderTime = leader.stats?.totalTime || 0
+      const leaderTime = leader.stats?.rankTime ?? leader.stats?.totalTime ?? 0
       const myLaps = entry.stats?.laps || 0
-      const myTime = entry.stats?.totalTime || 0
+      const myTime = entry.stats?.rankTime ?? entry.stats?.totalTime ?? 0
 
       if (myLaps < leaderLaps) {
         // Different number of laps: show lap difference

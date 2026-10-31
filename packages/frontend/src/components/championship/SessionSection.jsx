@@ -44,6 +44,8 @@ import {
   validRequiredPitStops,
   REQUIRED_PIT_STOPS_MAX,
   VIRTUAL_FUEL_MAX_RATE,
+  validVirtualFuelWeightPercent,
+  VIRTUAL_FUEL_MAX_WEIGHT_PERCENT,
 } from '@racehubos/shared'
 
 export default function SessionSection({
@@ -155,18 +157,29 @@ export default function SessionSection({
     }
   }
 
-  async function saveVirtualFuel(rate) {
+  async function saveVirtualFuel(rate, percent = session.fuelWeightPercent ?? 0) {
     if (fuelPending.current || session.status !== SessionStatus.DRAFT) return
     if (!validVirtualFuelRate(rate)) {
       setFuelError({ sessionId: session.id, message: t('sessionSection.virtualFuel.invalid') })
       return
     }
+    const weightPercent = rate == null ? 0 : percent
+    if (
+      !validVirtualFuelWeightPercent(weightPercent) ||
+      (weightPercent > 0 && ![SessionType.RACE, SessionType.QUALIF].includes(session.type))
+    ) {
+      setFuelError({ sessionId: session.id, message: t('sessionSection.virtualFuel.weightInvalid') })
+      return
+    }
     setFuelError(null)
-    if (rate === (session.virtualFuelRate ?? null)) return
+    const changes = {}
+    if (rate !== (session.virtualFuelRate ?? null)) changes.virtualFuelRate = rate
+    if (weightPercent !== (session.fuelWeightPercent ?? 0)) changes.fuelWeightPercent = weightPercent
+    if (!Object.keys(changes).length) return
     fuelPending.current = true
     setFuelBusy(true)
     try {
-      const result = await onSaveConfig({ virtualFuelRate: rate })
+      const result = await onSaveConfig(changes)
       if (result?.success === false) {
         setFuelError({ sessionId: session.id, message: t('sessionSection.virtualFuel.saveError') })
       }
@@ -599,6 +612,34 @@ export default function SessionSection({
           />
           <p id={`virtual-fuel-hint-${session.id}`} className="text-sm text-muted-foreground">
             {t('sessionSection.virtualFuel.hint')}
+          </p>
+          <label className="block text-sm" htmlFor={`fuel-weight-${session.id}`}>
+            {t('sessionSection.virtualFuel.weightPercent')}
+          </label>
+          <Input
+            id={`fuel-weight-${session.id}`}
+            data-testid="fuel-weight-config"
+            key={`${session.id}-weight-${session.fuelWeightPercent}-${session.status}`}
+            type="number"
+            min="0"
+            max={VIRTUAL_FUEL_MAX_WEIGHT_PERCENT}
+            step="1"
+            defaultValue={session.fuelWeightPercent ?? 0}
+            disabled={
+              !canEdit ||
+              fuelBusy ||
+              !onSaveConfig ||
+              session.virtualFuelRate == null ||
+              ![SessionType.RACE, SessionType.QUALIF].includes(session.type)
+            }
+            onBlur={(event) =>
+              saveVirtualFuel(session.virtualFuelRate, event.target.value.trim() ? Number(event.target.value) : NaN)
+            }
+            aria-describedby={`fuel-weight-hint-${session.id}`}
+            className="min-h-11 max-w-48"
+          />
+          <p id={`fuel-weight-hint-${session.id}`} className="text-sm text-muted-foreground">
+            {t('sessionSection.virtualFuel.weightHint')}
           </p>
           {!canEdit && <p className="text-sm text-muted-foreground">{t('sessionSection.virtualFuel.locked')}</p>}
           {fuelBusy && (
@@ -1106,6 +1147,7 @@ export default function SessionSection({
           <Podium
             drivers={sessionDrivers}
             sessionType={session.type}
+            fuelWeightPercent={session.fuelWeightPercent ?? 0}
             stats={{
               duration: timeProgress?.current,
               maxDuration: session.maxDuration,

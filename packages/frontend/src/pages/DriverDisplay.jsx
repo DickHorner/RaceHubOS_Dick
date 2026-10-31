@@ -146,9 +146,20 @@ export default function DriverDisplay() {
       gap =
         lapDiff > 0
           ? { type: 'laps', value: lapDiff }
-          : { type: 'time', value: (live.stats?.totalTime || 0) - (leader.stats?.totalTime || 0) }
-    } else if (leader.stats?.bestLap && live.stats?.bestLap) {
-      gap = { type: 'time', value: live.stats.bestLap - leader.stats.bestLap }
+          : {
+              type: 'time',
+              value:
+                (live.stats?.rankTime ?? live.stats?.totalTime ?? 0) -
+                (leader.stats?.rankTime ?? leader.stats?.totalTime ?? 0),
+            }
+    } else if (
+      Number.isFinite(leader.stats?.rankBestLap ?? leader.stats?.bestLap) &&
+      Number.isFinite(live.stats?.rankBestLap ?? live.stats?.bestLap)
+    ) {
+      gap = {
+        type: 'time',
+        value: (live.stats.rankBestLap ?? live.stats.bestLap) - (leader.stats.rankBestLap ?? leader.stats.bestLap),
+      }
     }
   }
 

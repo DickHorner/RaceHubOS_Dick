@@ -288,6 +288,7 @@ export default function FreeSessionPage() {
         data.maxLaps !== undefined ||
         data.gracePeriod !== undefined ||
         data.virtualFuelRate !== undefined ||
+        data.fuelWeightPercent !== undefined ||
         data.requiredPitStops !== undefined ||
         data.weatherSeed !== undefined ||
         data.weatherInitial !== undefined ||
@@ -307,6 +308,7 @@ export default function FreeSessionPage() {
             maxLaps: data.maxLaps,
             gracePeriod: data.gracePeriod,
             virtualFuelRate: data.virtualFuelRate,
+            fuelWeightPercent: data.fuelWeightPercent,
             requiredPitStops: data.requiredPitStops,
             weatherSeed: data.weatherSeed,
             weatherInitial: data.weatherInitial,
@@ -355,7 +357,12 @@ export default function FreeSessionPage() {
         }
       }
       const reloaded = await loadSession(session.id)
-      if ((data.virtualFuelRate !== undefined || data.requiredPitStops !== undefined) && !reloaded?.success)
+      if (
+        (data.virtualFuelRate !== undefined ||
+          data.fuelWeightPercent !== undefined ||
+          data.requiredPitStops !== undefined) &&
+        !reloaded?.success
+      )
         return { success: false }
       return { success: true }
     } catch (err) {

@@ -19,6 +19,7 @@ import {
   SessionStatus,
   SessionType,
   rankRaceDrivers,
+  qualifyingLapTime,
   PenaltyKind,
   PenaltyStatus,
   virtualFuelLapHistory,
@@ -49,7 +50,10 @@ export default function SessionDetail() {
   const weightPercent = Number(weightInput)
   const weightValid = weightInput.trim() !== '' && validVirtualFuelWeightPercent(weightPercent)
   const canPreviewWeight =
-    session?.virtualFuelRate != null && [SessionType.RACE, SessionType.QUALIF].includes(session?.type)
+    !(session?.fuelWeightPercent > 0) &&
+    session?.virtualFuelRate != null &&
+    [SessionType.RACE, SessionType.QUALIF].includes(session?.type)
+  const usesSimulatedTime = session?.tyreMismatchPercent > 0 || session?.fuelWeightPercent > 0
   const showWeightPreview = canPreviewWeight && weightValid && weightPercent > 0
 
   useEffect(() => {
@@ -104,10 +108,10 @@ export default function SessionDetail() {
     const sorted = isRace
       ? rankedRaceDrivers
       : [...drivers].sort((a, b) => {
-          if (!a.bestLapTime && !b.bestLapTime) return 0
-          if (!a.bestLapTime) return 1
-          if (!b.bestLapTime) return -1
-          return a.bestLapTime - b.bestLapTime
+          return (
+            (qualifyingLapTime(a, session.fuelWeightPercent) || Infinity) -
+            (qualifyingLapTime(b, session.fuelWeightPercent) || Infinity)
+          )
         })
 
     const leader = sorted[0]
@@ -126,7 +130,9 @@ export default function SessionDetail() {
                 (leader.classifiedSimulatedTime ?? leader.classifiedTime),
             }
         } else {
-          if (leader.bestLapTime && sd.bestLapTime) gap = { type: 'time', value: sd.bestLapTime - leader.bestLapTime }
+          const best = qualifyingLapTime(sd, session.fuelWeightPercent)
+          const leaderBest = qualifyingLapTime(leader, session.fuelWeightPercent)
+          if (leaderBest && best) gap = { type: 'time', value: best - leaderBest }
         }
       }
 
@@ -145,6 +151,7 @@ export default function SessionDetail() {
         stats: {
           laps: sd.classifiedLaps ?? sd.totalLaps ?? 0,
           bestLap: sd.bestLapTime || null,
+          rankBestLap: qualifyingLapTime(sd, session.fuelWeightPercent) ?? Infinity,
           lastLap: sd.lastLapTime || null,
           totalTime: sd.classifiedTime ?? sd.totalTime ?? 0,
           rankTime: sd.classifiedSimulatedTime,
@@ -330,12 +337,12 @@ export default function SessionDetail() {
                         .map((driver) => ({
                           ...driver,
                           totalLaps: driver.classifiedLaps,
-                          totalTime:
-                            session.tyreMismatchPercent > 0 ? driver.classifiedSimulatedTime : driver.classifiedTime,
+                          totalTime: usesSimulatedTime ? driver.classifiedSimulatedTime : driver.classifiedTime,
                         }))
                     : session.drivers
                 }
                 sessionType={session.type}
+                fuelWeightPercent={session.fuelWeightPercent ?? 0}
                 stats={{
                   duration: sessionDuration ? Math.floor(sessionDuration / 1000) : null,
                   maxDuration: session.maxDuration,
@@ -374,6 +381,7 @@ export default function SessionDetail() {
             entries={entries}
             sortBy={session.type === SessionType.RACE ? 'race' : 'bestLap'}
             sessionType={session.type}
+            fuelWeightPercent={session.fuelWeightPercent ?? 0}
             sessionStatus={session.status}
             expanded
           />
@@ -530,6 +538,11 @@ export default function SessionDetail() {
                   <p className="text-xs text-muted-foreground mt-1">{t('profile.lapFuel.note')}</p>
                 )}
               </div>
+              {session.fuelWeightPercent > 0 && (
+                <p role="note" className="text-sm text-muted-foreground">
+                  {t('profile.fuelWeightApplied', { percent: session.fuelWeightPercent })}
+                </p>
+              )}
               {canPreviewWeight && (
                 <fieldset
                   className="m-4 rounded-lg border border-border p-3 space-y-2"
@@ -580,7 +593,7 @@ export default function SessionDetail() {
                           {t('profile.fuelWeightPreview.time')}
                         </th>
                       )}
-                      {session.tyreMismatchPercent > 0 && (
+                      {usesSimulatedTime && (
                         <th className="px-4 py-2 font-medium text-right">{t('profile.simulatedTime')}</th>
                       )}
                     </tr>
@@ -600,7 +613,7 @@ export default function SessionDetail() {
                       const weightTime =
                         showWeightPreview && fuelMatches && fuel.afterUnits !== null
                           ? virtualFuelWeightedLapTime(
-                              session.tyreMismatchPercent > 0 ? lap.simulatedLapTime : lap.lapTime,
+                              usesSimulatedTime ? lap.simulatedLapTime : lap.lapTime,
                               fuel.beforeUnits,
                               weightPercent
                             )
@@ -647,7 +660,7 @@ export default function SessionDetail() {
                               )}
                             </td>
                           )}
-                          {session.tyreMismatchPercent > 0 && (
+                          {usesSimulatedTime && (
                             <td className="px-4 py-1.5 text-right">
                               <LapTime time={lap.simulatedLapTime} size="sm" />
                               {lap.tyreAtLap && (

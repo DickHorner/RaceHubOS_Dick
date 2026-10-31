@@ -13,7 +13,20 @@ export function worksheetTableRows(sheet, heading) {
   const rows = [
     Array.from({ length: width }, (_, index) => {
       const label = String(header.getCell(index + 1).value ?? '');
-      if (['Temps total', 'Meilleur tour', 'Dernier tour', 'Temps', 'S1', 'S2', 'S3'].includes(label)) {
+      if (
+        [
+          'Temps total',
+          'Meilleur tour',
+          'Dernier tour',
+          'Temps',
+          'Temps simulé',
+          'Temps total simulé',
+          'Meilleur tour simulé',
+          'S1',
+          'S2',
+          'S3',
+        ].includes(label)
+      ) {
         return `${label} (s)`;
       }
       if (label === 'Horodatage') return `${label} (UTC ISO 8601)`;

@@ -9,6 +9,7 @@ import {
   validDamageConfig,
   weatherForSession,
   validVirtualFuelRate,
+  validVirtualFuelWeightPercent,
   validRequiredPitStops,
   replayVirtualFuel,
   VIRTUAL_FUEL_FULL,
@@ -257,6 +258,7 @@ router.put('/:id', async (req, res) => {
       weatherAdvanceDuringPause,
       tyreMismatchPercent,
       virtualFuelRate,
+      fuelWeightPercent,
       requiredPitStops,
       damageLapThresholdMs,
       damageRepairSeconds,
@@ -316,16 +318,28 @@ router.put('/:id', async (req, res) => {
       }
       updateData.requiredPitStops = requiredPitStops;
     }
-    if (virtualFuelRate !== undefined) {
-      if (!validVirtualFuelRate(virtualFuelRate)) {
-        return res.status(400).json({ success: false, error: 'Invalid virtual fuel rate (1-100 %/min or disabled)' });
-      }
+    if (virtualFuelRate !== undefined || fuelWeightPercent !== undefined || type !== undefined) {
       const current = await prisma().session.findUnique({ where: { id: req.params.id } });
       if (!current || current.deletedAt) return res.status(404).json({ success: false, error: 'Session not found' });
-      if (current.status !== SessionStatus.DRAFT && current.virtualFuelRate !== virtualFuelRate) {
+      const nextRate = virtualFuelRate === undefined ? current.virtualFuelRate : virtualFuelRate;
+      const nextWeight = fuelWeightPercent === undefined ? current.fuelWeightPercent : fuelWeightPercent;
+      if (
+        !validVirtualFuelRate(nextRate) ||
+        !validVirtualFuelWeightPercent(nextWeight) ||
+        (nextWeight > 0 && (nextRate == null || ![SessionType.RACE, SessionType.QUALIF].includes(type ?? current.type)))
+      ) {
+        return res.status(400).json({ success: false, error: 'Invalid virtual fuel or fuel-weight configuration' });
+      }
+      if (
+        current.status !== SessionStatus.DRAFT &&
+        (current.virtualFuelRate !== nextRate ||
+          current.fuelWeightPercent !== nextWeight ||
+          (nextWeight > 0 && type !== undefined && type !== current.type))
+      ) {
         return res.status(409).json({ success: false, error: 'Virtual fuel cannot be changed after race start' });
       }
-      updateData.virtualFuelRate = virtualFuelRate;
+      if (virtualFuelRate !== undefined) updateData.virtualFuelRate = nextRate;
+      if (fuelWeightPercent !== undefined) updateData.fuelWeightPercent = nextWeight;
     }
     const damageUpdate = { damageLapThresholdMs, damageRepairSeconds, damagePitSeconds };
     const damageKeys = Object.keys(damageUpdate).filter((key) => damageUpdate[key] !== undefined);
@@ -830,7 +844,12 @@ router.get('/:id/leaderboard', async (req, res) => {
     }
 
     // Calculate gaps and positions
-    const sortedEntries = SessionService.calculateDriverGaps(entries, session.type, session.penalties);
+    const sortedEntries = SessionService.calculateDriverGaps(
+      entries,
+      session.type,
+      session.penalties,
+      session.fuelWeightPercent
+    );
 
     res.json({ success: true, data: sortedEntries });
   } catch (error) {

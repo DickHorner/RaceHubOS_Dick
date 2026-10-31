@@ -258,6 +258,7 @@ export default function ChampionshipDetail() {
           data.maxLaps !== undefined ||
           data.gracePeriod !== undefined ||
           data.virtualFuelRate !== undefined ||
+          data.fuelWeightPercent !== undefined ||
           data.requiredPitStops !== undefined ||
           data.weatherSeed !== undefined ||
           data.weatherInitial !== undefined ||
@@ -277,6 +278,7 @@ export default function ChampionshipDetail() {
               maxLaps: data.maxLaps,
               gracePeriod: data.gracePeriod,
               virtualFuelRate: data.virtualFuelRate,
+              fuelWeightPercent: data.fuelWeightPercent,
               requiredPitStops: data.requiredPitStops,
               weatherSeed: data.weatherSeed,
               weatherInitial: data.weatherInitial,
@@ -309,7 +311,12 @@ export default function ChampionshipDetail() {
         }
         fetchSessions()
         const reloaded = await loadSession(selectedSession.id)
-        if ((data.virtualFuelRate !== undefined || data.requiredPitStops !== undefined) && !reloaded?.success)
+        if (
+          (data.virtualFuelRate !== undefined ||
+            data.fuelWeightPercent !== undefined ||
+            data.requiredPitStops !== undefined) &&
+          !reloaded?.success
+        )
           return { success: false }
         return { success: true }
       } catch (err) {

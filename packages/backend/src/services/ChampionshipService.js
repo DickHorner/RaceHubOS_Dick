@@ -1,5 +1,5 @@
 import { createPrismaClient } from '../lib/prisma.js';
-import { ChampionshipMode, ChampionshipStatus, SessionStatus, SessionType } from '@racehubos/shared';
+import { ChampionshipMode, ChampionshipStatus, SessionStatus, SessionType, qualifyingLapTime } from '@racehubos/shared';
 import { sessionName } from '../lib/sessionNames.js';
 
 /**
@@ -352,7 +352,7 @@ export class ChampionshipService {
       for (const sd of session.drivers) {
         if (!sd.driverId) continue;
         const existing = driverBests.get(sd.driverId);
-        const bestTime = sd.bestLapTime ?? Infinity;
+        const bestTime = qualifyingLapTime(sd, session.fuelWeightPercent) ?? Infinity;
         if (!existing || bestTime < existing.bestTime) {
           driverBests.set(sd.driverId, {
             driverId: sd.driverId,
@@ -465,12 +465,13 @@ export class ChampionshipService {
         for (const sd of session.drivers) {
           if (!sd.driverId) continue;
           const existing = driverBests.get(sd.driverId);
-          const bestTime = sd.bestLapTime ?? Infinity;
+          const bestTime = qualifyingLapTime(sd, session.fuelWeightPercent) ?? Infinity;
           if (!existing || bestTime < existing.bestTime) {
             driverBests.set(sd.driverId, {
               driverId: sd.driverId,
               driver: sd.driver,
               bestTime: bestTime === Infinity ? null : bestTime,
+              isSimulated: session.fuelWeightPercent > 0,
             });
           }
         }
@@ -491,6 +492,7 @@ export class ChampionshipService {
         label: `Q${(s.autoGroup ?? 0) + 1}`,
         name: s.name,
         status: s.status,
+        fuelWeightPercent: s.fuelWeightPercent,
         drivers: s.drivers,
       })),
       allQualifsFinished,
@@ -501,6 +503,7 @@ export class ChampionshipService {
         label: `R${(s.autoGroup ?? 0) + 1}`,
         name: s.name,
         status: s.status,
+        fuelWeightPercent: s.fuelWeightPercent,
         drivers: s.drivers,
       })),
     };

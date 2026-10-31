@@ -1053,3 +1053,38 @@ test('fuel weight input validates limits and switches off without saving a confi
   await page.reload()
   await expect(page.getByTestId('fuel-weight-preview')).toHaveCount(0)
 })
+
+for (const type of ['race', 'qualif']) {
+  test(`${type}: stored weight scoring shows simulated laps and retains measured times without stacking a preview`, async ({
+    page,
+  }) => {
+    const state = await mockLapFuelHistory(page, type)
+    state.current.fuelWeightPercent = 10
+    state.current.laps = state.current.laps.map((lap) => ({ ...lap, simulatedLapTime: 10500, fuelUnitsAtLap: 5000 }))
+    state.current.drivers[0] = {
+      ...state.current.drivers[0],
+      totalLaps: 1,
+      totalTime: 10000,
+      bestLapTime: 10000,
+      simulatedTotalTime: 11000,
+      simulatedBestLapTime: 11000,
+    }
+    state.current.drivers[1] = {
+      ...state.current.drivers[1],
+      totalLaps: 1,
+      totalTime: 10500,
+      bestLapTime: 10500,
+      simulatedTotalTime: 10500,
+      simulatedBestLapTime: 10500,
+    }
+    await page.goto('/sessions/pit-session')
+    await expect(page.getByRole('note').filter({ hasText: 'Fuel weight: up to 10%' })).toBeVisible()
+    await expect(page.getByTestId('fuel-weight-preview')).toHaveCount(0)
+    await expect(page.getByRole('columnheader', { name: 'Simulated time' })).toBeVisible()
+    const lap = page.getByTestId('lap-fuel-a1').locator('..')
+    await expect(lap).toContainText('10.000')
+    await expect(lap).toContainText('10.500')
+    await page.reload()
+    await expect(page.getByRole('columnheader', { name: 'Simulated time' })).toBeVisible()
+  })
+}

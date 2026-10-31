@@ -98,6 +98,9 @@ function AwardCard({ award }) {
         return (
           <div>
             <span className={`font-mono text-lg font-bold ${GAP_COLORS.leader}`}>{formatLapTime(award.lapTime)}</span>
+            {award.isSimulated && (
+              <span className="block text-muted-foreground">{t('race:leaderboard.simulatedBest')}</span>
+            )}
             <div className="text-[10px] text-muted-foreground mt-0.5">{award.sessionName}</div>
           </div>
         )
@@ -176,12 +179,14 @@ function StandingsTable({ standings }) {
         <tbody className="divide-y divide-border">
           {standings.map((entry) => {
             const leaderLaps = standings[0].totalLaps
-            const leaderTime = standings[0].totalTime
+            const leaderTime = standings[0].simulatedTotalTime ?? standings[0].totalTime
             const lapDiff = leaderLaps - entry.totalLaps
             let gap = null
             if (entry.position > 1) {
               gap =
-                lapDiff > 0 ? { type: 'laps', value: lapDiff } : { type: 'time', value: entry.totalTime - leaderTime }
+                lapDiff > 0
+                  ? { type: 'laps', value: lapDiff }
+                  : { type: 'time', value: (entry.simulatedTotalTime ?? entry.totalTime) - leaderTime }
             }
 
             return (
@@ -228,7 +233,12 @@ function StandingsTable({ standings }) {
                   </div>
                 </td>
                 <td className="px-3 py-2 text-center font-mono font-bold">{entry.totalLaps}</td>
-                <td className="px-3 py-2 text-right font-mono text-xs">{formatTotalTime(entry.totalTime)}</td>
+                <td className="px-3 py-2 text-right font-mono text-xs">
+                  {formatTotalTime(entry.simulatedTotalTime ?? entry.totalTime)}
+                  {entry.simulatedTotalTime != null && (
+                    <span className="block text-muted-foreground">{t('race:leaderboard.simulatedTotal')}</span>
+                  )}
+                </td>
                 <td className="px-3 py-2 text-right">
                   {gap ? (
                     <span

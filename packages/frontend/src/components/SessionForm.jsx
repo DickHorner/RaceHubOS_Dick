@@ -10,6 +10,8 @@ import {
   validWeatherConfig,
   validTyreMismatchPercent,
   validDamageConfig,
+  validVirtualFuelWeightPercent,
+  VIRTUAL_FUEL_MAX_WEIGHT_PERCENT,
   sessionTypeFullKey,
 } from '@racehubos/shared'
 
@@ -32,6 +34,7 @@ export default function SessionForm({ session, onClose, onSaved }) {
     weatherAdvanceDuringPause: false,
     tyreMismatchPercent: 0,
     virtualFuelRate: null,
+    fuelWeightPercent: 0,
     damageLapThresholdMs: null,
     damageRepairSeconds: 60,
     damagePitSeconds: 5,
@@ -67,6 +70,7 @@ export default function SessionForm({ session, onClose, onSaved }) {
         weatherAdvanceDuringPause: session.weatherAdvanceDuringPause ?? false,
         tyreMismatchPercent: session.tyreMismatchPercent ?? 0,
         virtualFuelRate: session.virtualFuelRate ?? null,
+        fuelWeightPercent: session.fuelWeightPercent ?? 0,
         damageLapThresholdMs: session.damageLapThresholdMs ?? null,
         damageRepairSeconds: session.damageRepairSeconds ?? 60,
         damagePitSeconds: session.damagePitSeconds ?? 5,
@@ -157,6 +161,15 @@ export default function SessionForm({ session, onClose, onSaved }) {
         (formData.damageLapThresholdMs !== null && formData.type !== SessionType.RACE)
       ) {
         setError(t('form.damageInvalid'))
+        return
+      }
+
+      if (
+        !validVirtualFuelWeightPercent(formData.fuelWeightPercent) ||
+        (formData.fuelWeightPercent > 0 &&
+          (formData.virtualFuelRate == null || ![SessionType.RACE, SessionType.QUALIF].includes(formData.type)))
+      ) {
+        setError(t('form.fuelWeightInvalid'))
         return
       }
 
@@ -289,6 +302,9 @@ export default function SessionForm({ session, onClose, onSaved }) {
                     setFormData({
                       ...formData,
                       type: e.target.value,
+                      fuelWeightPercent: [SessionType.RACE, SessionType.QUALIF].includes(e.target.value)
+                        ? formData.fuelWeightPercent
+                        : 0,
                       weatherSeed: e.target.value === SessionType.RACE ? formData.weatherSeed : null,
                       tyreMismatchPercent: e.target.value === SessionType.RACE ? formData.tyreMismatchPercent : 0,
                       damageLapThresholdMs: e.target.value === SessionType.RACE ? formData.damageLapThresholdMs : null,
@@ -452,6 +468,7 @@ export default function SessionForm({ session, onClose, onSaved }) {
                     setFormData({
                       ...formData,
                       virtualFuelRate: e.target.checked ? 6 : null,
+                      fuelWeightPercent: e.target.checked ? formData.fuelWeightPercent : 0,
                     })
                   }
                 />
@@ -473,6 +490,24 @@ export default function SessionForm({ session, onClose, onSaved }) {
                   />
                 </label>
               )}
+              <label className="block text-sm">
+                {t('form.fuelWeightPercent')}
+                <input
+                  type="number"
+                  min="0"
+                  max={VIRTUAL_FUEL_MAX_WEIGHT_PERCENT}
+                  step="1"
+                  value={formData.fuelWeightPercent}
+                  disabled={
+                    (session?.status && session.status !== SessionStatus.DRAFT) ||
+                    formData.virtualFuelRate == null ||
+                    ![SessionType.RACE, SessionType.QUALIF].includes(formData.type)
+                  }
+                  onChange={(event) => setFormData({ ...formData, fuelWeightPercent: Number(event.target.value) })}
+                  className="mt-1 w-full rounded border p-2"
+                />
+              </label>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('form.fuelWeightHint')}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">{t('form.virtualFuelHint')}</p>
             </div>
 

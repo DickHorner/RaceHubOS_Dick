@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 
 test.use({ locale: 'en-US' })
 
-async function openSession(page, mode = 'free', rate = null) {
+async function openSession(page, mode = 'free', rate = null, type = mode === 'free' ? 'practice' : 'race') {
   const track = { id: 'fuel-track', name: 'Fuel circuit' }
   const driver = { id: 'fuel-driver', name: 'Fuel driver', color: '#ef4444' }
   const car = { id: 'fuel-car', brand: 'Carrera', model: 'Fuel car' }
@@ -10,7 +10,7 @@ async function openSession(page, mode = 'free', rate = null) {
     current: {
       id: 'fuel-session',
       name: 'Fuel session',
-      type: mode === 'free' ? 'practice' : 'race',
+      type,
       status: 'draft',
       trackId: track.id,
       track,
@@ -29,6 +29,8 @@ async function openSession(page, mode = 'free', rate = null) {
   // replace it while the test exercises configuration persistence.
   await page.routeWebSocket('**/socket.io/**', (socket) => socket.close())
   await page.route('**/socket.io/**', (route) => route.abort())
+  await page.route('**/health', (route) => route.fulfill({ json: { status: 'ok' } }))
+  await page.route('**/api/devices', (route) => route.fulfill({ json: { success: true, data: [] } }))
   await page.route('**/api/preferences/**', (route) => route.fulfill({ json: { success: true, data: null } }))
   await page.route('**/api/tracks', (route) => route.fulfill({ json: { success: true, data: [track] } }))
   await page.route('**/api/drivers', (route) => route.fulfill({ json: { success: true, data: [driver] } }))
@@ -76,11 +78,11 @@ async function openSession(page, mode = 'free', rate = null) {
   await page.route('**/api/championships/fuel-cup/team-standings', (route) =>
     route.fulfill({ json: { success: true, standings: [], legacyRaces: 0 } })
   )
-  await page.addInitScript(() => {
+  await page.addInitScript((type) => {
     localStorage.setItem('racehubos-free-track', 'fuel-track')
-    localStorage.setItem('racehubos-free-type', 'practice')
+    localStorage.setItem('racehubos-free-type', type)
     localStorage.setItem('championship_fuel-cup_session', 'fuel-session')
-  })
+  }, type)
   await page.goto(mode === 'free' ? '/race' : '/championships/fuel-cup')
   await expect(page.getByTestId('virtual-fuel-config')).toBeVisible()
   return state
@@ -264,4 +266,53 @@ test('required pit rules stay visible and locked after session start', async ({ 
   await expect(page.getByTestId('required-pits-count')).toBeDisabled()
   await expect(page.getByTestId('required-pits-config')).toContainText('locked after session start')
   expect(state.writes).toEqual([])
+})
+
+for (const [mode, type] of [
+  ['free', 'race'],
+  ['free', 'qualif'],
+  ['championship', 'race'],
+]) {
+  test(`${mode} ${type}: weight scoring saves, reloads and disables with virtual fuel`, async ({ page }) => {
+    const state = await openSession(page, mode, 6, type)
+    const weight = page.getByTestId('fuel-weight-config')
+    await expect(weight).toBeEnabled()
+    await weight.fill('10')
+    await weight.blur()
+    await expect.poll(() => state.current.fuelWeightPercent).toBe(10)
+    await page.reload()
+    await expect(weight).toHaveValue('10')
+    await page.getByTestId('virtual-fuel-enabled').click()
+    await expect.poll(() => state.current.fuelWeightPercent).toBe(0)
+    await expect(weight).toBeDisabled()
+    expect(state.writes).toEqual([{ fuelWeightPercent: 10 }, { virtualFuelRate: null, fuelWeightPercent: 0 }])
+    expect(state.current.fuelMode).toBe('OFF')
+  })
+}
+
+test('weight validation and failed saves block start; active and finished sessions stay locked', async ({ page }) => {
+  const state = await openSession(page, 'free', 6, 'qualif')
+  const weight = page.getByTestId('fuel-weight-config')
+  for (const value of ['-1', '31', '1.5', '']) {
+    await weight.fill(value)
+    await weight.blur()
+    await expect(page.getByTestId('virtual-fuel-error')).toContainText('whole number from 0 to 30')
+    await expect(page.getByTestId('session-section').getByRole('button', { name: 'Start', exact: true })).toBeDisabled()
+  }
+  expect(state.writes).toEqual([])
+  state.reject = true
+  await weight.fill('30')
+  await weight.blur()
+  await expect(page.getByTestId('virtual-fuel-error')).toContainText('could not be confirmed')
+  expect(state.current.fuelWeightPercent).toBeUndefined()
+  state.reject = false
+  await weight.fill('30')
+  await weight.blur()
+  await expect.poll(() => state.current.fuelWeightPercent).toBe(30)
+  for (const status of ['active', 'paused', 'finished']) {
+    state.current.status = status
+    await page.reload()
+    await expect(weight).toHaveValue('30')
+    await expect(weight).toBeDisabled()
+  }
 })

@@ -569,17 +569,26 @@ router.get('/:id/results', async (req, res) => {
             car: withImageUrl(sd.car),
             totalLaps: 0,
             totalTime: 0,
+            scoringTime: 0,
+            hasFuelWeight: false,
             finishedRaces: 0,
           };
         }
         raceStats[key].totalLaps += sd.totalLaps || 0;
         raceStats[key].totalTime += sd.totalTime || 0;
+        raceStats[key].scoringTime +=
+          session.fuelWeightPercent > 0 ? (sd.simulatedTotalTime ?? sd.totalTime ?? 0) : sd.totalTime || 0;
+        raceStats[key].hasFuelWeight ||= session.fuelWeightPercent > 0;
         if (!sd.isDNF && sd.totalLaps > 0) raceStats[key].finishedRaces++;
       }
     }
     const standings = Object.values(raceStats)
-      .sort((a, b) => (b.totalLaps !== a.totalLaps ? b.totalLaps - a.totalLaps : a.totalTime - b.totalTime))
-      .map((entry, i) => ({ position: i + 1, ...entry }));
+      .sort((a, b) => (b.totalLaps !== a.totalLaps ? b.totalLaps - a.totalLaps : a.scoringTime - b.scoringTime))
+      .map((entry, i) => ({
+        position: i + 1,
+        ...entry,
+        simulatedTotalTime: entry.hasFuelWeight ? entry.scoringTime : null,
+      }));
 
     const podium = standings.slice(0, 3);
 
@@ -608,9 +617,12 @@ router.get('/:id/results', async (req, res) => {
     let bestQualif = null;
     for (const session of qualifSessions) {
       for (const lap of session.laps) {
-        if (!bestQualif || lap.lapTime < bestQualif.lapTime) {
+        const time = session.fuelWeightPercent > 0 ? lap.simulatedLapTime : lap.lapTime;
+        if (!Number.isFinite(time)) continue;
+        if (!bestQualif || time < bestQualif.lapTime) {
           bestQualif = {
-            lapTime: Math.round(lap.lapTime),
+            lapTime: Math.round(time),
+            isSimulated: session.fuelWeightPercent > 0,
             driver: withImageUrl(lap.driver),
             car: withImageUrl(lap.car),
             sessionName: session.name,
@@ -624,9 +636,12 @@ router.get('/:id/results', async (req, res) => {
     let bestRaceLap = null;
     for (const session of raceSessions) {
       for (const lap of session.laps) {
+        const time = session.fuelWeightPercent > 0 ? lap.simulatedLapTime : lap.lapTime;
+        if (!Number.isFinite(time)) continue;
         if (!bestRaceLap || lap.lapTime < bestRaceLap.lapTime) {
           bestRaceLap = {
-            lapTime: Math.round(lap.lapTime),
+            lapTime: Math.round(time),
+            isSimulated: session.fuelWeightPercent > 0,
             driver: withImageUrl(lap.driver),
             car: withImageUrl(lap.car),
             sessionName: session.name,
@@ -642,8 +657,10 @@ router.get('/:id/results', async (req, res) => {
       const qualifBests = {};
       for (const session of qualifSessions) {
         for (const lap of session.laps) {
-          if (!qualifBests[lap.driverId] || lap.lapTime < qualifBests[lap.driverId].time) {
-            qualifBests[lap.driverId] = { time: lap.lapTime, driver: withImageUrl(lap.driver) };
+          const time = session.fuelWeightPercent > 0 ? lap.simulatedLapTime : lap.lapTime;
+          if (!Number.isFinite(time)) continue;
+          if (!qualifBests[lap.driverId] || time < qualifBests[lap.driverId].time) {
+            qualifBests[lap.driverId] = { time, driver: withImageUrl(lap.driver) };
           }
         }
       }
@@ -946,7 +963,8 @@ router.get('/:id/standings', async (req, res) => {
       championship.sessions.forEach((session) => {
         session.laps.forEach((lap) => {
           const key = `${lap.driverId}-${lap.carId}`;
-          const lapTimeMs = Math.round(lap.lapTime);
+          const lapTimeMs = session.fuelWeightPercent > 0 ? lap.simulatedLapTime : Math.round(lap.lapTime);
+          if (!Number.isFinite(lapTimeMs)) return;
           if (!stats[key]) {
             stats[key] = {
               driverId: lap.driverId,
@@ -954,12 +972,16 @@ router.get('/:id/standings', async (req, res) => {
               driver: withImageUrl(lap.driver),
               car: withImageUrl(lap.car),
               bestTime: Infinity,
+              measuredBestTime: Infinity,
+              isSimulated: false,
               totalLaps: 0,
             };
           }
           stats[key].totalLaps++;
+          stats[key].measuredBestTime = Math.min(stats[key].measuredBestTime, Math.round(lap.lapTime));
           if (lapTimeMs < stats[key].bestTime) {
             stats[key].bestTime = lapTimeMs;
+            stats[key].isSimulated = session.fuelWeightPercent > 0;
           }
         });
       });
@@ -974,6 +996,8 @@ router.get('/:id/standings', async (req, res) => {
           driver: entry.driver,
           car: entry.car,
           bestTime: entry.bestTime,
+          measuredBestTime: entry.measuredBestTime,
+          isSimulated: entry.isSimulated,
           totalLaps: entry.totalLaps,
         }));
     } else if (type === SessionType.RACE) {
@@ -991,11 +1015,16 @@ router.get('/:id/standings', async (req, res) => {
               car: withImageUrl(sd.car),
               totalLaps: 0,
               totalTime: 0,
+              scoringTime: 0,
+              hasFuelWeight: false,
               finishedRaces: 0,
             };
           }
           stats[key].totalLaps += sd.totalLaps || 0;
           stats[key].totalTime += sd.totalTime || 0;
+          stats[key].scoringTime +=
+            session.fuelWeightPercent > 0 ? (sd.simulatedTotalTime ?? sd.totalTime ?? 0) : sd.totalTime || 0;
+          stats[key].hasFuelWeight ||= session.fuelWeightPercent > 0;
           if (!sd.isDNF && sd.totalLaps > 0) {
             stats[key].finishedRaces++;
           }
@@ -1007,7 +1036,7 @@ router.get('/:id/standings', async (req, res) => {
           // More laps = better
           if (b.totalLaps !== a.totalLaps) return b.totalLaps - a.totalLaps;
           // Same laps: less time = better
-          return a.totalTime - b.totalTime;
+          return a.scoringTime - b.scoringTime;
         })
         .map((entry, index) => ({
           position: index + 1,
@@ -1017,6 +1046,7 @@ router.get('/:id/standings', async (req, res) => {
           car: entry.car,
           totalLaps: entry.totalLaps,
           totalTime: entry.totalTime,
+          simulatedTotalTime: entry.hasFuelWeight ? entry.scoringTime : null,
           finishedRaces: entry.finishedRaces,
         }));
     } else if (type === SessionType.PRACTICE) {

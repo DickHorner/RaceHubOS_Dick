@@ -10,6 +10,14 @@ export function validTyreMismatchPercent(percent) {
   return Number.isInteger(percent) && percent >= 0 && percent <= 30;
 }
 
+export function tyreTimeFactor(tyreType, weather, mismatchPercent) {
+  if (!weather || mismatchPercent === 0) return 1;
+  const mismatch =
+    (weather === WeatherCondition.RAIN && tyreType === TyreType.DRY) ||
+    (weather === WeatherCondition.DRY && tyreType === TyreType.WET);
+  return mismatch ? (100 + mismatchPercent) / 100 : 1;
+}
+
 /**
  * Virtual pace effect only. The recorded lap time and CU speed are unchanged.
  * Zero means the feature is disabled; a matching tyre carries no time penalty.

@@ -106,7 +106,10 @@
       "invalid": "Saisir un nombre entier de 1 à 100.",
       "saveError": "L’enregistrement de la consommation n’a pas pu être confirmé.",
       "saving": "Enregistrement de la consommation…",
-      "reload": "Recharger la page"
+      "reload": "Recharger la page",
+      "weightPercent": "Malus de poids à plein (%)",
+      "weightHint": "Classement virtuel course/qualification avec carburant virtuel : 0 = désactivé, 0–30 % à plein, proportionnellement moins avec un réservoir plus léger. Niveau avant consommation du tour. Verrouillé au départ ; aucune modification de vitesse CU.",
+      "weightInvalid": "Choisissez un entier de 0 à 30 ; carburant virtuel et course/qualification requis."
     },
     "requiredPits": {
       "title": "Arrêts obligatoires",

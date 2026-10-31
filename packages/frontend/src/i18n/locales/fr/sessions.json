@@ -49,7 +49,8 @@
     "classificationNote": "Le classement tient compte des tours mesurés, des pénalités en tours et en temps, et du temps virtuel lié aux pneus lorsqu'il est activé.",
     "source": "Source",
     "sessionId": "ID de session",
-    "linkCopied": "Lien copié"
+    "linkCopied": "Lien copié",
+    "simulatedBest": "Meilleur tour simulé"
   },
   "columns": {
     "name": "Nom",
@@ -111,7 +112,10 @@
     "damageDeadline": "Délai de réparation (s de course)",
     "damagePitMinimum": "Intervalle aux stands min. (s)",
     "damageHint": "Courses uniquement. Un tour valide au-dessus du seuil déclenche un dommage unique. La pause gèle le délai. Arrêt simulateur : réparation automatique ; CU réelle : confirmation du directeur. Aucune commande CU.",
-    "damageInvalid": "Valeurs invalides : seuil 1–600 s, délai 5–3600 s, arrêt 1–300 s et inférieur ou égal au délai."
+    "damageInvalid": "Valeurs invalides : seuil 1–600 s, délai 5–3600 s, arrêt 1–300 s et inférieur ou égal au délai.",
+    "fuelWeightPercent": "Malus de poids à plein (%)",
+    "fuelWeightHint": "Classement virtuel course/qualification avec carburant virtuel : 0 = désactivé, 0–30 % à plein, proportionnellement moins avec un réservoir plus léger. Niveau avant consommation du tour. Verrouillé au départ ; aucune modification de vitesse CU.",
+    "fuelWeightInvalid": "Choisissez un entier de 0 à 30 ; carburant virtuel et course/qualification requis."
   },
   "profile": {
     "notFound": "Session introuvable",
@@ -188,6 +192,7 @@
       "hint": "0 % désactive l’aperçu. Pénalité linéaire selon le niveau avant la consommation du tour enregistré ; les corrections de temps des pneus sont incluses. Le classement enregistré reste inchangé.",
       "invalid": "Saisissez un pourcentage entier entre 0 et {{max}}.",
       "time": "Temps avec poids du carburant (aperçu)"
-    }
+    },
+    "fuelWeightApplied": "Poids du carburant : jusqu’à {{percent}} % de malus virtuel à plein. Le classement utilise les temps simulés enregistrés séparément et le niveau avant consommation du tour ; les mesures sont conservées."
   }
 }

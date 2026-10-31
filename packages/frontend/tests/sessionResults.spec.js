@@ -1,5 +1,14 @@
 import { test, expect } from '@playwright/test'
 
+test.beforeEach(async ({ page }) => {
+  await page.routeWebSocket('**/socket.io/**', (socket) => socket.close())
+  await page.route('**/socket.io/**', (route) => route.abort())
+  await page.route('**/health', (route) => route.fulfill({ json: { status: 'ok' } }))
+  await page.route('**/api/preferences/**', (route) => route.fulfill({ json: { success: true, data: null } }))
+  await page.route('**/api/devices', (route) => route.fulfill({ json: { success: true, data: [] } }))
+  await page.route('**/api/bluetooth/status', (route) => route.fulfill({ json: { connected: false } }))
+})
+
 const race = {
   id: 'race-print',
   name: 'Coupe du circuit',
@@ -110,4 +119,26 @@ test('localhost sharing asks for manual copying instead of promising a LAN-acces
   })
   await page.getByRole('button', { name: 'Copier le lien' }).click()
   await dialog
+})
+
+test('weighted qualifying prints virtual order with measured and simulated bests separately', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('racehubos-lang', 'en'))
+  const data = {
+    ...race,
+    type: 'qualif',
+    fuelWeightPercent: 10,
+    drivers: race.drivers.map((d, i) => ({
+      ...d,
+      bestLapTime: i === 0 ? 10000 : 10500,
+      simulatedBestLapTime: i === 0 ? 11000 : 10500,
+    })),
+  }
+  await page.route('**/api/sessions/race-print', (route) => route.fulfill({ json: { success: true, data } }))
+  await page.goto('/results/race-print')
+  const rows = page.getByRole('table').locator('tbody tr')
+  await expect(rows.first()).toContainText('Pilote Beta')
+  await expect(rows.nth(1)).toContainText('10.000')
+  await expect(rows.nth(1)).toContainText('11.000')
+  await expect(page.getByRole('note').filter({ hasText: 'Fuel weight:' })).toContainText('10%')
+  await expect(page.getByRole('columnheader', { name: 'Best simulated lap' })).toBeVisible()
 })
