@@ -3,7 +3,9 @@
  * A revoked penalty has no effect; the saved audit record remains visible.
  */
 export const PenaltyKind = Object.freeze({ TIME: 'time', LAP: 'lap' });
-export const PenaltyStatus = Object.freeze({ ACTIVE: 'active', REVOKED: 'revoked' });
+export const PenaltyStatus = Object.freeze({ ACTIVE: 'active', REVOKED: 'revoked', SERVED: 'served' });
+
+export const PenaltyServingMethod = Object.freeze({ PIT: 'pit', MANUAL: 'manual' });
 
 export function withRacePenalties(driver, penalties = []) {
   let penaltyLaps = 0;

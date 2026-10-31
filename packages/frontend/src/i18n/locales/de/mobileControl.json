@@ -109,5 +109,19 @@
   "sessionRecoveryDetails": "Session und Rundendaten ansehen",
   "sessionRecoveryConfirm": "Ich habe geprüft, dass „{{name}}“ verwaist ist. Den Laufstatus als unvollständig korrigieren und alle Renndaten erhalten.",
   "sessionRecoveryApply": "Verwaisten Zustand auflösen",
-  "sessionRecoveryAudit": "Laufstatus am {{date}} manuell von „{{status}}“ auf „Unvollständig“ korrigiert. Kein regulärer Rennabschluss; Rundendaten erhalten."
+  "sessionRecoveryAudit": "Laufstatus am {{date}} manuell von „{{status}}“ auf „Unvollständig“ korrigiert. Kein regulärer Rennabschluss; Rundendaten erhalten.",
+  "penaltyServed": "Abgeleistet",
+  "penaltyServing": {
+    "method": "Art der Bestätigung",
+    "pit": "Geprüfter Boxenstopp",
+    "manual": "Manuelle Ausnahme",
+    "stop": "Abgeschlossener Boxenstopp",
+    "noStop": "Kein passender Stopp nach Verhängung der Strafe",
+    "confirm": "Ich habe mindestens {{seconds}} Sekunden Stillstand zur Strafableistung geprüft.",
+    "reason": "Begründung / Nachweis (3–200 Zeichen)",
+    "help": "Der Boxenzeitraum beweist keinen Stillstand. Nur nach eigener Prüfung bestätigen. Keine automatische Erkennung von Boxengeschwindigkeit. Die manuelle Ausnahme erfordert eine Begründung.",
+    "submit": "Als abgeleistet bestätigen",
+    "audit": "{{date}} · {{method}} · {{reason}}"
+  },
+  "penaltyPending": "Ausstehende Zeitstrafe"
 }

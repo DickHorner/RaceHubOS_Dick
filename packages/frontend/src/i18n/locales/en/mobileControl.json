@@ -109,5 +109,19 @@
   "sessionRecoveryDetails": "View session and lap data",
   "sessionRecoveryConfirm": "I verified that “{{name}}” is orphaned. Correct its running status to incomplete and preserve all race data.",
   "sessionRecoveryApply": "Resolve orphaned entry",
-  "sessionRecoveryAudit": "Running status manually corrected from “{{status}}” to “Incomplete” on {{date}}. This is not a normal race finish; lap data was preserved."
+  "sessionRecoveryAudit": "Running status manually corrected from “{{status}}” to “Incomplete” on {{date}}. This is not a normal race finish; lap data was preserved.",
+  "penaltyServed": "Served",
+  "penaltyServing": {
+    "method": "Confirmation method",
+    "pit": "Verified pit stop",
+    "manual": "Manual override",
+    "stop": "Completed pit stop",
+    "noStop": "No eligible stop after the penalty was issued",
+    "confirm": "I verified at least {{seconds}} seconds stationary to serve this penalty.",
+    "reason": "Reason / evidence (3–200 characters)",
+    "help": "Time in the pit lane does not prove stationary time. Confirm only after your own verification. No automatic pit-speed detection. A manual override requires a reason.",
+    "submit": "Confirm served",
+    "audit": "{{date}} · {{method}} · {{reason}}"
+  },
+  "penaltyPending": "Pending time penalty"
 }

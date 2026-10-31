@@ -436,3 +436,123 @@ test('director can disable the credential entirely and re-enable it from the ope
   await page.reload()
   await expect(page.getByLabel('Race director credential', { exact: true })).toBeVisible()
 })
+
+async function penaltyServingFixture(page, authorized = true) {
+  const penalty = {
+    id: 'pending-penalty',
+    sessionId: 'race-1',
+    sessionDriverId: participant.id,
+    controller: 0,
+    kind: 'time',
+    amount: 5000,
+    reason: 'Unsafe overtake',
+    status: 'active',
+    issuedAt: '2026-10-31T10:00:00Z',
+  }
+  const current = {
+    ...race,
+    penalties: [penalty],
+    pitStops: [
+      {
+        id: 'pit-after',
+        sessionId: 'race-1',
+        sessionDriverId: participant.id,
+        controller: 0,
+        source: 'simulator',
+        durationMs: 6000,
+        enteredAt: '2026-10-31T10:01:00Z',
+        exitedAt: '2026-10-31T10:01:06Z',
+      },
+    ],
+    laps: [],
+  }
+  await page.routeWebSocket('**/socket.io/**', (socket) => socket.close())
+  await page.route('**/socket.io/**', (route) => route.abort())
+  await page.route('**/health', (route) => route.fulfill({ json: { status: 'ok' } }))
+  await page.route('**/api/preferences/**', (route) => route.fulfill({ json: { success: true, data: null } }))
+  await page.route('**/api/devices', (route) => route.fulfill({ json: { success: true, data: [] } }))
+  await page.route('**/api/bluetooth/status', (route) => route.fulfill({ json: { connected: false } }))
+  await page.route('**/api/race-control/status', (route) =>
+    route.fulfill({ json: { success: true, enabled: true, keyRequired: true } })
+  )
+  await page.route('**/api/race-control/vsc', (route) =>
+    route.fulfill({ json: { success: true, data: { status: 'inactive' } } })
+  )
+  await page.route('**/api/race-control/director/check', (route) => route.fulfill({ json: { success: true } }))
+  await mockRace(page, current)
+  const state = { current, writes: [], reject: false, gate: null }
+  await page.route('**/api/race-control/director/penalties/pending-penalty/serve', async (route) => {
+    const data = route.request().postDataJSON()
+    state.writes.push({ data, auth: route.request().headers().authorization })
+    if (state.gate) await state.gate
+    if (state.reject)
+      return route.fulfill({ status: 409, json: { success: false, error: 'Stop changed; refresh evidence' } })
+    Object.assign(penalty, {
+      status: 'served',
+      servedAt: '2026-10-31T10:02:00Z',
+      servedMethod: data.method,
+      servedPitStopId: data.pitStopId,
+      servedReason: data.reason,
+    })
+    return route.fulfill({ json: { success: true, data: penalty } })
+  })
+  await page.goto('/display/control' + (authorized ? '#director=director-penalty-serving-test-key-12345' : ''))
+  return state
+}
+
+test('director verifies stationary time, serves once and retains the audit after reload and in history', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  const state = await penaltyServingFixture(page)
+  const form = page.getByTestId('serve-pending-penalty')
+  const submit = form.getByRole('button', { name: 'Confirm served', exact: true })
+  await expect(submit).toBeDisabled()
+  await form.getByLabel('Reason / evidence').fill('Stationary time verified on video')
+  await expect(submit).toBeDisabled()
+  await form.getByRole('checkbox').check()
+  let release
+  state.gate = new Promise((resolve) => {
+    release = resolve
+  })
+  await submit.click()
+  await expect(submit).toBeDisabled()
+  release()
+  await expect(form).toHaveCount(0)
+  expect(state.writes).toHaveLength(1)
+  expect(state.writes[0]).toMatchObject({
+    data: { method: 'pit', pitStopId: 'pit-after', confirmedStationary: true },
+    auth: 'Bearer director-penalty-serving-test-key-12345',
+  })
+  await page.reload()
+  await page.getByLabel('Race director credential', { exact: true }).fill('director-penalty-serving-test-key-12345')
+  await page.getByRole('button', { name: 'Unlock', exact: true }).click()
+  await expect(page.getByTestId('penalty-audit-pending-penalty')).toContainText('Served')
+  await expect(page.getByTestId('penalty-audit-pending-penalty')).toContainText('Stationary time verified on video')
+  await page.goto('/sessions/race-1')
+  await expect(page.getByTestId('penalty-served-pending-penalty')).toContainText('pit-after')
+})
+
+test('manual penalty override requires a reason and rejected evidence keeps the penalty pending', async ({ page }) => {
+  const state = await penaltyServingFixture(page)
+  const form = page.getByTestId('serve-pending-penalty')
+  await form.getByLabel('Confirmation method').selectOption('manual')
+  await expect(form.getByRole('button', { name: 'Confirm served', exact: true })).toBeDisabled()
+  await form.getByLabel('Reason / evidence').fill('Verified despite disconnected timing')
+  state.reject = true
+  await form.getByRole('button', { name: 'Confirm served', exact: true }).click()
+  await expect(page.getByRole('alert').filter({ hasText: 'Stop changed' })).toBeVisible()
+  await expect(form).toBeVisible()
+  expect(state.current.penalties[0].status).toBe('active')
+  state.reject = false
+  await form.getByRole('button', { name: 'Confirm served', exact: true }).click()
+  await expect(form).toHaveCount(0)
+  expect(state.current.penalties[0]).toMatchObject({ servedMethod: 'manual', servedPitStopId: null })
+})
+
+test('spectator access cannot expose penalty-serving controls', async ({ page }) => {
+  const state = await penaltyServingFixture(page, false)
+  await expect(page.getByRole('button', { name: 'Unlock', exact: true })).toBeVisible()
+  await expect(page.getByTestId('serve-pending-penalty')).toHaveCount(0)
+  expect(state.writes).toEqual([])
+})

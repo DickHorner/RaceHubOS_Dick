@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import Soundboard from '../components/race/Soundboard'
 import SessionRecovery from '../components/race/SessionRecovery'
 import PitFuelStatus from '../components/race/PitFuelStatus'
+import PenaltyServingForm from '../components/race/PenaltyServingForm'
 import LanShareLink from '../components/LanShareLink'
 import { SessionStatus, SessionType, PenaltyKind, PenaltyStatus, TyreType, DamageStatus } from '@racehubos/shared'
 
@@ -364,7 +365,7 @@ export default function MobileRaceControl() {
     }
   }
 
-  async function changePenalty(action, penaltyId = null) {
+  async function changePenalty(action, penaltyId = null, serving = {}) {
     if (!session?.id || !directorAuthorized || busy || penaltyPending.current) return
     penaltyPending.current = true
     setError('')
@@ -373,7 +374,7 @@ export default function MobileRaceControl() {
       const endpoint =
         action === 'issue'
           ? '/api/race-control/director/penalties'
-          : `/api/race-control/director/penalties/${encodeURIComponent(penaltyId)}/revoke`
+          : `/api/race-control/director/penalties/${encodeURIComponent(penaltyId)}/${action}`
       const details =
         action === 'issue'
           ? {
@@ -385,7 +386,7 @@ export default function MobileRaceControl() {
                 byte.toString(16).padStart(2, '0')
               ).join(''),
             }
-          : {}
+          : serving
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${directorKey}` },
@@ -924,7 +925,8 @@ export default function MobileRaceControl() {
                       return (
                         <div
                           key={penalty.id}
-                          className="flex items-center justify-between gap-3 border-t border-border pt-2"
+                          data-testid={`penalty-audit-${penalty.id}`}
+                          className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-2"
                         >
                           <div className="min-w-0 text-sm">
                             <p className="font-medium">
@@ -937,9 +939,37 @@ export default function MobileRaceControl() {
                               · {penalty.reason}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              {t(penalty.status === PenaltyStatus.ACTIVE ? 'penaltyActive' : 'penaltyRevoked')}
+                              {t(
+                                penalty.status === PenaltyStatus.SERVED
+                                  ? 'penaltyServed'
+                                  : penalty.status === PenaltyStatus.ACTIVE
+                                    ? penalty.kind === PenaltyKind.TIME
+                                      ? 'penaltyPending'
+                                      : 'penaltyActive'
+                                    : 'penaltyRevoked'
+                              )}
                             </p>
                           </div>
+                          {penalty.servedAt && (
+                            <p className="w-full text-xs text-muted-foreground">
+                              {t('penaltyServing.audit', {
+                                date: new Date(penalty.servedAt).toLocaleString(),
+                                method: t(`penaltyServing.${penalty.servedMethod}`),
+                                reason: penalty.servedReason,
+                              })}
+                              {penalty.servedPitStopId && ` · ${penalty.servedPitStopId}`}
+                            </p>
+                          )}
+                          {penalty.status === PenaltyStatus.ACTIVE && penalty.kind === PenaltyKind.TIME && (
+                            <div className="w-full">
+                              <PenaltyServingForm
+                                penalty={penalty}
+                                session={session}
+                                disabled={busy}
+                                onServe={(details) => changePenalty('serve', penalty.id, details)}
+                              />
+                            </div>
+                          )}
                           {penalty.status === PenaltyStatus.ACTIVE && (
                             <Button
                               type="button"

@@ -935,6 +935,31 @@ describe('director penalty permissions', () => {
     return { app, session };
   }
 
+  test('serving requires the director credential and uses the route penalty ID', async () => {
+    const { app, session } = setupPenalties();
+    session.servePenalty = jest.fn().mockResolvedValue({ id: 'pen-1', status: 'served' });
+    const token = await issueToken(app);
+    const body = { sessionId: 'race-1', penaltyId: 'forged', method: 'manual', reason: 'Verified on video' };
+    for (const credential of [null, token]) {
+      const call = request(app).post('/api/race-control/director/penalties/pen-1/serve');
+      if (credential) call.set('Authorization', `Bearer ${credential}`);
+      await call.send(body).expect(403);
+    }
+    expect(session.servePenalty).not.toHaveBeenCalled();
+    await request(app)
+      .post('/api/race-control/director/penalties/pen-1/serve')
+      .set('Authorization', `Bearer ${secret}`)
+      .send(body)
+      .expect(200);
+    expect(session.servePenalty).toHaveBeenCalledWith({ ...body, penaltyId: 'pen-1' });
+    session.servePenalty.mockRejectedValueOnce(Object.assign(new Error('Pit stop is ambiguous'), { status: 409 }));
+    await request(app)
+      .post('/api/race-control/director/penalties/pen-1/serve')
+      .set('Authorization', `Bearer ${secret}`)
+      .send(body)
+      .expect(409);
+  });
+
   test('only the director may issue or revoke penalties', async () => {
     const { app, session } = setupPenalties();
     const token = await issueToken(app);
