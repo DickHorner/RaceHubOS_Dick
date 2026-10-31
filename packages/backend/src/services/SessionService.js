@@ -9,6 +9,7 @@ import {
   DamageStatus,
   PenaltyKind,
   PenaltyStatus,
+  PenaltyServingMethod,
   WeatherCondition,
   TyreType,
   isSessionType,
@@ -1245,6 +1246,88 @@ export class SessionService extends EventEmitter {
     }
 
     this.penaltyChanged(sessionId, result.championshipId, result.penalty);
+    return result.penalty;
+  }
+
+  async servePenalty({ sessionId, penaltyId, method, pitStopId = null, confirmedStationary, reason }) {
+    if (
+      typeof sessionId !== 'string' ||
+      !sessionId ||
+      typeof penaltyId !== 'string' ||
+      !penaltyId ||
+      !Object.values(PenaltyServingMethod).includes(method) ||
+      typeof reason !== 'string' ||
+      reason.trim().length < 3 ||
+      reason.trim().length > 200 ||
+      (method === PenaltyServingMethod.PIT &&
+        (typeof pitStopId !== 'string' || !pitStopId || confirmedStationary !== true)) ||
+      (method === PenaltyServingMethod.MANUAL && pitStopId !== null)
+    ) {
+      throw penaltyError('Invalid penalty serving details', 400);
+    }
+    let result;
+    try {
+      result = await this.prisma.$transaction(async (tx) => {
+        const session = await tx.session.findUnique({ where: { id: sessionId } });
+        if (!session || session.deletedAt) throw penaltyError('Session not found', 404);
+        if (
+          session.type !== SessionType.RACE ||
+          ![SessionStatus.ACTIVE, SessionStatus.PAUSED, SessionStatus.FINISHING, SessionStatus.FINISHED].includes(
+            session.status
+          )
+        )
+          throw penaltyError('Serving requires a started race', 409);
+        const old = await tx.sessionPenalty.findUnique({ where: { id: penaltyId } });
+        if (!old || old.sessionId !== sessionId) throw penaltyError('Penalty not found for this race', 404);
+        if (old.kind !== PenaltyKind.TIME) throw penaltyError('Only time penalties can be served', 409);
+        if (
+          old.status === PenaltyStatus.SERVED &&
+          old.servedMethod === method &&
+          old.servedPitStopId === pitStopId &&
+          old.servedReason === reason.trim()
+        )
+          return { penalty: old, championshipId: session.championshipId, changed: false };
+        if (old.status !== PenaltyStatus.ACTIVE) throw penaltyError('Penalty is no longer pending', 409);
+        if (method === PenaltyServingMethod.PIT) {
+          const pit = await tx.pitStop.findUnique({ where: { id: pitStopId } });
+          if (
+            !pit ||
+            pit.sessionId !== sessionId ||
+            !old.sessionDriverId ||
+            pit.sessionDriverId !== old.sessionDriverId ||
+            pit.controller !== old.controller
+          )
+            throw penaltyError('Pit stop does not belong to this penalty assignment', 409);
+          const duration = pit.exitedAt.getTime() - pit.enteredAt.getTime();
+          if (
+            pit.enteredAt < old.issuedAt ||
+            pit.exitedAt > new Date() ||
+            duration < old.amount ||
+            duration !== pit.durationMs ||
+            !['cu', 'simulator'].includes(pit.source)
+          )
+            throw penaltyError('Pit stop is too short, predates the penalty or is ambiguous', 409);
+        }
+        const saved = await tx.sessionPenalty.updateMany({
+          where: { id: penaltyId, status: PenaltyStatus.ACTIVE },
+          data: {
+            status: PenaltyStatus.SERVED,
+            servedAt: new Date(),
+            servedMethod: method,
+            servedReason: reason.trim(),
+            servedPitStopId: pitStopId,
+          },
+        });
+        if (saved.count !== 1) throw penaltyError('Penalty is no longer pending', 409);
+        const penalty = await tx.sessionPenalty.findUnique({ where: { id: penaltyId } });
+        if (session.status === SessionStatus.FINISHED) await this.updatePenaltyPositions(tx, sessionId);
+        return { penalty, championshipId: session.championshipId, changed: true };
+      });
+    } catch (error) {
+      if (error.code === 'P2002') throw penaltyError('Pit stop already used to serve another penalty', 409);
+      throw error;
+    }
+    if (result.changed) this.penaltyChanged(sessionId, result.championshipId, result.penalty);
     return result.penalty;
   }
 

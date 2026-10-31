@@ -865,6 +865,18 @@ router.post('/director/penalties', requireDirector, async (req, res) => {
   }
 });
 
+router.post('/director/penalties/:id/serve', requireDirector, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const penalty = await serialize(() => sessionService.servePenalty({ ...req.body, penaltyId: req.params.id }));
+    res.json({ success: true, data: penalty });
+  } catch (error) {
+    const status = error.status || 500;
+    if (status === 500) console.error('[RaceControl] Penalty serving failed:', error);
+    res.status(status).json({ success: false, error: status === 500 ? 'Could not serve penalty' : error.message });
+  }
+});
+
 router.post('/director/penalties/:id/revoke', requireDirector, async (req, res) => {
   res.set('Cache-Control', 'no-store');
   try {

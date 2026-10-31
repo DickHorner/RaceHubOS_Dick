@@ -230,6 +230,7 @@ model PitStop {
   session         Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   sessionDriver   SessionDriver? @relation(fields: [sessionDriverId], references: [id], onDelete: SetNull)
   tyreChange      TyreChange?
+  servedPenalty   SessionPenalty?
 
   @@index([sessionId, enteredAt])
   @@index([sessionDriverId])
@@ -281,9 +282,14 @@ model SessionPenalty {
   kind            String        // time | lap
   amount          Int           // milliseconds for time, laps for lap
   reason          String
-  status          String        @default("active") // active | revoked
+  status          String        @default("active") // active | revoked | served
   issuedAt        DateTime      @default(now())
   revokedAt       DateTime?
+  servedAt        DateTime?
+  servedMethod    String?       // pit | manual — @racehubos/shared
+  servedReason    String?
+  servedPitStopId String?       @unique
+  servedPitStop   PitStop?      @relation(fields: [servedPitStopId], references: [id], onDelete: SetNull)
   session         Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   sessionDriver   SessionDriver? @relation(fields: [sessionDriverId], references: [id], onDelete: SetNull)
 

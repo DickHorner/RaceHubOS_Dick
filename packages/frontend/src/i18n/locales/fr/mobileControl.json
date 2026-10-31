@@ -109,5 +109,19 @@
   "sessionRecoveryDetails": "Voir la session et les tours",
   "sessionRecoveryConfirm": "J’ai vérifié que « {{name}} » est orpheline. Corriger son statut en incomplète et conserver toutes les données de course.",
   "sessionRecoveryApply": "Résoudre l’entrée orpheline",
-  "sessionRecoveryAudit": "Statut corrigé manuellement de « {{status}} » à « Incomplète » le {{date}}. Il ne s’agit pas d’une fin de course normale ; les tours sont conservés."
+  "sessionRecoveryAudit": "Statut corrigé manuellement de « {{status}} » à « Incomplète » le {{date}}. Il ne s’agit pas d’une fin de course normale ; les tours sont conservés.",
+  "penaltyServed": "Purgée",
+  "penaltyServing": {
+    "method": "Mode de confirmation",
+    "pit": "Arrêt vérifié",
+    "manual": "Dérogation manuelle",
+    "stop": "Arrêt terminé",
+    "noStop": "Aucun arrêt admissible après la sanction",
+    "confirm": "J’ai vérifié au moins {{seconds}} secondes d’immobilisation pour purger cette sanction.",
+    "reason": "Motif / preuve (3–200 caractères)",
+    "help": "Le temps dans les stands ne prouve pas l’immobilisation. Confirmez après vérification personnelle. Aucune détection automatique de vitesse. Une dérogation manuelle exige un motif.",
+    "submit": "Confirmer la sanction purgée",
+    "audit": "{{date}} · {{method}} · {{reason}}"
+  },
+  "penaltyPending": "Pénalité de temps à purger"
 }

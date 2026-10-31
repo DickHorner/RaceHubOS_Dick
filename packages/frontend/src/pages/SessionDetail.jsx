@@ -462,14 +462,31 @@ export default function SessionDetail() {
                           <td className="px-4 py-2">
                             <Badge variant={penalty.status === PenaltyStatus.ACTIVE ? 'default' : 'secondary'}>
                               {t(
-                                penalty.status === PenaltyStatus.ACTIVE
-                                  ? 'profile.penaltyActive'
-                                  : 'profile.penaltyRevoked'
+                                penalty.status === PenaltyStatus.SERVED
+                                  ? 'mobileControl:penaltyServed'
+                                  : penalty.status === PenaltyStatus.ACTIVE
+                                    ? penalty.kind === PenaltyKind.TIME
+                                      ? 'mobileControl:penaltyPending'
+                                      : 'profile.penaltyActive'
+                                    : 'profile.penaltyRevoked'
                               )}
                             </Badge>
                             <div className="text-xs text-muted-foreground">
                               {formatDate(penalty.issuedAt, i18n.language)}
                             </div>
+                            {penalty.servedAt && (
+                              <div
+                                className="text-xs text-muted-foreground"
+                                data-testid={`penalty-served-${penalty.id}`}
+                              >
+                                {t('mobileControl:penaltyServing.audit', {
+                                  date: formatDate(penalty.servedAt, i18n.language),
+                                  method: t(`mobileControl:penaltyServing.${penalty.servedMethod}`),
+                                  reason: penalty.servedReason,
+                                })}
+                                {penalty.servedPitStopId && ` · ${penalty.servedPitStopId}`}
+                              </div>
+                            )}
                             {penalty.revokedAt && (
                               <div className="text-xs text-muted-foreground">
                                 {formatDate(penalty.revokedAt, i18n.language)}
