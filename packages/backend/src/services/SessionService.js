@@ -19,6 +19,10 @@ import {
   validTyreType,
   validTyreMismatchPercent,
   tyreAdjustedLapTime,
+  tyreTimeFactor,
+  validVirtualFuelWeightPercent,
+  virtualFuelWeightedLapTime,
+  qualifyingLapTime,
   validDamageConfig,
   validVirtualFuelRate,
   validVirtualFuelUnits,
@@ -112,7 +116,7 @@ export class SessionService extends EventEmitter {
     const { controller, timestamp, lapTime, sector } = data;
 
     // Ignore stale hardware events when there is no running session.
-    if (!this.activeSessionId || !this.isActive() || this.sessionStatus === SessionStatus.PAUSED) {
+    if (!this.activeSessionId || !this.isActive() || this._finishing || this.sessionStatus === SessionStatus.PAUSED) {
       return;
     }
 
@@ -221,23 +225,14 @@ export class SessionService extends EventEmitter {
     const simulatedLapTime = simulate
       ? tyreAdjustedLapTime(lapTime, driver.tyreType, weatherAtLap, this.sessionConfig.tyreMismatchPercent)
       : null;
-    if (simulatedLapTime !== null) {
-      driver.simulatedBestLapTime = Math.min(driver.simulatedBestLapTime ?? Infinity, simulatedLapTime);
-    }
-
     // Extra laps during the grace period don't count toward the total.
-    if (!maxLaps || driver.totalLaps <= maxLaps) {
+    const countsTowardTotal = !maxLaps || driver.totalLaps <= maxLaps;
+    if (countsTowardTotal) {
       driver.totalTime += Math.round(lapTime);
-      if (simulatedLapTime !== null) {
-        driver.simulatedTotalTime = (driver.simulatedTotalTime ?? 0) + simulatedLapTime;
-      }
     }
-
-    // 2. Recalculate positions (pass controller who just completed a lap)
+    // Weight timing uses the tank inside the same ordered queue as refuelling.
+    await this.saveLap(driver, lapTime, simulatedLapTime, simulate ? weatherAtLap : null, countsTowardTotal);
     this.recalculatePositions(controller);
-
-    // 3. Save to DB
-    await this.saveLap(driver, lapTime, simulatedLapTime, simulate ? weatherAtLap : null);
     await this.updateSessionDriver(driver);
     await this.triggerDamage(driver, lapTime);
 
@@ -402,6 +397,7 @@ export class SessionService extends EventEmitter {
       weatherIntervalSeconds: session.weatherIntervalSeconds,
       weatherAdvanceDuringPause: session.weatherAdvanceDuringPause,
       tyreMismatchPercent: session.tyreMismatchPercent,
+      fuelWeightPercent: session.fuelWeightPercent,
       virtualFuelRate: session.virtualFuelRate,
       requiredPitStops: session.requiredPitStops,
       damageLapThresholdMs: session.damageLapThresholdMs,
@@ -1441,10 +1437,10 @@ export class SessionService extends EventEmitter {
       this.sessionDrivers.sort(compareRaceClassification);
     } else {
       this.sessionDrivers.sort((a, b) => {
-        if (a.bestLapTime === null && b.bestLapTime === null) return 0;
-        if (a.bestLapTime === null) return 1;
-        if (b.bestLapTime === null) return -1;
-        return a.bestLapTime - b.bestLapTime;
+        return (
+          (qualifyingLapTime(a, this.sessionConfig?.fuelWeightPercent) ?? Infinity) -
+          (qualifyingLapTime(b, this.sessionConfig?.fuelWeightPercent) ?? Infinity)
+        );
       });
     }
 
@@ -1483,8 +1479,10 @@ export class SessionService extends EventEmitter {
           driver.gap = driver.classifiedSimulatedTime - leader.classifiedSimulatedTime;
         }
       } else {
-        if (leader.bestLapTime && driver.bestLapTime) {
-          driver.gap = driver.bestLapTime - leader.bestLapTime;
+        const leaderTime = qualifyingLapTime(leader, this.sessionConfig?.fuelWeightPercent);
+        const driverTime = qualifyingLapTime(driver, this.sessionConfig?.fuelWeightPercent);
+        if (leaderTime && driverTime) {
+          driver.gap = driverTime - leaderTime;
         } else {
           driver.gap = null;
         }
@@ -1510,17 +1508,17 @@ export class SessionService extends EventEmitter {
    * Static method to calculate gaps on drivers array
    * Used by API routes when returning session data
    */
-  static calculateDriverGaps(drivers, sessionType, penalties = []) {
+  static calculateDriverGaps(drivers, sessionType, penalties = [], fuelWeightPercent = 0) {
     if (!drivers || drivers.length === 0) return drivers;
 
     const isRace = sessionType === SessionType.RACE;
     const sorted = isRace
       ? rankRaceDrivers(drivers, penalties)
       : [...drivers].sort((a, b) => {
-          if (a.bestLapTime === null && b.bestLapTime === null) return 0;
-          if (a.bestLapTime === null) return 1;
-          if (b.bestLapTime === null) return -1;
-          return a.bestLapTime - b.bestLapTime;
+          return (
+            (qualifyingLapTime(a, fuelWeightPercent) ?? Infinity) -
+            (qualifyingLapTime(b, fuelWeightPercent) ?? Infinity)
+          );
         });
 
     const leader = sorted[0];
@@ -1531,8 +1529,10 @@ export class SessionService extends EventEmitter {
           const lapDiff = leader.classifiedLaps - driver.classifiedLaps;
           gap = lapDiff > 0 ? lapDiff : driver.classifiedSimulatedTime - leader.classifiedSimulatedTime;
         } else {
-          if (leader.bestLapTime && driver.bestLapTime) {
-            gap = driver.bestLapTime - leader.bestLapTime;
+          const leaderTime = qualifyingLapTime(leader, fuelWeightPercent);
+          const driverTime = qualifyingLapTime(driver, fuelWeightPercent);
+          if (leaderTime && driverTime) {
+            gap = driverTime - leaderTime;
           }
         }
       }
@@ -1759,6 +1759,8 @@ export class SessionService extends EventEmitter {
     const previousStatus = this.sessionStatus;
     const championshipId = this.sessionConfig?.championshipId;
 
+    if (this.sessionConfig?.fuelWeightPercent > 0) await this.tyreWrites;
+    await this.virtualFuelWrites;
     // Unrepaired damage at race end is DNF, independently of the finish conditions.
     await this.expireDamage(true);
     // Calculate DNF, then sort the finished result using the persisted penalties.
@@ -1772,6 +1774,8 @@ export class SessionService extends EventEmitter {
           where: { id: driver.id },
           data: {
             finalPos: driver.position,
+            simulatedTotalTime: driver.simulatedTotalTime,
+            simulatedBestLapTime: driver.simulatedBestLapTime,
             totalLaps: driver.totalLaps,
             totalTime: driver.totalTime,
             bestLapTime: driver.bestLapTime,
@@ -1792,6 +1796,7 @@ export class SessionService extends EventEmitter {
       championshipId,
       sessionType: this.currentPhase,
       startedAt: this.sessionConfig?.startedAt,
+      fuelWeightPercent: this.sessionConfig?.fuelWeightPercent ?? 0,
       weatherCondition: weatherForSession(this.sessionConfig, Date.now()),
       leaderboard: this.getEnrichedLeaderboard(),
     };
@@ -2065,7 +2070,7 @@ export class SessionService extends EventEmitter {
 
   // ==================== DB Operations ====================
 
-  async saveLap(driver, lapTime, simulatedLapTime = null, weatherAtLap = null) {
+  async saveLap(driver, lapTime, simulatedLapTime = null, weatherAtLap = null, countsTowardTotal = true) {
     const sessionId = this.activeSessionId;
     const data = {
       sessionId,
@@ -2081,39 +2086,64 @@ export class SessionService extends EventEmitter {
       weatherAtLap,
     };
 
+    const recordTiming = (time) => {
+      if (Number.isFinite(time)) {
+        driver.simulatedBestLapTime = Math.min(driver.simulatedBestLapTime ?? Infinity, time);
+        if (countsTowardTotal) driver.simulatedTotalTime = (driver.simulatedTotalTime ?? 0) + time;
+      }
+      return time;
+    };
     const rate = this.sessionConfig?.virtualFuelRate;
     if (rate == null) {
       await this.prisma.lap.create({ data });
-      return;
+      return recordTiming(simulatedLapTime);
     }
 
-    await this.queueVirtualFuel(async () => {
-      const event = await this.prisma.$transaction(async (tx) => {
-        const lap = await tx.lap.create({ data });
-        return tx.virtualFuelEvent.create({
-          data: {
+    const record = () =>
+      this.queueVirtualFuel(async () => {
+        const beforeUnits = driver.virtualFuelUnits ?? VIRTUAL_FUEL_FULL;
+        const weightPercent = this.sessionConfig?.fuelWeightPercent ?? 0;
+        if (weightPercent > 0) {
+          data.fuelUnitsAtLap = beforeUnits;
+          data.tyreAtLap = weatherAtLap === null ? null : driver.tyreType;
+          data.simulatedLapTime = virtualFuelWeightedLapTime(
+            lapTime * tyreTimeFactor(data.tyreAtLap, weatherAtLap, this.sessionConfig?.tyreMismatchPercent ?? 0),
+            beforeUnits,
+            weightPercent
+          );
+          if (data.simulatedLapTime === null) throw new Error('Invalid virtual fuel timing state');
+        }
+        const event = await this.prisma.$transaction(async (tx) => {
+          const lap = await tx.lap.create({ data });
+          return tx.virtualFuelEvent.create({
+            data: {
+              sessionId,
+              sessionDriverId: driver.id,
+              controller: driver.controller,
+              kind: 'lap',
+              units: virtualFuelBurn(lapTime, rate),
+              source: 'lap',
+              reference: `lap:${lap.id}`,
+            },
+          });
+        });
+        if (this.activeSessionId === sessionId) {
+          const beforeUnits = driver.virtualFuelUnits;
+          driver.virtualFuelUnits = virtualFuelAfter(beforeUnits ?? VIRTUAL_FUEL_FULL, event);
+          this.emitAutoSound('session:virtual_fuel_changed', {
             sessionId,
             sessionDriverId: driver.id,
-            controller: driver.controller,
-            kind: 'lap',
-            units: virtualFuelBurn(lapTime, rate),
-            source: 'lap',
-            reference: `lap:${lap.id}`,
-          },
-        });
+            kind: event.kind,
+            beforeUnits,
+            afterUnits: driver.virtualFuelUnits,
+          });
+        }
+        return recordTiming(data.simulatedLapTime);
       });
-      if (this.activeSessionId === sessionId) {
-        const beforeUnits = driver.virtualFuelUnits;
-        driver.virtualFuelUnits = virtualFuelAfter(beforeUnits ?? VIRTUAL_FUEL_FULL, event);
-        this.emitAutoSound('session:virtual_fuel_changed', {
-          sessionId,
-          sessionDriverId: driver.id,
-          kind: event.kind,
-          beforeUnits,
-          afterUnits: driver.virtualFuelUnits,
-        });
-      }
-    });
+    // Pit exits already admitted to the tyre queue must commit their fuel and
+    // tyre changes before this lap takes its snapshot. Wait outside the fuel
+    // queue because a pit operation itself needs that queue.
+    return this.sessionConfig?.fuelWeightPercent > 0 ? this.tyreWrites.then(record) : record();
   }
 
   async updateSessionDriver(driver) {
@@ -2154,6 +2184,7 @@ export class SessionService extends EventEmitter {
       weatherIntervalSeconds = 60,
       weatherAdvanceDuringPause = false,
       tyreMismatchPercent = 0,
+      fuelWeightPercent = 0,
       virtualFuelRate = null,
       requiredPitStops = 0,
       damageLapThresholdMs = null,
@@ -2174,6 +2205,12 @@ export class SessionService extends EventEmitter {
     }
     if (!validTyreMismatchPercent(tyreMismatchPercent) || (tyreMismatchPercent > 0 && weatherSeed === null)) {
       throw new Error('Tyre time penalty requires enabled weather and 0-30 percent');
+    }
+    if (
+      !validVirtualFuelWeightPercent(fuelWeightPercent) ||
+      (fuelWeightPercent > 0 && (virtualFuelRate == null || ![SessionType.RACE, SessionType.QUALIF].includes(type)))
+    ) {
+      throw new Error('Fuel weight requires virtual fuel in a race or qualifying session and 0-30 percent');
     }
     if (weatherSeed !== null && type !== SessionType.RACE) {
       throw new Error('Weather is only supported for race sessions');
@@ -2230,6 +2267,7 @@ export class SessionService extends EventEmitter {
         weatherIntervalSeconds,
         weatherAdvanceDuringPause,
         tyreMismatchPercent,
+        fuelWeightPercent,
         virtualFuelRate,
         requiredPitStops,
         damageLapThresholdMs,

@@ -21,7 +21,7 @@ export function withRacePenalties(driver, penalties = []) {
     penaltyTimeMs,
     classifiedLaps: Math.max(0, (driver.totalLaps || 0) - penaltyLaps),
     classifiedTime: (driver.totalTime || 0) + penaltyTimeMs,
-    // Simulated tyre time (when enabled) is the same-lap tie-breaker; measured totalTime is unchanged.
+    // Simulated tyre/fuel time (when enabled) is the same-lap tie-breaker; measured totalTime is unchanged.
     classifiedSimulatedTime: (driver.simulatedTotalTime ?? driver.totalTime ?? 0) + penaltyTimeMs,
   };
 }

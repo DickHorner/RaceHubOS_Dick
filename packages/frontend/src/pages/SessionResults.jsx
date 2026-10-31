@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Copy, Printer } from 'lucide-react'
-import { SessionStatus, SessionType, rankRaceDrivers } from '@racehubos/shared'
+import { SessionStatus, SessionType, rankRaceDrivers, qualifyingLapTime } from '@racehubos/shared'
 import { Button } from '@/components/ui/button'
 import LapTime from '../components/race/LapTime'
 
@@ -58,8 +58,8 @@ export default function SessionResults() {
   const rows = isRace
     ? rankRaceDrivers(drivers, session?.penalties || [])
     : [...drivers].sort((a, b) => {
-        const aBest = a.bestLapTime > 0 ? a.bestLapTime : Infinity
-        const bBest = b.bestLapTime > 0 ? b.bestLapTime : Infinity
+        const aBest = qualifyingLapTime(a, session?.fuelWeightPercent) || Infinity
+        const bBest = qualifyingLapTime(b, session?.fuelWeightPercent) || Infinity
         return aBest === bBest ? a.controller - b.controller : aBest - bBest
       })
 
@@ -127,6 +127,9 @@ export default function SessionResults() {
 
             <section aria-label={t('printResults.standings')} className="space-y-3">
               <h2 className="text-lg font-bold">{t('printResults.standings')}</h2>
+              {session.fuelWeightPercent > 0 && (
+                <p role="note">{t('profile.fuelWeightApplied', { percent: session.fuelWeightPercent })}</p>
+              )}
               {rows.length === 0 ? (
                 <p>{t('profile.noParticipants')}</p>
               ) : (
@@ -139,7 +142,18 @@ export default function SessionResults() {
                         <th className="p-2">{t('printResults.car')}</th>
                         <th className="p-2 text-right">{t('printResults.laps')}</th>
                         <th className="p-2 text-right">{t('printResults.bestLap')}</th>
-                        {isRace && <th className="p-2 text-right">{t('printResults.totalTime')}</th>}
+                        {!isRace && session.fuelWeightPercent > 0 && (
+                          <th className="p-2 text-right">{t('printResults.simulatedBest')}</th>
+                        )}
+                        {isRace && (
+                          <th className="p-2 text-right">
+                            {t(
+                              session.fuelWeightPercent > 0
+                                ? 'race:leaderboard.simulatedTotal'
+                                : 'printResults.totalTime'
+                            )}
+                          </th>
+                        )}
                       </tr>
                     </thead>
                     <tbody>
@@ -156,11 +170,18 @@ export default function SessionResults() {
                           <td className="p-2 text-right">
                             <LapTime time={entry.bestLapTime} size="sm" className="print:text-black" />
                           </td>
+                          {!isRace && session.fuelWeightPercent > 0 && (
+                            <td className="p-2 text-right">
+                              <LapTime time={entry.simulatedBestLapTime} size="sm" className="print:text-black" />
+                            </td>
+                          )}
                           {isRace && (
                             <td className="p-2 text-right">
                               <LapTime
                                 time={
-                                  session.tyreMismatchPercent > 0 ? entry.classifiedSimulatedTime : entry.classifiedTime
+                                  session.tyreMismatchPercent > 0 || session.fuelWeightPercent > 0
+                                    ? entry.classifiedSimulatedTime
+                                    : entry.classifiedTime
                                 }
                                 format="total"
                                 size="sm"

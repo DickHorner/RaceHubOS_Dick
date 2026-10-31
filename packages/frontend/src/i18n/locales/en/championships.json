@@ -106,7 +106,10 @@
       "invalid": "Enter a whole number from 1 to 100.",
       "saveError": "Saving the fuel consumption setting could not be confirmed.",
       "saving": "Saving fuel consumption setting…",
-      "reload": "Reload page"
+      "reload": "Reload page",
+      "weightPercent": "Full-tank weight penalty (%)",
+      "weightHint": "Virtual race/qualifying scoring with virtual fuel: 0 = off, 0–30% at a full tank, proportionally less as fuel falls. Uses fuel before each lap’s burn. Locked after start; no CU speed change.",
+      "weightInvalid": "Choose a whole number from 0 to 30; virtual fuel and a race/qualifying session are required."
     },
     "requiredPits": {
       "title": "Required pit stops",

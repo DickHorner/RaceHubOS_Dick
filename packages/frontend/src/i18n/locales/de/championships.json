@@ -106,7 +106,10 @@
       "invalid": "Bitte eine ganze Zahl von 1 bis 100 eingeben.",
       "saveError": "Das Speichern der Verbrauchseinstellung konnte nicht bestätigt werden.",
       "saving": "Verbrauchseinstellung wird gespeichert …",
-      "reload": "Seite neu laden"
+      "reload": "Seite neu laden",
+      "weightPercent": "Tankgewichts-Malus bei vollem Tank (%)",
+      "weightHint": "Virtuelle Wertung für Rennen/Qualifying mit virtuellem Tank: 0 = aus, 0–30 % bei vollem Tank, anteilig weniger bei niedrigem Stand. Es zählt der Tankstand vor dem Rundenverbrauch. Nach dem Start gesperrt; keine CU-Geschwindigkeitsänderung.",
+      "weightInvalid": "Bitte eine ganze Zahl von 0 bis 30 wählen; ein virtueller Tank und Rennen/Qualifying sind erforderlich."
     },
     "requiredPits": {
       "title": "Pflichtstopps",

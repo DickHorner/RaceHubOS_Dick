@@ -49,7 +49,8 @@
     "classificationNote": "Classification uses recorded laps, lap and time penalties, plus virtual tyre-adjusted time when enabled.",
     "source": "Source",
     "sessionId": "Session ID",
-    "linkCopied": "Link copied"
+    "linkCopied": "Link copied",
+    "simulatedBest": "Best simulated lap"
   },
   "columns": {
     "name": "Name",
@@ -111,7 +112,10 @@
     "damageDeadline": "Repair deadline (race s)",
     "damagePitMinimum": "Minimum pit interval (s)",
     "damageHint": "Races only. One valid lap above the threshold triggers a single damage episode. Pauses freeze the deadline. Simulator pit intervals can auto-repair; real CU stops require director confirmation. No CU commands.",
-    "damageInvalid": "Invalid values: threshold 1–600 s, deadline 5–3600 s, pit interval 1–300 s and not longer than the deadline."
+    "damageInvalid": "Invalid values: threshold 1–600 s, deadline 5–3600 s, pit interval 1–300 s and not longer than the deadline.",
+    "fuelWeightPercent": "Full-tank weight penalty (%)",
+    "fuelWeightHint": "Virtual race/qualifying scoring with virtual fuel: 0 = off, 0–30% at a full tank, proportionally less as fuel falls. Uses fuel before each lap’s burn. Locked after start; no CU speed change.",
+    "fuelWeightInvalid": "Choose a whole number from 0 to 30; virtual fuel and a race/qualifying session are required."
   },
   "profile": {
     "notFound": "Session not found",
@@ -188,6 +192,7 @@
       "hint": "0 % disables the preview. Linear penalty from the fuel level before the recorded lap burn; saved tyre time adjustments are included. The saved classification remains unchanged.",
       "invalid": "Enter a whole percentage from 0 to {{max}}.",
       "time": "Time with fuel weight (preview)"
-    }
+    },
+    "fuelWeightApplied": "Fuel weight: up to {{percent}}% virtual time penalty at a full tank. Scoring uses separately saved simulated times and fuel before each lap’s burn; measured times are retained."
   }
 }

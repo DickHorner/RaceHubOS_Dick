@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ChevronRight, Clock, CheckCircle2, Circle, Loader2 } from 'lucide-react'
 import { STATUS_COLORS } from '../../lib/colors'
-import { SessionStatus, SessionType } from '@racehubos/shared'
+import { SessionStatus, SessionType, qualifyingLapTime } from '@racehubos/shared'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -18,7 +18,7 @@ function formatTime(ms) {
   return `${secs}.${String(millis).padStart(3, '0')}`
 }
 
-function BracketCard({ label, name, status, drivers, type, showTimes = false }) {
+function BracketCard({ label, name, status, drivers, type, fuelWeightPercent = 0, showTimes = false }) {
   const { t } = useTranslation('championships')
   const s = STATUS_COLORS[status] || STATUS_COLORS.draft
   const StatusIcon = STATUS_ICONS[status] || Circle
@@ -60,11 +60,17 @@ function BracketCard({ label, name, status, drivers, type, showTimes = false }) 
                 )}
                 {showTimes &&
                   (type === SessionType.RACE
-                    ? sd.totalTime > 0 && (
-                        <span className="text-muted-foreground tabular-nums">{formatTime(sd.totalTime)}</span>
+                    ? (sd.simulatedTotalTime ?? sd.totalTime) > 0 && (
+                        <span className="text-muted-foreground tabular-nums">
+                          {formatTime(fuelWeightPercent > 0 ? sd.simulatedTotalTime : sd.totalTime)}
+                          {fuelWeightPercent > 0 && ` · ${t('race:leaderboard.simulatedBest')}`}
+                        </span>
                       )
-                    : sd.bestLapTime > 0 && (
-                        <span className="text-muted-foreground tabular-nums">{formatTime(sd.bestLapTime)}</span>
+                    : qualifyingLapTime(sd, fuelWeightPercent) > 0 && (
+                        <span className="text-muted-foreground tabular-nums">
+                          {formatTime(qualifyingLapTime(sd, fuelWeightPercent))}
+                          {fuelWeightPercent > 0 && ` · ${t('race:leaderboard.simulatedBest')}`}
+                        </span>
                       ))}
               </div>
             )
@@ -145,6 +151,7 @@ export default function ChampionshipBracket({ championshipId, onSessionSelect })
                 name={g.name}
                 status={g.status}
                 drivers={g.drivers}
+                fuelWeightPercent={g.fuelWeightPercent}
                 type={SessionType.QUALIF}
                 showTimes={g.status === SessionStatus.FINISHED}
               />
@@ -173,7 +180,10 @@ export default function ChampionshipBracket({ championshipId, onSessionSelect })
                       <img src={`${API_URL}${entry.driver.img}`} className="w-4 h-4 rounded-full object-cover" alt="" />
                     )}
                     <span className="flex-1 truncate">{entry.driver?.name || '?'}</span>
-                    <span className="text-muted-foreground tabular-nums">{formatTime(entry.bestTime)}</span>
+                    <span className="text-muted-foreground tabular-nums">
+                      {formatTime(entry.bestTime)}
+                      {entry.isSimulated && ` · ${t('race:leaderboard.simulatedBest')}`}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -199,6 +209,7 @@ export default function ChampionshipBracket({ championshipId, onSessionSelect })
                 name={g.name}
                 status={g.status}
                 drivers={g.drivers}
+                fuelWeightPercent={g.fuelWeightPercent}
                 type={SessionType.RACE}
                 showTimes={g.status === SessionStatus.FINISHED}
               />

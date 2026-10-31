@@ -502,6 +502,7 @@ function addSessionSheet(workbook, session, taken) {
   ]) {
     addField(sheet, label, value, numFmt);
   }
+  if (session.fuelWeightPercent > 0) addField(sheet, 'Malus carburant à plein (%)', session.fuelWeightPercent);
   sheet.getColumn(1).width = 22;
   sheet.getColumn(2).width = 30;
   sheet.addRow([]);
@@ -526,6 +527,22 @@ function addSessionSheet(workbook, session, taken) {
       { header: 'Tours', value: (e) => e.totalLaps, width: 8 },
       { header: 'Temps total', value: (e) => duration(e.totalTime), width: 13, numFmt: DURATION_FORMAT },
       { header: 'Meilleur tour', value: (e) => duration(e.bestLapTime), width: 13, numFmt: DURATION_FORMAT },
+      ...(session.fuelWeightPercent > 0
+        ? [
+            {
+              header: 'Temps total simulé',
+              value: (e) => duration(e.simulatedTotalTime),
+              width: 19,
+              numFmt: DURATION_FORMAT,
+            },
+            {
+              header: 'Meilleur tour simulé',
+              value: (e) => duration(e.simulatedBestLapTime),
+              width: 19,
+              numFmt: DURATION_FORMAT,
+            },
+          ]
+        : []),
       { header: 'Dernier tour', value: (e) => duration(e.lastLapTime), width: 13, numFmt: DURATION_FORMAT },
       { header: 'Abandon', value: (e) => (e.isDNF ? 'oui' : ''), width: 9 },
       // L'équipement de la voiture engagée, quand il est renseigné
@@ -550,6 +567,16 @@ function addSessionSheet(workbook, session, taken) {
       { header: 'Pilote', value: (l) => l.driver?.name ?? null, width: 22 },
       { header: 'Voiture', value: (l) => (l.car ? `${l.car.brand} ${l.car.model}` : null), width: 26 },
       { header: 'Temps', value: (l) => duration(l.lapTime), width: 12, numFmt: DURATION_FORMAT },
+      ...(session.fuelWeightPercent > 0
+        ? [
+            { header: 'Temps simulé', value: (l) => duration(l.simulatedLapTime), width: 15, numFmt: DURATION_FORMAT },
+            {
+              header: 'Carburant avant tour (%)',
+              value: (l) => (l.fuelUnitsAtLap == null ? null : l.fuelUnitsAtLap / 100),
+              width: 24,
+            },
+          ]
+        : []),
       { header: 'S1', value: (l) => duration(l.sector1), width: 10, numFmt: DURATION_FORMAT },
       { header: 'S2', value: (l) => duration(l.sector2), width: 10, numFmt: DURATION_FORMAT },
       { header: 'S3', value: (l) => duration(l.sector3), width: 10, numFmt: DURATION_FORMAT },

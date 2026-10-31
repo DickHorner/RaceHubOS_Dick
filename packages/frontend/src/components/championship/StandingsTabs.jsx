@@ -65,8 +65,8 @@ export default function StandingsTabs({ standings = {}, drivers = [], activeTab 
           if (bLaps !== aLaps) {
             return bLaps - aLaps
           }
-          const aTime = a.totalTime || a.raceTotalTime || Infinity
-          const bTime = b.totalTime || b.raceTotalTime || Infinity
+          const aTime = a.simulatedTotalTime ?? a.totalTime ?? a.raceTotalTime ?? Infinity
+          const bTime = b.simulatedTotalTime ?? b.totalTime ?? b.raceTotalTime ?? Infinity
           return aTime - bTime
         })
     }
@@ -94,8 +94,8 @@ export default function StandingsTabs({ standings = {}, drivers = [], activeTab 
       if (lapDiff > 0) {
         return { type: 'laps', value: lapDiff }
       }
-      const leaderTime = leader.totalTime || leader.raceTotalTime || 0
-      const currentTime = standing.totalTime || standing.raceTotalTime || 0
+      const leaderTime = leader.simulatedTotalTime ?? leader.totalTime ?? leader.raceTotalTime ?? 0
+      const currentTime = standing.simulatedTotalTime ?? standing.totalTime ?? standing.raceTotalTime ?? 0
       if (leaderTime && currentTime) {
         return { type: 'time', value: currentTime - leaderTime }
       }
@@ -247,6 +247,9 @@ export default function StandingsTabs({ standings = {}, drivers = [], activeTab 
                     {activeTab === SessionType.QUALIF && (
                       <>
                         <LapTime time={standing.bestTime} size="sm" />
+                        {standing.isSimulated && (
+                          <span className="text-xs text-muted-foreground">{t('race:leaderboard.simulatedBest')}</span>
+                        )}
                         {gap !== null && (
                           <span className="font-mono text-xs text-muted-foreground w-16 text-right">
                             +{(gap.value / 1000).toFixed(3)}
@@ -270,8 +273,16 @@ export default function StandingsTabs({ standings = {}, drivers = [], activeTab 
                           <div className="text-[10px] text-muted-foreground/50 uppercase">
                             {position === 1 ? t('standings.total') : t('standings.gap')}
                           </div>
+                          {standing.simulatedTotalTime != null && (
+                            <span className="block text-xs text-muted-foreground">
+                              {t('race:leaderboard.simulatedTotal')}
+                            </span>
+                          )}
                           {position === 1 ? (
-                            <LapTime time={standing.totalTime || standing.raceTotalTime} size="sm" />
+                            <LapTime
+                              time={standing.simulatedTotalTime ?? standing.totalTime ?? standing.raceTotalTime}
+                              size="sm"
+                            />
                           ) : gap !== null ? (
                             <>
                               <span
@@ -282,11 +293,17 @@ export default function StandingsTabs({ standings = {}, drivers = [], activeTab 
                                   : `+${(gap.value / 1000).toFixed(3)}`}
                               </span>
                               <div className="font-mono text-[10px] text-muted-foreground">
-                                <LapTime time={standing.totalTime || standing.raceTotalTime} size="xs" />
+                                <LapTime
+                                  time={standing.simulatedTotalTime ?? standing.totalTime ?? standing.raceTotalTime}
+                                  size="xs"
+                                />
                               </div>
                             </>
                           ) : (
-                            <LapTime time={standing.totalTime || standing.raceTotalTime} size="sm" />
+                            <LapTime
+                              time={standing.simulatedTotalTime ?? standing.totalTime ?? standing.raceTotalTime}
+                              size="sm"
+                            />
                           )}
                         </div>
                         {standing.points !== undefined && (

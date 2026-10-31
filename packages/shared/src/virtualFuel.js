@@ -3,6 +3,10 @@ export const VIRTUAL_FUEL_FULL = 10000;
 export const VIRTUAL_FUEL_MAX_RATE = 100;
 export const VIRTUAL_FUEL_MAX_WEIGHT_PERCENT = 30;
 
+export function qualifyingLapTime(driver, fuelWeightPercent = 0) {
+  return fuelWeightPercent > 0 ? driver.simulatedBestLapTime : driver.bestLapTime;
+}
+
 export function validVirtualFuelRate(rate) {
   return rate === null || (Number.isInteger(rate) && rate >= 1 && rate <= VIRTUAL_FUEL_MAX_RATE);
 }
@@ -100,7 +104,7 @@ export function validVirtualFuelWeightPercent(percent) {
   return Number.isInteger(percent) && percent >= 0 && percent <= VIRTUAL_FUEL_MAX_WEIGHT_PERCENT;
 }
 
-// Preview only: apply a linear fuel-weight factor to a measured or saved tyre-adjusted time.
+// Apply a linear fuel-weight factor to a measured or saved tyre-adjusted time.
 export function virtualFuelWeightedLapTime(lapTime, units, percent) {
   if (!Number.isFinite(lapTime) || lapTime <= 0 || !validVirtualFuelWeightPercent(percent)) return null;
   if (percent === 0) return Math.round(lapTime);

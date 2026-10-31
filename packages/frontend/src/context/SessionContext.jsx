@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, us
 import { io } from 'socket.io-client'
 import { useApp } from './AppContext'
 import { useVoice } from './VoiceContext'
-import { SessionStatus, SessionType, rankRaceDrivers } from '@racehubos/shared'
+import { SessionStatus, SessionType, rankRaceDrivers, qualifyingLapTime } from '@racehubos/shared'
 import i18n from '../i18n'
 import { sessionNames } from '../lib/sessionNames'
 import { beginStartTrace, traceStart } from '../lib/startTrace'
@@ -274,6 +274,8 @@ export function SessionProvider({ children }) {
           const sorted = [...data.leaderboard]
             .filter((d) => d.driver && (d.totalLaps > 0 || d.bestLapTime))
             .sort((a, b) => {
+              if (data.fuelWeightPercent > 0)
+                return (a.position ?? a.finalPos ?? Infinity) - (b.position ?? b.finalPos ?? Infinity)
               if (isQualif) return (a.bestLapTime || Infinity) - (b.bestLapTime || Infinity)
               if ((b.totalLaps || 0) !== (a.totalLaps || 0)) return (b.totalLaps || 0) - (a.totalLaps || 0)
               return (a.totalTime || Infinity) - (b.totalTime || Infinity)
@@ -290,7 +292,13 @@ export function SessionProvider({ children }) {
             announceOrder.forEach(({ driver, label }) => {
               if (!driver.driver) return
               const name = driver.driver.name
-              const time = isQualif ? v.formatTimeVoice(driver.bestLapTime) : v.formatTimeVoice(driver.totalTime)
+              const time = isQualif
+                ? v.formatTimeVoice(qualifyingLapTime(driver, data.fuelWeightPercent))
+                : v.formatTimeVoice(
+                    data.fuelWeightPercent > 0
+                      ? (driver.classifiedSimulatedTime ?? driver.simulatedTotalTime)
+                      : driver.totalTime
+                  )
               queue.push(i18n.t('voice:podium', { rank: label, name, time }))
             })
 
@@ -702,6 +710,7 @@ export function SessionProvider({ children }) {
         stats: {
           laps: p.classifiedLaps ?? p.totalLaps ?? 0,
           bestLap: p.bestLapTime || null,
+          rankBestLap: qualifyingLapTime(p, session?.fuelWeightPercent) ?? Infinity,
           lastLap: p.lastLapTime || null,
           totalTime: p.classifiedTime ?? p.totalTime ?? 0,
           rankTime: p.classifiedSimulatedTime,

@@ -49,7 +49,8 @@
     "classificationNote": "Wertung nach gespeicherten Runden, Strafabzügen und Strafzeiten; bei aktivierter Reifensimulation einschließlich der virtuellen Zeitkorrektur.",
     "source": "Quelle",
     "sessionId": "Sitzungs-ID",
-    "linkCopied": "Link kopiert"
+    "linkCopied": "Link kopiert",
+    "simulatedBest": "Beste simulierte Runde"
   },
   "columns": {
     "name": "Name",
@@ -111,7 +112,10 @@
     "damageDeadline": "Reparaturfrist (Rennzeit, s)",
     "damagePitMinimum": "Boxenintervall mindestens (s)",
     "damageHint": "Nur Rennen. Eine gültige Runde über der Grenze löst einmalig einen Schaden aus. Die Frist stoppt bei Pause. Simulator-Boxenstopps können automatisch reparieren; bei echter CU muss die Rennleitung einen beobachteten Stopp bestätigen. Keine CU-Befehle.",
-    "damageInvalid": "Ungültige Schadenswerte. Grenze 1–600 s, Frist 5–3600 s, Boxenintervall 1–300 s und höchstens so lang wie die Frist."
+    "damageInvalid": "Ungültige Schadenswerte. Grenze 1–600 s, Frist 5–3600 s, Boxenintervall 1–300 s und höchstens so lang wie die Frist.",
+    "fuelWeightPercent": "Tankgewichts-Malus bei vollem Tank (%)",
+    "fuelWeightHint": "Virtuelle Wertung für Rennen/Qualifying mit virtuellem Tank: 0 = aus, 0–30 % bei vollem Tank, anteilig weniger bei niedrigem Stand. Es zählt der Tankstand vor dem Rundenverbrauch. Nach dem Start gesperrt; keine CU-Geschwindigkeitsänderung.",
+    "fuelWeightInvalid": "Bitte eine ganze Zahl von 0 bis 30 wählen; ein virtueller Tank und Rennen/Qualifying sind erforderlich."
   },
   "profile": {
     "notFound": "Sitzung nicht gefunden",
@@ -188,6 +192,7 @@
       "hint": "0 % deaktiviert die Vorschau. Linearer Malus aus dem Tankstand vor dem gespeicherten Rundenverbrauch; vorhandene Reifen-Zeitkorrekturen werden mitgerechnet. Die gespeicherte Wertung bleibt unverändert.",
       "invalid": "Ganze Prozentzahl zwischen 0 und {{max}} eingeben.",
       "time": "Zeit mit Tankgewicht (Vorschau)"
-    }
+    },
+    "fuelWeightApplied": "Tankgewicht: bis zu {{percent}} % virtueller Zeitmalus bei vollem Tank. Gewertet wird die separat gespeicherte simulierte Zeit mit dem Tankstand vor dem Rundenverbrauch; Messzeiten bleiben erhalten."
   }
 }

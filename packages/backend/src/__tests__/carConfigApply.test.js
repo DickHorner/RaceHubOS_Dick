@@ -218,7 +218,7 @@ describe('CU vehicle configuration', () => {
         ['brake', 0, 9],
       ]);
       expect(activeDriver.totalLaps).toBe(1);
-      expect(service.saveLap).toHaveBeenCalledWith(activeDriver, 12000, null, null);
+      expect(service.saveLap).toHaveBeenCalledWith(activeDriver, 12000, null, null, true);
     });
 
     test('configures only the car assigned to each controller, one time each', async () => {

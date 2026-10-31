@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { Flag, Timer, Zap } from 'lucide-react'
 import { getImgUrl } from '../../utils/image'
-import { SessionType } from '@racehubos/shared'
+import { SessionType, qualifyingLapTime, compareRaceClassification } from '@racehubos/shared'
 
 function formatLapTime(ms) {
   if (!ms) return '--'
@@ -24,9 +24,15 @@ function formatTime(seconds) {
  * @param {string} sessionType - 'practice' | 'qualif' | 'race'
  * @param {object} stats - Optional { duration, gracePeriod, fastest } for summary bar
  */
-export default function Podium({ drivers = [], sessionType = SessionType.RACE, stats }) {
+export default function Podium({ drivers = [], sessionType = SessionType.RACE, fuelWeightPercent = 0, stats }) {
   const { t } = useTranslation('race')
 
+  const bestTime = (driver) =>
+    sessionType === SessionType.QUALIF ? qualifyingLapTime(driver, fuelWeightPercent) : driver.bestLapTime
+  const raceTime = (driver) =>
+    fuelWeightPercent > 0
+      ? (driver.classifiedSimulatedTime ?? driver.simulatedTotalTime ?? driver.totalTime)
+      : driver.totalTime
   const sorted = [...drivers].sort((a, b) => {
     if (sessionType === SessionType.PRACTICE) {
       const lapsA = a.totalLaps || 0,
@@ -34,7 +40,8 @@ export default function Podium({ drivers = [], sessionType = SessionType.RACE, s
       if (lapsB !== lapsA) return lapsB - lapsA
       return (a.bestLapTime || Infinity) - (b.bestLapTime || Infinity)
     }
-    if (sessionType === SessionType.QUALIF) return (a.bestLapTime || Infinity) - (b.bestLapTime || Infinity)
+    if (sessionType === SessionType.QUALIF) return (bestTime(a) || Infinity) - (bestTime(b) || Infinity)
+    if (fuelWeightPercent > 0) return compareRaceClassification(a, b)
     const lapsA = a.totalLaps || 0,
       lapsB = b.totalLaps || 0
     if (lapsB !== lapsA) return lapsB - lapsA
@@ -92,14 +99,20 @@ export default function Podium({ drivers = [], sessionType = SessionType.RACE, s
                       <div className="font-mono text-xs text-green-400">{t('podium.winner')}</div>
                     ) : (
                       <div className="font-mono text-xs text-red-400">
-                        {sessionType === SessionType.PRACTICE
-                          ? `+${formatLapTime((sd.bestLapTime || 0) - (podium[0]?.bestLapTime || 0))}`
+                        {sessionType === SessionType.PRACTICE ||
+                        (sessionType === SessionType.QUALIF && fuelWeightPercent > 0)
+                          ? `+${formatLapTime((bestTime(sd) || 0) - (bestTime(podium[0]) || 0))}`
                           : (sd.totalLaps || 0) < (podium[0]?.totalLaps || 0)
                             ? t('podium.lapsGap', { count: (podium[0]?.totalLaps || 0) - (sd.totalLaps || 0) })
-                            : `+${formatLapTime((sd.totalTime || 0) - (podium[0]?.totalTime || 0))}`}
+                            : `+${formatLapTime((raceTime(sd) || 0) - (raceTime(podium[0]) || 0))}`}
                       </div>
                     )}
-                    <div className="font-mono text-xs text-purple-400">{formatLapTime(sd.bestLapTime)}</div>
+                    <div className="font-mono text-xs text-purple-400">
+                      {formatLapTime(bestTime(sd))}
+                      {fuelWeightPercent > 0 && sessionType === SessionType.QUALIF && (
+                        <span className="block text-muted-foreground">{t('leaderboard.simulatedBest')}</span>
+                      )}
+                    </div>
                     {sessionType !== SessionType.PRACTICE && (
                       <div className="text-xs text-muted-foreground">
                         {t('podium.lapsCount', { count: sd.totalLaps || 0 })}
