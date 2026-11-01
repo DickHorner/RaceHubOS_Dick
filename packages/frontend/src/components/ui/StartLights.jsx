@@ -10,13 +10,12 @@ import { traceStart } from '../../lib/startTrace'
  */
 export default function StartLights({ onCancel }) {
   const { t } = useTranslation('race')
-  const { cuStatus, startRace } = useDevice()
+  const { cuStatus, startPhase, startRace } = useDevice()
   const cuStart = cuStatus?.start ?? 9
 
-  const [showGo, setShowGo] = useState(false)
   const [visible, setVisible] = useState(false)
-  const prevStart = useRef(cuStart)
-  const wasInSequence = useRef(false)
+  const previousPhase = useRef('idle')
+  const showGo = startPhase === 'go'
 
   const audioCtxRef = useRef(null)
 
@@ -40,18 +39,19 @@ export default function StartLights({ onCancel }) {
     }
   }, [])
 
-  // Play sound on each light change
+  // One GO sound per valid attempt; a false start stays latched across 7 and 0.
   useEffect(() => {
     traceStart('light:effect', { start: cuStart })
-    if (cuStart >= 1 && cuStart <= 5) {
+    if (startPhase === 'lights' && cuStart >= 1 && cuStart <= 5) {
       playBeep(600, 0.2)
-    } else if ((cuStart === 7 || cuStart === 0) && wasInSequence.current) {
+    } else if (startPhase === 'go' && previousPhase.current !== 'go') {
       playBeep(1200, 0.5)
-    } else if (cuStart === 6) {
+    } else if (startPhase === 'false_start' && previousPhase.current !== 'false_start') {
       playBeep(300, 0.4)
     }
-    if (cuStart === 0 && wasInSequence.current) traceStart('racing')
-  }, [cuStart, playBeep])
+    if (cuStart === 0 && startPhase === 'go') traceStart('racing')
+    previousPhase.current = startPhase
+  }, [cuStart, startPhase, playBeep])
 
   const handleCancel = useCallback(() => {
     if (onCancel) {
@@ -70,42 +70,20 @@ export default function StartLights({ onCancel }) {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleCancel])
+  }, [handleCancel, cuStart, startRace])
 
   useEffect(() => {
-    if (cuStart >= 1 && cuStart <= 5) {
-      wasInSequence.current = true
-    }
-  }, [cuStart])
-
-  useEffect(() => {
-    if (cuStart >= 1 && cuStart <= 7) {
-      setVisible(true)
-    } else if (cuStart === 0 && wasInSequence.current) {
-      const timer = setTimeout(() => {
-        setVisible(false)
-        wasInSequence.current = false
-      }, 2500)
-      return () => clearTimeout(timer)
-    } else {
-      setVisible(false)
-    }
-    prevStart.current = cuStart
-  }, [cuStart])
-
-  useEffect(() => {
-    const wasLights = prevStart.current >= 1 && prevStart.current <= 7
-    if ((cuStart === 7 || cuStart === 0) && wasLights && wasInSequence.current) {
-      setShowGo(true)
-      const timer = setTimeout(() => setShowGo(false), 2500)
+    setVisible(startPhase !== 'idle')
+    if (startPhase === 'go') {
+      const timer = setTimeout(() => setVisible(false), 2500)
       return () => clearTimeout(timer)
     }
-  }, [cuStart])
+  }, [startPhase])
 
-  if (!visible && !showGo) return null
+  if (!visible) return null
 
-  const isLightsOn = cuStart >= 1 && cuStart <= 5
-  const isFalseStart = cuStart === 6
+  const isLightsOn = startPhase === 'lights' && cuStart >= 1 && cuStart <= 5
+  const isFalseStart = startPhase === 'false_start'
   const showStartButton = cuStart === 1
 
   return (

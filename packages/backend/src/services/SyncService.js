@@ -1,3 +1,5 @@
+import { nextStartPhase } from '@racehubos/shared';
+
 /**
  * SyncService - Synchronisation hardware CU/Simulator
  *
@@ -18,6 +20,7 @@ export class SyncService {
 
     // CU status & polling
     this.cuStatus = null;
+    this.startPhase = 'idle';
     this.pitStates = new Map();
     this.pitSessionId = null;
     this.pollInterval = 500;
@@ -113,6 +116,7 @@ export class SyncService {
     // Clear state
     this.lastTimestamps.clear();
     this.cuStatus = null;
+    this.startPhase = 'idle';
     this.pitStates.clear();
     this.pitSessionId = null;
 
@@ -153,7 +157,8 @@ export class SyncService {
     const isFinishLine = sector === 1;
 
     let lapTime = 0;
-    if (isFinishLine && timestamp > 0) {
+    const invalidStart = this.startPhase === 'false_start';
+    if (isFinishLine && timestamp > 0 && !invalidStart) {
       const lastTimestamp = this.lastTimestamps.get(controller) || 0;
       lapTime = lastTimestamp > 0 ? timestamp - lastTimestamp : 0;
       if (lapTime >= 0) {
@@ -167,7 +172,7 @@ export class SyncService {
     this.io?.emit('cu:timer', { controller, timestamp, lapTime, sector, isFinishLine });
 
     // Only forward finish line crossings to SessionService
-    if (isFinishLine && this.sessionService?.isActive()) {
+    if (isFinishLine && !invalidStart && this.sessionService?.isActive()) {
       await this.sessionService.handleLap({ controller, timestamp, lapTime, sector });
     }
   }
@@ -187,18 +192,21 @@ export class SyncService {
     const wasNotInLights = !wasInLights;
     const isFirstLight = status?.start === 1;
 
+    const previousPhase = this.startPhase;
+    this.startPhase = nextStartPhase(previousPhase, status?.start);
+    if (this.startPhase === 'false_start') this.lastTimestamps.clear();
     this.cuStatus = status;
     this.io?.emit('cu:status', status);
     this.handlePitStatus(status);
 
     // Reset CU when entering 1/5 lights (clean slate before race)
-    if (isFirstLight && wasNotInLights) {
+    if (isFirstLight && (wasNotInLights || previousPhase === 'false_start')) {
       this.traceStart('reset:lights');
       this.reset({ timerOnly: true });
     }
 
     // Detect transition to racing (GO!) - start the timer
-    if (isNowRacing && wasNotRacing && wasInLights) {
+    if (isNowRacing && wasNotRacing && this.startPhase === 'go') {
       this.traceStart('racing');
       this.sessionService?.onRaceStart();
     }
@@ -222,6 +230,7 @@ export class SyncService {
       !sessionId ||
       session.sessionStatus !== 'active' ||
       status?.start !== 0 ||
+      this.startPhase === 'false_start' ||
       (status.mode & 0x4) === 0 ||
       !Array.isArray(status.pit)
     ) {

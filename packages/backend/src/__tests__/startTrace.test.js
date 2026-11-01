@@ -266,3 +266,37 @@ describe('opt-in backend start trace', () => {
     }
   });
 });
+
+describe('verified CU false start', () => {
+  let sync;
+  let session;
+  beforeEach(() => {
+    sync = new SyncService({ emit: jest.fn() });
+    session = { onRaceStart: jest.fn(), isActive: () => true, handleLap: jest.fn() };
+    sync.setSessionService(session);
+  });
+
+  test.each([[[7, 0]], [[0]], [[2, 3, 4, 5, 7, 0]]])(
+    'code 6 blocks GO, laps and timestamp baselines through %j',
+    async (tail) => {
+      for (const start of [1, 2, 3, 4, 5, 6, ...tail]) sync.handleStatus({ start });
+      await sync.handleTimerEvent({ controller: 0, timestamp: 2000, sector: 1 });
+      expect(session.onRaceStart).not.toHaveBeenCalled();
+      expect(session.handleLap).not.toHaveBeenCalled();
+      expect(sync.lastTimestamps.size).toBe(0);
+      expect(sync.cuStatus.start).toBe(0); // Preserve raw diagnostics, do not rewrite code 6.
+      for (const start of [1, 2, 3, 4, 5, 7, 0, 0]) sync.handleStatus({ start });
+      expect(session.onRaceStart).toHaveBeenCalledTimes(1);
+      await sync.handleTimerEvent({ controller: 0, timestamp: 5000, sector: 1 });
+      expect(session.handleLap).toHaveBeenCalledWith(expect.objectContaining({ lapTime: 0 }));
+    }
+  );
+
+  test('explicit stop and device replacement clear the failed attempt', () => {
+    for (const start of [1, 6, 9, 1, 5, 0]) sync.handleStatus({ start });
+    expect(session.onRaceStart).toHaveBeenCalledTimes(1);
+    sync.handleStatus({ start: 6 });
+    sync.setDevice(null);
+    expect(sync.startPhase).toBe('idle');
+  });
+});

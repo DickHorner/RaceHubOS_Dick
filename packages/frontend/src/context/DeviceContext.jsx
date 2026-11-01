@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { io } from 'socket.io-client'
+import { nextStartPhase } from '@racehubos/shared'
 import { traceStart, traceStartStatus } from '../lib/startTrace'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
@@ -23,6 +24,7 @@ export function DeviceProvider({ children }) {
 
   // CU/Simulator status
   const [cuStatus, setCuStatus] = useState({ start: 8 })
+  const [startPhase, setStartPhase] = useState('idle')
   const [lastTimer, setLastTimer] = useState(null)
 
   // Loading states
@@ -68,6 +70,7 @@ export function DeviceProvider({ children }) {
       if (status.connected !== undefined) {
         setConnected(status.connected)
       }
+      setStartPhase((previous) => nextStartPhase(previous, status.start))
       setCuStatus(status)
     })
 
@@ -99,6 +102,7 @@ export function DeviceProvider({ children }) {
       setConnected(data.connected || false)
       setDeviceType(data.deviceType || null)
       setDeviceAddress(data.deviceAddress || null)
+      setStartPhase((previous) => nextStartPhase(previous, data.lastStatus?.start ?? 8))
       setCuStatus(data.lastStatus || { start: 8 })
     } catch (error) {
       console.error('[DeviceContext] Error loading status:', error)
@@ -273,6 +277,7 @@ export function DeviceProvider({ children }) {
     devices,
     scanResults,
     cuStatus,
+    startPhase,
     lastTimer,
     socketConnected,
 
