@@ -27,7 +27,7 @@
     "noChanges": "Aucun autre changement de leader établi par les tours."
   },
   "printResults": {
-    "open": "Vue imprimable",
+    "open": "Feuille de résultats / HTML",
     "title": "Feuille de résultats",
     "copyLink": "Copier le lien",
     "print": "Imprimer",
@@ -194,5 +194,17 @@
       "time": "Temps avec poids du carburant (aperçu)"
     },
     "fuelWeightApplied": "Poids du carburant : jusqu’à {{percent}} % de malus virtuel à plein. Le classement utilise les temps simulés enregistrés séparément et le niveau avant consommation du tour ; les mesures sont conservées."
+  },
+  "publicExport": {
+    "title": "Export statique des résultats",
+    "description": "Créez un fichier HTML local pour une publication facultative sur votre hébergement. Aucun envoi ni compte requis. L’aperçu contient exactement les données exportées ; les noms sont désactivés par défaut.",
+    "includeNames": "Inclure les noms des pilotes (données personnelles)",
+    "excluded": "Exclus : noms de session et circuit, championnat, dates, véhicules, e-mails, identifiants, liens, secrets et tours bruts. Le rapprochement avec d’autres informations peut encore identifier des participants.",
+    "preview": "Aperçu exact de l’export",
+    "artifactNote": "RaceHub OG · Classement statique. Le meilleur tour est mesuré ; les colonnes simulées sont virtuelles. Ce fichier ne se met pas à jour automatiquement.",
+    "hosting": "Hébergement non connecté et non testé. Vous gérez l’accès, l’expiration et la suppression avec votre hébergeur ; supprimer le fichier local ne retire aucune copie publiée.",
+    "reviewed": "J’ai vérifié l’aperçu et les données personnelles sélectionnées.",
+    "download": "Télécharger le HTML",
+    "driver": "Pilote {{number}}"
   }
 }

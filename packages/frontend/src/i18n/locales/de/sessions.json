@@ -27,7 +27,7 @@
     "noChanges": "Keine weiteren Führungswechsel durch Rundendaten belegt."
   },
   "printResults": {
-    "open": "Druckansicht",
+    "open": "Ergebnisblatt / HTML",
     "title": "Ergebnisblatt",
     "copyLink": "Link kopieren",
     "print": "Drucken",
@@ -194,5 +194,17 @@
       "time": "Zeit mit Tankgewicht (Vorschau)"
     },
     "fuelWeightApplied": "Tankgewicht: bis zu {{percent}} % virtueller Zeitmalus bei vollem Tank. Gewertet wird die separat gespeicherte simulierte Zeit mit dem Tankstand vor dem Rundenverbrauch; Messzeiten bleiben erhalten."
+  },
+  "publicExport": {
+    "title": "Statischer Ergebnisexport",
+    "description": "Erstelle eine lokale HTML-Datei zur optionalen Veröffentlichung auf Deinem eigenen Hosting. Kein Upload und kein Konto erforderlich. Die Vorschau enthält exakt die exportierten Daten; Fahrernamen sind standardmäßig ausgeschaltet.",
+    "includeNames": "Fahrernamen einschließen (personenbezogene Daten)",
+    "excluded": "Ausgeschlossen: Session- und Streckennamen, Meisterschaft, Datum, Fahrzeuge, E-Mails, IDs, Links, Zugangsdaten und rohe Rundendaten. Ergebnisse können zusammen mit anderen Informationen weiterhin Teilnehmer erkennen lassen.",
+    "preview": "Exakte Exportvorschau",
+    "artifactNote": "RaceHub OG · Statischer Wertungsstand. Die beste Runde ist gemessen; simulierte Spalten sind virtuell. Diese Datei aktualisiert sich nicht automatisch.",
+    "hosting": "Hosting ist nicht angebunden oder getestet. Du regelst Zugriff, Ablauf und Löschung mit Deinem Hoster; das Löschen der lokalen Datei entfernt keine veröffentlichten oder kopierten Dateien.",
+    "reviewed": "Ich habe die Vorschau und die ausgewählten personenbezogenen Daten geprüft.",
+    "download": "HTML herunterladen",
+    "driver": "Fahrer {{number}}"
   }
 }

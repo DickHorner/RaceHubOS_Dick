@@ -27,7 +27,7 @@
     "noChanges": "No further lead changes established by logged laps."
   },
   "printResults": {
-    "open": "Print view",
+    "open": "Result sheet / HTML",
     "title": "Result sheet",
     "copyLink": "Copy link",
     "print": "Print",
@@ -194,5 +194,17 @@
       "time": "Time with fuel weight (preview)"
     },
     "fuelWeightApplied": "Fuel weight: up to {{percent}}% virtual time penalty at a full tank. Scoring uses separately saved simulated times and fuel before each lap’s burn; measured times are retained."
+  },
+  "publicExport": {
+    "title": "Static result export",
+    "description": "Create a local HTML file for optional publication on Your own hosting. No upload or account is required. The preview below contains exactly the exported data; driver names are off by default.",
+    "includeNames": "Include driver names (personal data)",
+    "excluded": "Excluded: session and track names, championship, dates, vehicles, emails, IDs, links, credentials and raw lap data. Results can still identify participants when combined with other information.",
+    "preview": "Exact export preview",
+    "artifactNote": "RaceHub OG · Static classification snapshot. Best lap is measured; simulated columns are virtual. This file does not update automatically.",
+    "hosting": "Hosting is not connected or tested. You control access and must arrange expiry and deletion with Your host; removing the local file does not remove published or copied files.",
+    "reviewed": "I have reviewed the preview and the selected personal data.",
+    "download": "Download HTML",
+    "driver": "Driver {{number}}"
   }
 }
