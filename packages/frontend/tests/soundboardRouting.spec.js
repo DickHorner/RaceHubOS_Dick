@@ -185,6 +185,9 @@ test('director auto cues map verified best lap and finish to saved speech and HT
       'Virtual fuel: at most 20%',
       'Virtual tank empty',
       'Virtual tank refilled',
+      'Penalty issued',
+      'Penalty served',
+      'Penalty revoked',
     ]
     const text = { id: 'auto-transition', label: 'Transition voice', kind: 'speech', text: 'Confirmed event' }
     await page.request.put('/api/preferences/soundboard:presets', { data: { value: [...presets, text] } })

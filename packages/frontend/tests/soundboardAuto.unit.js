@@ -15,7 +15,7 @@ test('best-lap identity requires a real session and measured lap', () => {
 
 test('all additional triggers require a server occurrence identity and a supported session', () => {
   const data = { sessionId: 's1', sessionType: 'race', eventId: '12345678-1234-4234-8234-123456789abc' }
-  assert.equal(AUTO_CUE_TYPES.length, 19)
+  assert.equal(AUTO_CUE_TYPES.length, 22)
   for (const type of AUTO_CUE_TYPES.filter((cue) => !['bestlap', 'finished'].includes(cue))) {
     assert.equal(autoCueKey(type, data), `${type}:s1:${data.eventId}`)
     assert.equal(autoCueKey(type, { ...data, eventId: null }), null)
@@ -27,7 +27,19 @@ test('all additional triggers require a server occurrence identity and a support
 })
 
 test('pit and damage speech uses only the identified participant and never invents a lap time', () => {
-  for (const type of ['pitstop', 'tyrechanged', 'damage', 'repaired', 'dnf', 'fuellow', 'fuelempty', 'fuelrefilled']) {
+  for (const type of [
+    'pitstop',
+    'tyrechanged',
+    'damage',
+    'repaired',
+    'dnf',
+    'fuellow',
+    'fuelempty',
+    'fuelrefilled',
+    'penaltyissued',
+    'penaltyserved',
+    'penaltyrevoked',
+  ]) {
     assert.equal(
       autoSpeechText(
         '{driver} / {car} / {controller}',

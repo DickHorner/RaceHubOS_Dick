@@ -810,6 +810,7 @@ export default function Soundboard({
               </div>
               <p className="text-xs text-muted-foreground">{t('auto.description')}</p>
               <p className="text-xs text-muted-foreground">{t('auto.fuelDescription')}</p>
+              <p className="text-xs text-muted-foreground">{t('auto.penaltyDescription')}</p>
             </fieldset>
           )}
           <div className="flex flex-wrap gap-2">
