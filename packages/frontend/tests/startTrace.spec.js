@@ -117,14 +117,14 @@ test('browser capture follows click, HTTP, received lights, effects and actual a
   await expect.poll(() => rows.at(-1)?.phase).toBe('racing')
   expect(rows.filter((row) => row.phase === 'status:received').map((row) => row.start)).toEqual([1, 2, 3, 4, 5, 7, 0])
   expect(rows.filter((row) => row.phase === 'audio:scheduled').map((row) => row.frequency)).toEqual([
-    600, 600, 600, 600, 600, 1200, 1200,
+    600, 600, 600, 600, 600, 1200,
   ])
   expect(requests).toEqual(['prepare', 'advance'])
   for (const start of [1, 2, 3, 4, 5, 7, 0]) {
     const received = rows.findIndex((row) => row.phase === 'status:received' && row.start === start)
     const effect = rows.findIndex((row) => row.phase === 'light:effect' && row.start === start)
     expect(effect).toBeGreaterThan(received)
-    expect(rows[effect + 1].phase).toBe('audio:scheduled')
+    expect(rows[effect + 1].phase).toBe(start === 0 ? 'racing' : 'audio:scheduled')
   }
   expect(rows.every((row, i) => !i || row.elapsedMs >= rows[i - 1].elapsedMs)).toBe(true)
   expect(rows.every((row) => row.sessionId === 'trace-session' && row.traceId === rows[0].traceId)).toBe(true)
@@ -172,4 +172,28 @@ test('CU disconnect ends capture and later statuses do not extend it', async ({ 
   send('cu:status', { start: 2 })
   await expect.poll(() => page.evaluate(() => window.__beeps)).toEqual([600, 600])
   expect(rows).toHaveLength(count)
+})
+
+test('verified false start stays visible through 7 and 0, retries produce exactly one GO', async ({ page }) => {
+  const { rows, send } = await setup(page)
+  const sendStatus = async (start) => {
+    const count = rows.filter((row) => row.phase === 'light:effect').length
+    send('cu:status', { start })
+    await expect.poll(() => rows.filter((row) => row.phase === 'light:effect').length).toBe(count + 1)
+  }
+  for (const start of [1, 2, 3, 4, 5, 6]) await sendStatus(start)
+  for (const start of [7, 0, 2, 5, 7, 0]) {
+    await sendStatus(start)
+    await expect(page.getByText('FALSE START', { exact: true })).toBeVisible()
+    await expect(page.getByText('GO!', { exact: true })).toHaveCount(0)
+  }
+  expect(await page.evaluate(() => window.__beeps)).toEqual([600, 600, 600, 600, 600, 300])
+  expect(rows.some((row) => row.phase === 'racing')).toBe(false)
+  for (const start of [1, 2, 3, 4, 5, 7, 0]) await sendStatus(start)
+  await expect(page.getByText('FALSE START', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('GO!', { exact: true })).toBeVisible()
+  expect(await page.evaluate(() => window.__beeps)).toEqual([
+    600, 600, 600, 600, 600, 300, 600, 600, 600, 600, 600, 1200,
+  ])
+  await expect(page.getByText('GO!', { exact: true })).toHaveCount(0, { timeout: 4000 })
 })
