@@ -81,6 +81,7 @@ function AmbienceControls({ allowed }) {
 
   return (
     <section
+      id="race-ambience"
       data-testid="race-ambience"
       className="m-4 rounded-lg border border-border bg-muted/20 p-3 space-y-3"
       aria-label={t('ambience.title')}

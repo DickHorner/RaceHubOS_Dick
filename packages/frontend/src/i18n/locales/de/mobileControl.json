@@ -123,5 +123,11 @@
     "submit": "Als abgeleistet bestätigen",
     "audit": "{{date}} · {{method}} · {{reason}}"
   },
-  "penaltyPending": "Ausstehende Zeitstrafe"
+  "penaltyPending": "Ausstehende Zeitstrafe",
+  "featureAccess": {
+    "title": "Fahrerlinks, Strafen und Session-Wiederherstellung",
+    "requires": "Zum Bedienen oben den Rennleitercode eingeben. Diese Funktionen bleiben hier sichtbar, auch wenn sie gesperrt sind.",
+    "driverLinks": "Eine Session wählen und Fahrer zuordnen; danach hier deren persönliche QR-Links erzeugen. Starttank und Boxenstrategie werden auf dem Fahrergerät bedient.",
+    "penalties": "Ein gestartetes Rennen wählen. Zeitstrafen können mit geprüftem Stillstand oder begründeter manueller Ausnahme als abgeleistet bestätigt werden."
+  }
 }

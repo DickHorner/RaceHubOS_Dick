@@ -89,5 +89,58 @@
       "sessionStarted": "Session démarrée : {{id}}...",
       "sessionStopped": "Session arrêtée : {{id}}..."
     }
+  },
+  "features": {
+    "title": "Accès direct aux fonctions",
+    "fuelRules": {
+      "title": "Carburant, poids et arrêts obligatoires",
+      "description": "Configurer la consommation virtuelle, le facteur de temps et les arrêts requis.",
+      "requires": "Choisir circuit et session ; modifier les règles avant le départ."
+    },
+    "driverStrategy": {
+      "title": "Lien personnel et stratégie de stands",
+      "description": "Carburant de départ, pneus, remplissage et autonomie estimée côté pilote.",
+      "requires": "Code directeur et pilote affecté ; créer le lien personnel ici."
+    },
+    "penalties": {
+      "title": "Pénalités et sanctions purgées",
+      "description": "Attribuer, révoquer ou confirmer une sanction purgée avec preuve.",
+      "requires": "Code directeur et course commencée requis."
+    },
+    "recovery": {
+      "title": "Résoudre les sessions abandonnées",
+      "description": "Examiner et terminer explicitement les sessions orphelines.",
+      "requires": "Code directeur ; la session liée reste protégée."
+    },
+    "directorAccess": {
+      "title": "Récupérer l’accès directeur",
+      "description": "Réinitialiser un code directeur oublié depuis l’interface.",
+      "requires": "Ouvrir via localhost sur le PC de course, puis se reconnecter."
+    },
+    "soundAutomation": {
+      "title": "Bibliothèque et déclencheurs automatiques",
+      "description": "Gérer sons et annonces puis les associer aux événements de course.",
+      "requires": "Charger ou créer les sons ; lecture distante avec récepteur activé."
+    },
+    "voice": {
+      "title": "Annonces et voix",
+      "description": "Configurer départ, changement de leader, arrivée, meilleur tour et podium.",
+      "requires": "Synthèse vocale disponible et autorisée dans le navigateur."
+    },
+    "ambience": {
+      "title": "Ambiance locale",
+      "description": "Ambiance moteur avec volume, sourdine et atténuation pendant les annonces.",
+      "requires": "Choisir circuit et session ; lancer la lecture par clic sur cet appareil."
+    },
+    "fuelHistory": {
+      "title": "Historique du carburant et temps simulés",
+      "description": "Comparer mesures, niveaux de carburant et effets virtuels du poids.",
+      "requires": "Ouvrir une session enregistrée avec carburant virtuel ; mesures conservées."
+    },
+    "startDiagnostics": {
+      "title": "Diagnostic de départ et journal",
+      "description": "Enregistrer et télécharger feux, états et planification audio.",
+      "requires": "Activer avant le départ ; télécharger le journal après l’essai. Télécharger le journal via localhost sur le PC de course. Un accès distant exige une autorisation directeur côté serveur."
+    }
   }
 }

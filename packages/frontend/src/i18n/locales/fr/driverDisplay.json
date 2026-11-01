@@ -100,7 +100,10 @@
     "finishReserve": "Réserve estimée à l’objectif avec votre niveau actuel : {{percent}} % de la capacité.",
     "finishShortfall": "Il manque au réservoir actuel environ {{percent}} % de la capacité pour atteindre l’objectif.",
     "finishBalanceUnknown": "Réserve pas encore calculable : niveau virtuel actuel indisponible.",
-    "finishUse": "Reprendre les tours restants dans la saisie"
+    "finishUse": "Reprendre les tours restants dans la saisie",
+    "requirements": "Carburant de départ : avant le départ. Plan de stands : course/qualification active ou en pause. Consommation virtuelle et lien personnel requis. Autonomie : au moins trois tours mesurés ; cible en pourcentage possible sans ces données.",
+    "finishPrerequisite": "Disponible après le départ en course ou qualification avec carburant virtuel. Objectif de tours et consommation mesurée requis pour le calcul."
   },
-  "personalSession": "Ce lien personnel de pilote est lié à cette session."
+  "personalSession": "Ce lien personnel de pilote est lié à cette session.",
+  "tyrePrerequisites": "Changement de pneus : course avec météo activée, état actif ou en pause et lien personnel requis. Sinon les boutons restent verrouillés."
 }

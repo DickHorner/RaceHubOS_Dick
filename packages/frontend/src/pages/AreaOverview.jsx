@@ -1,3 +1,4 @@
+import FeatureShortcuts from '../components/FeatureShortcuts'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, ArrowRight, ExternalLink } from 'lucide-react'
@@ -48,6 +49,7 @@ export default function AreaOverview() {
           </Link>
         ))}
       </div>
+      <FeatureShortcuts area={areaId} />
     </main>
   )
 }

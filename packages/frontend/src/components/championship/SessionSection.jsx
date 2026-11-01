@@ -583,6 +583,7 @@ export default function SessionSection({
       {session.type !== SessionType.BALANCING && (
         <fieldset
           className="m-4 rounded-lg border border-border bg-card p-4 space-y-3"
+          id="session-rules"
           data-testid="virtual-fuel-config"
         >
           <legend className="px-1 text-sm font-semibold">{t('sessionSection.virtualFuel.title')}</legend>

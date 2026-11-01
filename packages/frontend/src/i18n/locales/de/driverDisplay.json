@@ -100,7 +100,10 @@
     "finishReserve": "Geschätzte Reserve am Rundenziel mit dem aktuellen Tank: {{percent}} % der Tankkapazität.",
     "finishShortfall": "Bis zum Rundenziel fehlen dem aktuellen Tank geschätzt {{percent}} % der Tankkapazität.",
     "finishBalanceUnknown": "Reserve noch nicht berechenbar: Der aktuelle virtuelle Tankstand fehlt.",
-    "finishUse": "Restliche Runden als Eingabe übernehmen"
+    "finishUse": "Restliche Runden als Eingabe übernehmen",
+    "requirements": "Starttank: nur vor dem Start. Boxenplan: im aktiven oder pausierten Rennen/Qualifying. Beides benötigt virtuellen Verbrauch und Deinen persönlichen Fahrerlink. Reichweiten benötigen mindestens drei gemessene Runden; ein Prozentziel ist auch ohne diese Daten möglich.",
+    "finishPrerequisite": "Nach dem Start in Rennen oder Qualifying mit virtuellem Tank verfügbar. Für die Berechnung werden ein Rundenziel und gemessene Verbrauchsdaten benötigt."
   },
-  "personalSession": "Dieser persönliche Fahrerlink ist an diese Session gebunden."
+  "personalSession": "Dieser persönliche Fahrerlink ist an diese Session gebunden.",
+  "tyrePrerequisites": "Reifenwechsel: Rennen mit aktiviertem Wetter, Status aktiv oder pausiert und persönlicher Fahrerlink. Ohne diese Voraussetzungen bleiben die Tasten gesperrt."
 }

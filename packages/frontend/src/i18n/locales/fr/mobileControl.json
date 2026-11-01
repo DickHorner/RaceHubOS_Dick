@@ -123,5 +123,11 @@
     "submit": "Confirmer la sanction purgée",
     "audit": "{{date}} · {{method}} · {{reason}}"
   },
-  "penaltyPending": "Pénalité de temps à purger"
+  "penaltyPending": "Pénalité de temps à purger",
+  "featureAccess": {
+    "title": "Liens pilotes, pénalités et récupération",
+    "requires": "Saisir le code directeur ci-dessus pour utiliser ces fonctions. Elles restent visibles lorsqu’elles sont verrouillées.",
+    "driverLinks": "Choisir une session et affecter les pilotes, puis créer leurs liens QR personnels. Carburant et stratégie se règlent sur l’appareil du pilote.",
+    "penalties": "Choisir une course commencée. Confirmer les sanctions purgées avec immobilisation vérifiée ou dérogation motivée."
+  }
 }

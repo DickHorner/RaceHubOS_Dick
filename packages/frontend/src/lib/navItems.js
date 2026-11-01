@@ -94,3 +94,17 @@ export const allNavItems = [
 export function navLabel(t, item) {
   return item.glossary ? t(item.labelKey, { ns: 'glossary', count: 2 }) : t(item.labelKey)
 }
+
+// Direct feature destinations shared by Home and the area pages.
+export const featureShortcuts = [
+  { id: 'fuelRules', area: 'race', to: '/race#session-rules' },
+  { id: 'driverStrategy', area: 'race', to: '/display/control#driver-links' },
+  { id: 'penalties', area: 'race', to: '/display/control#race-penalties' },
+  { id: 'recovery', area: 'race', to: '/display/control#session-recovery' },
+  { id: 'directorAccess', area: 'race', to: '/display/control#director-access' },
+  { id: 'soundAutomation', area: 'show', to: '/soundboard-settings' },
+  { id: 'voice', area: 'show', to: '/settings#race-voice' },
+  { id: 'ambience', area: 'show', to: '/race#race-ambience' },
+  { id: 'fuelHistory', area: 'analysis', to: '/history' },
+  { id: 'startDiagnostics', area: 'analysis', to: '/settings#start-diagnostics' },
+]

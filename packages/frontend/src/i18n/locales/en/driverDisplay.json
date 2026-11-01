@@ -100,7 +100,10 @@
     "finishReserve": "Estimated reserve at the lap target with your current tank: {{percent}} % of tank capacity.",
     "finishShortfall": "Your current tank is short by an estimated {{percent}} % of tank capacity to reach the lap target.",
     "finishBalanceUnknown": "Reserve not yet calculable: the current virtual fuel level is unavailable.",
-    "finishUse": "Use remaining laps as input"
+    "finishUse": "Use remaining laps as input",
+    "requirements": "Starting fuel: before start only. Pit plan: active or paused race/qualifying. Both need virtual consumption and your personal driver link. Range needs at least three measured laps; a percent target works without them.",
+    "finishPrerequisite": "Available after start in race or qualifying with virtual fuel. Calculation needs a lap target and measured consumption data."
   },
-  "personalSession": "This personal driver link is bound to this session."
+  "personalSession": "This personal driver link is bound to this session.",
+  "tyrePrerequisites": "Tyre changes require a race with weather enabled, active or paused status and a personal driver link. Otherwise the buttons stay locked."
 }

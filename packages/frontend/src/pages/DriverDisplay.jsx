@@ -308,61 +308,72 @@ export default function DriverDisplay() {
                   accessToken={driverAccessToken}
                   fetchSession={fetchSession}
                 />
-                {session.type === SessionType.RACE && session.weatherSeed != null && (
-                  <section className="rounded-xl border border-border bg-card p-5 space-y-3">
-                    <h2 className="font-semibold">{t('tyreTitle')}</h2>
-                    <p className="text-sm">
-                      {t('tyreCurrent')}:{' '}
-                      {t((live?.tyreType || assignment.tyreType) === TyreType.WET ? 'tyreWet' : 'tyreDry')}
+                <section className="rounded-xl border border-border bg-card p-5 space-y-3">
+                  <h2 className="font-semibold">{t('tyreTitle')}</h2>
+                  <p className="text-sm">
+                    {t('tyreCurrent')}:{' '}
+                    {t((live?.tyreType || assignment.tyreType) === TyreType.WET ? 'tyreWet' : 'tyreDry')}
+                  </p>
+                  {(live?.pendingTyreType || assignment.pendingTyreType) && (
+                    <p role="status" className="text-sm text-amber-600">
+                      {t('tyrePending')}:{' '}
+                      {t(
+                        (live?.pendingTyreType || assignment.pendingTyreType) === TyreType.WET ? 'tyreWet' : 'tyreDry'
+                      )}
                     </p>
-                    {(live?.pendingTyreType || assignment.pendingTyreType) && (
-                      <p role="status" className="text-sm text-amber-600">
-                        {t('tyrePending')}:{' '}
-                        {t(
-                          (live?.pendingTyreType || assignment.pendingTyreType) === TyreType.WET ? 'tyreWet' : 'tyreDry'
-                        )}
-                      </p>
-                    )}
-                    {Number.isInteger(live?.simulatedBestLapTime ?? assignment.simulatedBestLapTime) && (
-                      <div className="text-sm">
-                        <span className="text-muted-foreground">{t('tyreVirtualBest')}</span>
-                        <LapTime time={live?.simulatedBestLapTime ?? assignment.simulatedBestLapTime} size="md" />
-                      </div>
-                    )}
-                    <p className="text-xs text-muted-foreground">{t('tyreHint')}</p>
-                    {driverAccessToken && [SessionStatus.ACTIVE, SessionStatus.PAUSED].includes(session.status) && (
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={tyrePending}
-                          onClick={() => requestTyres(TyreType.DRY)}
-                        >
-                          {t('tyreDry')}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={tyrePending}
-                          onClick={() => requestTyres(TyreType.WET)}
-                        >
-                          {t('tyreWet')}
-                        </Button>
-                      </div>
-                    )}
-                    {!driverAccessToken && <p className="text-xs text-amber-500">{t('tyreTokenRequired')}</p>}
-                    {tyreMessage && (
-                      <p role="status" className="text-sm text-green-500">
-                        {tyreMessage}
-                      </p>
-                    )}
-                    {tyreError && (
-                      <p role="alert" className="text-sm text-red-500">
-                        {tyreError}
-                      </p>
-                    )}
-                  </section>
-                )}
+                  )}
+                  {Number.isInteger(live?.simulatedBestLapTime ?? assignment.simulatedBestLapTime) && (
+                    <div className="text-sm">
+                      <span className="text-muted-foreground">{t('tyreVirtualBest')}</span>
+                      <LapTime time={live?.simulatedBestLapTime ?? assignment.simulatedBestLapTime} size="md" />
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">{t('tyreHint')}</p>
+                  <p data-testid="tyre-prerequisites" className="text-sm text-muted-foreground">
+                    {t('tyrePrerequisites')}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={
+                        tyrePending ||
+                        !driverAccessToken ||
+                        session.type !== SessionType.RACE ||
+                        session.weatherSeed == null ||
+                        ![SessionStatus.ACTIVE, SessionStatus.PAUSED].includes(session.status)
+                      }
+                      onClick={() => requestTyres(TyreType.DRY)}
+                    >
+                      {t('tyreDry')}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={
+                        tyrePending ||
+                        !driverAccessToken ||
+                        session.type !== SessionType.RACE ||
+                        session.weatherSeed == null ||
+                        ![SessionStatus.ACTIVE, SessionStatus.PAUSED].includes(session.status)
+                      }
+                      onClick={() => requestTyres(TyreType.WET)}
+                    >
+                      {t('tyreWet')}
+                    </Button>
+                  </div>
+                  {!driverAccessToken && <p className="text-xs text-amber-500">{t('tyreTokenRequired')}</p>}
+                  {tyreMessage && (
+                    <p role="status" className="text-sm text-green-500">
+                      {tyreMessage}
+                    </p>
+                  )}
+                  {tyreError && (
+                    <p role="alert" className="text-sm text-red-500">
+                      {tyreError}
+                    </p>
+                  )}
+                </section>
                 {session.type === SessionType.RACE && damageStatus !== DamageStatus.NONE && (
                   <section className="rounded-xl border border-amber-500/40 bg-card p-5 space-y-2">
                     <h2 className="font-semibold">{t('damageTitle')}</h2>

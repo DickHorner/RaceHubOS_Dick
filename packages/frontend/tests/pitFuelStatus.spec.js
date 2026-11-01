@@ -893,7 +893,7 @@ test('finish target input obeys access, DNF, finish and pending-save locks', asy
   expect(state.writes).toHaveLength(1)
   state.current.virtualFuelRate = null
   await page.reload()
-  await expect(page.getByTestId('fuel-finish-plan')).toHaveCount(0)
+  await expect(page.getByTestId('fuel-finish-plan')).toContainText('Available after start')
 })
 
 async function mockLapFuelHistory(page, type = 'race') {
@@ -1088,3 +1088,19 @@ for (const type of ['race', 'qualif']) {
     await expect(page.getByRole('columnheader', { name: 'Simulated time' })).toBeVisible()
   })
 }
+
+test('driver strategy and tyres stay discoverable when weather, virtual fuel or personal access are unavailable', async ({
+  page,
+}) => {
+  const state = await mockSession(page)
+  state.current.type = 'practice'
+  state.current.virtualFuelRate = null
+  state.current.weatherSeed = null
+  await page.goto('/display/driver/driver-1')
+  await expect(page.getByTestId('fuel-strategy-requirements')).toContainText('personal driver link')
+  await expect(page.getByTestId('fuel-finish-plan')).toContainText('Available after start')
+  await expect(page.getByTestId('tyre-prerequisites')).toContainText('weather enabled')
+  await expect(page.getByRole('button', { name: 'Dry tyres', exact: true })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Wet tyres', exact: true })).toBeDisabled()
+  expect(state.writes).toEqual([])
+})

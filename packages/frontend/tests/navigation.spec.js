@@ -151,3 +151,36 @@ test('system tools remain global and old dashboard lives in the race center', as
   await page.goto('/areas/not-a-real-area')
   await expect(page).toHaveURL(/\/$/)
 })
+
+test('new race features have flat Home shortcuts with visible prerequisites and direct destinations', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/')
+  const shortcuts = page.getByTestId('feature-shortcuts')
+  await expect(shortcuts.getByRole('link')).toHaveCount(10)
+  await expect(page.getByTestId('feature-driverStrategy')).toHaveAttribute('href', '/display/control#driver-links')
+  await expect(page.getByTestId('feature-driverStrategy')).toContainText('Rennleitercode')
+  await expect(page.getByTestId('feature-fuelRules')).toContainText('vor dem Start')
+  await expect(page.getByTestId('feature-directorAccess')).toContainText('localhost')
+  await page.getByTestId('feature-startDiagnostics').click()
+  await expect(page).toHaveURL(/\/settings#start-diagnostics$/)
+  await expect(page.locator('#start-diagnostics')).toBeInViewport()
+  await page.goto('/areas/show')
+  await expect(page.getByTestId('feature-soundAutomation')).toBeVisible()
+  await expect(page.getByTestId('feature-voice')).toBeVisible()
+  await expect(page.getByTestId('feature-ambience')).toBeVisible()
+})
+
+test('locked director features remain visible and explain access without exposing write controls', async ({ page }) => {
+  await page.route('**/api/race-control/status', (route) =>
+    route.fulfill({ json: { success: true, enabled: true, keyRequired: true, recoveryAvailable: false } })
+  )
+  await page.goto('/display/control#driver-links')
+  await expect(page.getByTestId('locked-director-features')).toBeVisible()
+  await expect(page.locator('#driver-links')).toBeInViewport()
+  await expect(page.getByTestId('locked-director-features')).toContainText('Rennleitercode')
+  await expect(page.getByTestId('locked-director-features')).toContainText('Zeitstrafen')
+  await expect(page.getByTestId('serve-pending-penalty')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Strafe vergeben', exact: true })).toHaveCount(0)
+})
