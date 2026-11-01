@@ -132,6 +132,9 @@ export default function DriverFuelStrategy({ session, assignment, live, accessTo
 
   return (
     <section data-testid="driver-fuel-strategy" className="rounded-xl border border-border bg-card p-5 space-y-3">
+      <p data-testid="fuel-strategy-requirements" className="text-sm text-muted-foreground">
+        {t('fuelStrategy.requirements')}
+      </p>
       <form onSubmit={saveInitial} className="space-y-3" data-testid="driver-start-fuel">
         <h2 className="font-semibold">{t('fuelStrategy.startTitle')}</h2>
         <p data-testid="start-fuel-saved" className="text-sm">
@@ -169,7 +172,7 @@ export default function DriverFuelStrategy({ session, assignment, live, accessTo
           {t('fuelStrategy.fullRange', { laps: Math.floor(VIRTUAL_FUEL_FULL / perLap) })}
         </p>
       )}
-      {showFinishPlan && (
+      {showFinishPlan ? (
         <section data-testid="fuel-finish-plan" className="rounded-lg bg-muted p-3 space-y-2">
           <h3 className="text-sm font-semibold">{t('fuelStrategy.finishTitle')}</h3>
           <p data-testid="fuel-finish-laps" className="text-sm">
@@ -211,6 +214,11 @@ export default function DriverFuelStrategy({ session, assignment, live, accessTo
           >
             {t('fuelStrategy.finishUse')}
           </Button>
+        </section>
+      ) : (
+        <section data-testid="fuel-finish-plan" className="rounded-lg bg-muted p-3 space-y-2">
+          <h3 className="font-semibold">{t('fuelStrategy.finishTitle')}</h3>
+          <p className="text-sm">{t('fuelStrategy.finishPrerequisite')}</p>
         </section>
       )}
       <p className="text-sm" data-testid="fuel-saved-plan">

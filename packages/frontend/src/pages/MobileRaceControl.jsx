@@ -455,7 +455,7 @@ export default function MobileRaceControl() {
     penaltyValue <= (penaltyKind === PenaltyKind.TIME ? 3600 : 100)
 
   return (
-    <main className="min-h-dvh bg-background text-foreground p-4 sm:p-8">
+    <main id="director-access" className="min-h-dvh bg-background text-foreground p-4 sm:p-8">
       <div className="mx-auto max-w-xl space-y-5">
         <header className="border-b border-border pb-4">
           <h1 className="text-2xl font-black">RaceHubOS · {t('title')}</h1>
@@ -621,6 +621,27 @@ export default function MobileRaceControl() {
           </section>
         )}
 
+        {!directorAuthorized && configured !== null && (
+          <section
+            data-testid="locked-director-features"
+            className="rounded-xl border border-border bg-card p-5 space-y-3"
+          >
+            <h2 className="font-semibold">{t('featureAccess.title')}</h2>
+            <p className="text-sm text-muted-foreground">{t('featureAccess.requires')}</p>
+            <h3 id="driver-links" className="font-medium scroll-mt-4">
+              {t('driverLinks')}
+            </h3>
+            <p className="text-sm">{t('featureAccess.driverLinks')}</p>
+            <h3 id="race-penalties" className="font-medium scroll-mt-4">
+              {t('penaltiesTitle')}
+            </h3>
+            <p className="text-sm">{t('featureAccess.penalties')}</p>
+            <h3 id="session-recovery" className="font-medium scroll-mt-4">
+              {t('sessionRecoveryTitle')}
+            </h3>
+            <p className="text-sm">{t('sessionRecoveryHelp')}</p>
+          </section>
+        )}
         {directorAuthorized && (
           <>
             <div className="flex items-center justify-between gap-3">
@@ -843,7 +864,9 @@ export default function MobileRaceControl() {
               )}
             {session?.id === selectedId && session.type === SessionType.RACE && (
               <section className="rounded-xl border border-border bg-card p-5 space-y-3">
-                <h2 className="font-bold">{t('penaltiesTitle')}</h2>
+                <h2 id="race-penalties" className="font-bold scroll-mt-4">
+                  {t('penaltiesTitle')}
+                </h2>
                 <p className="text-xs text-muted-foreground">{t('penaltyHelp')}</p>
                 {assigned.length > 0 &&
                   [
@@ -1044,10 +1067,15 @@ export default function MobileRaceControl() {
                     })}
                 </section>
               )}
-            {session?.id === selectedId && assigned.length > 0 && (
+            {session?.id === selectedId && (
               <section className="rounded-xl border border-border bg-card p-5 space-y-3">
-                <h2 className="font-bold">{t('driverLinks')}</h2>
+                <h2 id="driver-links" className="font-bold scroll-mt-4">
+                  {t('driverLinks')}
+                </h2>
                 <p className="text-xs text-muted-foreground">{t('linkWarning')}</p>
+                {assigned.length === 0 && (
+                  <p className="text-sm text-muted-foreground">{t('featureAccess.driverLinks')}</p>
+                )}
                 <div className="flex flex-wrap gap-2">
                   {assigned.map((row) => (
                     <Button

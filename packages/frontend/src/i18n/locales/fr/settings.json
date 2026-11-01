@@ -106,6 +106,7 @@
     "saveError": "Impossible de modifier le diagnostic",
     "storageError": "Stockage navigateur bloqué : diagnostic indisponible",
     "downloadError": "Téléchargement impossible (PC de course ou directeur autorisé)",
-    "empty": "Aucun diagnostic enregistré"
+    "empty": "Aucun diagnostic enregistré",
+    "downloadAccess": "Télécharger le journal via localhost sur le PC de course. Un accès distant exige une autorisation directeur côté serveur."
   }
 }

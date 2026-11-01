@@ -106,6 +106,7 @@
     "saveError": "Could not switch diagnostics",
     "storageError": "Browser storage blocked: browser tracing unavailable",
     "downloadError": "Could not download diagnostics (race PC or authorized director)",
-    "empty": "No start diagnostics recorded"
+    "empty": "No start diagnostics recorded",
+    "downloadAccess": "Download the log via localhost on the race PC. Remote requests require director authorization on the server."
   }
 }

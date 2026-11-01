@@ -6,6 +6,7 @@ import { AppProvider } from './context/AppContext'
 import { VoiceProvider } from './context/VoiceContext'
 import { TooltipProvider } from './components/ui/tooltip'
 import Layout from './components/Layout'
+import ScrollToFeature from './components/ScrollToFeature'
 
 // Lazy load all pages
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -44,6 +45,7 @@ function App() {
           <VoiceProvider>
             <SessionProvider>
               <TooltipProvider>
+                <ScrollToFeature />
                 <Routes>
                   {/* Main layout with sidebar */}
                   <Route path="/" element={<Layout />}>

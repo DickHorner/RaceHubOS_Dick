@@ -89,5 +89,58 @@
       "sessionStarted": "Session started: {{id}}...",
       "sessionStopped": "Session stopped: {{id}}..."
     }
+  },
+  "features": {
+    "title": "Open features directly",
+    "fuelRules": {
+      "title": "Fuel, fuel weight & required stops",
+      "description": "Set virtual consumption, scoring factor and minimum pit stops.",
+      "requires": "Select a track and session; edit rules before starting."
+    },
+    "driverStrategy": {
+      "title": "Personal driver link & pit strategy",
+      "description": "Driver controls for starting fuel, tyres, refill target and estimated range.",
+      "requires": "Director credential and assigned driver; issue the personal link here."
+    },
+    "penalties": {
+      "title": "Time penalties & serving",
+      "description": "Issue, revoke or confirm a served penalty with evidence.",
+      "requires": "Director credential and a started race required."
+    },
+    "recovery": {
+      "title": "Resolve abandoned sessions",
+      "description": "Inspect and explicitly resolve orphaned running sessions.",
+      "requires": "Director credential; the currently bound session stays protected."
+    },
+    "directorAccess": {
+      "title": "Recover director access",
+      "description": "Reset a forgotten director credential through the interface.",
+      "requires": "Open via localhost on the race PC, then sign in again."
+    },
+    "soundAutomation": {
+      "title": "Sound library & automatic triggers",
+      "description": "Manage clips or speech and connect them to race events.",
+      "requires": "Load or create sounds; remote playback needs an enabled receiver."
+    },
+    "voice": {
+      "title": "Race commentary & voice",
+      "description": "Configure start, lead change, finish, best-lap and podium speech.",
+      "requires": "Browser speech must be available and permitted."
+    },
+    "ambience": {
+      "title": "Local race ambience",
+      "description": "Motor ambience with volume, mute and speech ducking.",
+      "requires": "Select track and session; start playback by clicking on this device."
+    },
+    "fuelHistory": {
+      "title": "Fuel history & simulated laps",
+      "description": "Compare measured times, fuel levels and virtual weight effects.",
+      "requires": "Open a stored session with virtual fuel; measured data stays intact."
+    },
+    "startDiagnostics": {
+      "title": "Start diagnostics & log",
+      "description": "Record and download start lights, status changes and audio scheduling.",
+      "requires": "Enable diagnostics before the start; download the log after the attempt. Download the log via localhost on the race PC. Remote requests require director authorization on the server."
+    }
   }
 }

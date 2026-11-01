@@ -770,6 +770,7 @@ export default function Settings() {
             </button>
           </div>
 
+          <div id="race-voice" className="scroll-mt-4" />
           {['start', 'leader', 'finish'].map((event) => (
             <div key={event} className="flex items-center justify-between">
               <p className="text-sm font-medium">{t(`appearance.raceVoice.${event}`)}</p>
@@ -941,7 +942,7 @@ export default function Settings() {
       </Card>
 
       {/* Logs */}
-      <Card className="overflow-hidden">
+      <Card id="start-diagnostics" className="overflow-hidden scroll-mt-4">
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-border">
           <div className="flex items-start gap-2">
             <Activity className="size-4 mt-0.5 text-muted-foreground" />
@@ -950,6 +951,7 @@ export default function Settings() {
                 {t('startTrace.title')}
               </p>
               <p className="text-xs text-muted-foreground">{t('startTrace.description')}</p>
+              <p className="text-xs text-muted-foreground">{t('startTrace.downloadAccess')}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">

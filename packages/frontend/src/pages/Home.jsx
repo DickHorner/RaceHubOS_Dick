@@ -1,3 +1,4 @@
+import FeatureShortcuts from '../components/FeatureShortcuts'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ArrowRight, Flag } from 'lucide-react'
@@ -59,6 +60,7 @@ export default function Home() {
           </Link>
         ))}
       </div>
+      <FeatureShortcuts />
     </main>
   )
 }

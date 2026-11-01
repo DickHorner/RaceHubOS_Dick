@@ -89,5 +89,58 @@
       "sessionStarted": "Sitzung gestartet: {{id}} …",
       "sessionStopped": "Sitzung angehalten: {{id}} …"
     }
+  },
+  "features": {
+    "title": "Funktionen direkt öffnen",
+    "fuelRules": {
+      "title": "Tank, Tankgewicht & Pflichtstopps",
+      "description": "Virtuellen Verbrauch, Zeitfaktor und Mindestzahl der Boxenstopps festlegen.",
+      "requires": "Strecke und Session wählen; Regeln vor dem Start bearbeiten."
+    },
+    "driverStrategy": {
+      "title": "Persönlicher Fahrerlink & Boxenstrategie",
+      "description": "Starttank, Reifen, Nachfüllziel und geschätzte Restreichweite direkt beim Fahrer.",
+      "requires": "Rennleitercode und zugeordneter Fahrer; persönlichen Link hier erzeugen."
+    },
+    "penalties": {
+      "title": "Zeitstrafen & Ableistung",
+      "description": "Strafen vergeben, widerrufen oder mit Nachweis als abgeleistet bestätigen.",
+      "requires": "Rennleitercode und gestartetes Rennen erforderlich."
+    },
+    "recovery": {
+      "title": "Laufende Sessions aufräumen",
+      "description": "Verwaiste Sessions sichtbar prüfen und gezielt beenden.",
+      "requires": "Rennleitercode; die aktuell gebundene Session bleibt geschützt."
+    },
+    "directorAccess": {
+      "title": "Rennleiterzugang wiederherstellen",
+      "description": "Vergessenen Rennleitercode über die Oberfläche zurücksetzen.",
+      "requires": "Direkt am Renn-PC über localhost öffnen; anschließend erneut anmelden."
+    },
+    "soundAutomation": {
+      "title": "Soundbibliothek & automatische Auslöser",
+      "description": "Clips oder Ansagen verwalten und mit Rennereignissen verknüpfen.",
+      "requires": "Sounds erfolgreich laden oder anlegen; Fernwiedergabe benötigt einen aktivierten Empfänger."
+    },
+    "voice": {
+      "title": "Rennansagen & Stimme",
+      "description": "Start, Führungswechsel, Ziel, Bestzeit und Podium hörbar einstellen.",
+      "requires": "Sprachausgabe muss im Browser verfügbar und freigegeben sein."
+    },
+    "ambience": {
+      "title": "Lokales Rennambiente",
+      "description": "Motorenambiente mit Lautstärke, Stumm und Absenkung bei Sprache.",
+      "requires": "Strecke und Session wählen; Wiedergabe per Klick auf diesem Gerät starten."
+    },
+    "fuelHistory": {
+      "title": "Tankverlauf & simulierte Rundenzeiten",
+      "description": "Gemessene Zeiten, Tankstände und virtuelle Gewichtseffekte vergleichen.",
+      "requires": "Gespeicherte Session mit virtuellem Tank öffnen; Messwerte bleiben erhalten."
+    },
+    "startDiagnostics": {
+      "title": "Startdiagnose & Protokoll",
+      "description": "Startlichter, Statuswechsel und Audioscheduling protokollieren und herunterladen.",
+      "requires": "Diagnose vor dem Start aktivieren; Protokoll nach dem Versuch herunterladen. Protokoll-Download direkt am Renn-PC über localhost. Beim Fernzugriff verlangt der Server eine Rennleiter-Autorisierung."
+    }
   }
 }

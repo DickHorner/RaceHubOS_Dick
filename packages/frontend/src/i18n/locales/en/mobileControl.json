@@ -123,5 +123,11 @@
     "submit": "Confirm served",
     "audit": "{{date}} · {{method}} · {{reason}}"
   },
-  "penaltyPending": "Pending time penalty"
+  "penaltyPending": "Pending time penalty",
+  "featureAccess": {
+    "title": "Driver links, penalties and session recovery",
+    "requires": "Enter the director credential above to operate these features. They stay visible here while locked.",
+    "driverLinks": "Select a session and assign drivers, then issue their personal QR links here. Starting fuel and pit strategy are operated on the driver device.",
+    "penalties": "Select a started race. Time penalties can be confirmed served with verified stationary time or a reasoned manual override."
+  }
 }

@@ -106,6 +106,7 @@
     "saveError": "Diagnose konnte nicht umgeschaltet werden",
     "storageError": "Browser-Speicher gesperrt: Browser-Trace nicht verfügbar",
     "downloadError": "Diagnose konnte nicht heruntergeladen werden (ggf. nur am RaceHub-PC)",
-    "empty": "Noch keine Startdiagnose aufgezeichnet"
+    "empty": "Noch keine Startdiagnose aufgezeichnet",
+    "downloadAccess": "Protokoll-Download direkt am Renn-PC über localhost. Beim Fernzugriff verlangt der Server eine Rennleiter-Autorisierung."
   }
 }
