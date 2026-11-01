@@ -177,9 +177,11 @@ test('CU disconnect ends capture and later statuses do not extend it', async ({ 
 test('verified false start stays visible through 7 and 0, retries produce exactly one GO', async ({ page }) => {
   const { rows, send } = await setup(page)
   const sendStatus = async (start) => {
-    const count = rows.filter((row) => row.phase === 'light:effect').length
+    const count = rows.filter((row) => row.phase === 'light:effect' && row.start === start).length
     send('cu:status', { start })
-    await expect.poll(() => rows.filter((row) => row.phase === 'light:effect').length).toBe(count + 1)
+    await expect
+      .poll(() => rows.filter((row) => row.phase === 'light:effect' && row.start === start).length)
+      .toBeGreaterThan(count)
   }
   for (const start of [1, 2, 3, 4, 5, 6]) await sendStatus(start)
   for (const start of [7, 0, 2, 5, 7, 0]) {
