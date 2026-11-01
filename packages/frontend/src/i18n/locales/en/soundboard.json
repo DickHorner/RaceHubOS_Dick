@@ -74,7 +74,11 @@
     "fuelrefilled": "Virtual tank refilled",
     "fuelDescription": "Fuel warnings use virtual consumption only: once when crossing down to 20% or empty. They re-arm only after refilling above the respective threshold; a direct drop to empty triggers only the empty warning. Fuel events support {driver}, {car} and {controller}.",
     "unavailable": "Sound unavailable",
-    "missingPreset": "The assigned sound is missing or invalid. Choose another sound or turn this trigger off."
+    "missingPreset": "The assigned sound is missing or invalid. Choose another sound or turn this trigger off.",
+    "penaltyissued": "Penalty issued",
+    "penaltyserved": "Penalty served",
+    "penaltyrevoked": "Penalty revoked",
+    "penaltyDescription": "Penalty sounds require a saved change in the current running race, including pauses and the finishing phase. {driver}, {car} and {controller} are available. Historical edits and rejected or repeated requests do not trigger a sound."
   },
   "operatorMode": "Open sound pads",
   "operatorHint": "Tap a pad to play its sound on this device. Race controls and editing are not available here.",

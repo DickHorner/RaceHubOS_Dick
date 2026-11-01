@@ -18,6 +18,9 @@ export const AUTO_CUE_TYPES = [
   'fuellow',
   'fuelempty',
   'fuelrefilled',
+  'penaltyissued',
+  'penaltyserved',
+  'penaltyrevoked',
 ]
 
 // Authoritative socket payloads only: never synthesize a race or a driver from UI state.
@@ -62,6 +65,9 @@ export function autoSpeechText(template, type, data, formatTime) {
       'fuellow',
       'fuelempty',
       'fuelrefilled',
+      'penaltyissued',
+      'penaltyserved',
+      'penaltyrevoked',
     ].includes(type)
   ) {
     return /\{(?:driver|car|controller|lapTime)\}/.test(template) ? null : template

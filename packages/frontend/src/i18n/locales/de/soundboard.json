@@ -74,7 +74,11 @@
     "fuelrefilled": "Virtueller Tank nachgefüllt",
     "fuelDescription": "Tankwarnungen gelten nur für virtuellen Verbrauch: einmal beim Unterschreiten von 20 % bzw. beim Leeren. Erneut erst nach Auffüllen über die jeweilige Schwelle; beim Sprung direkt auf leer ertönt nur die Leer-Warnung. Tankereignisse unterstützen {driver}, {car} und {controller}.",
     "unavailable": "Sound nicht verfügbar",
-    "missingPreset": "Der zugeordnete Sound fehlt oder ist ungültig. Wähle einen anderen Sound oder schalte den Auslöser aus."
+    "missingPreset": "Der zugeordnete Sound fehlt oder ist ungültig. Wähle einen anderen Sound oder schalte den Auslöser aus.",
+    "penaltyissued": "Strafe ausgesprochen",
+    "penaltyserved": "Strafe abgeleistet",
+    "penaltyrevoked": "Strafe aufgehoben",
+    "penaltyDescription": "Strafsounds gelten nur für gespeicherte Änderungen im laufenden Rennen, einschließlich Pause und Schlussphase. {driver}, {car} und {controller} sind verfügbar. Änderungen an alten Ergebnissen und erfolglose oder wiederholte Eingaben lösen keinen Sound aus."
   },
   "operatorMode": "Soundpult öffnen",
   "operatorHint": "Tippe auf einen Knopf, um den Sound auf diesem Gerät abzuspielen. Hier gibt es keine Rennsteuerung oder Bearbeitung.",

@@ -8,6 +8,7 @@ describe('confirmed automatic sound triggers', () => {
     service = new SessionService({ emit: jest.fn() });
     service.activeSessionId = 's1';
     service.currentPhase = 'race';
+    service.sessionStatus = 'active';
     service.sessionDrivers = [
       { id: 'sd1', controller: 0, driver: { name: 'Alice' }, car: { brand: 'BMW', model: 'M4' } },
     ];
@@ -26,6 +27,9 @@ describe('confirmed automatic sound triggers', () => {
     ['session:finishing', {}, 'finishing'],
     ['session:weather_changed', { weatherCondition: 'rain' }, 'rain'],
     ['session:weather_changed', { weatherCondition: 'dry' }, 'dry'],
+    ['session:penalty_changed', { penaltyId: 'p1', sessionDriverId: 'sd1', status: 'active' }, 'penaltyissued'],
+    ['session:penalty_changed', { penaltyId: 'p1', sessionDriverId: 'sd1', status: 'served' }, 'penaltyserved'],
+    ['session:penalty_changed', { penaltyId: 'p1', sessionDriverId: 'sd1', status: 'revoked' }, 'penaltyrevoked'],
     ['session:pit_stop', { id: 'pit1', sessionDriverId: 'sd1' }, 'pitstop'],
     ['session:tyre_changed', { sessionDriverId: 'sd1', change: { id: 'tyre1' } }, 'tyrechanged'],
     ['session:damage_changed', { sessionDriverId: 'sd1', damageStatus: 'active' }, 'damage'],
@@ -49,6 +53,9 @@ describe('confirmed automatic sound triggers', () => {
 
   it('suppresses snapshots, requests, unknown states, stale sessions and balancing', () => {
     for (const [event, data] of [
+      ['session:penalties_changed', {}],
+      ['session:penalty_changed', { penaltyId: 'p1', status: 'unknown' }],
+      ['session:penalty_changed', { status: 'active' }],
       ['session:heartbeat', { weatherCondition: 'rain' }],
       ['session:resumed', {}],
       ['session:tyre_changed', { pendingTyreType: 'wet' }],
@@ -64,6 +71,26 @@ describe('confirmed automatic sound triggers', () => {
     service.currentPhase = 'balancing';
     service.emit('session:started', { sessionId: 's1' });
     expect(sounds).toEqual([]);
+  });
+
+  it('does not announce penalty edits outside a live race, including loaded finished results', () => {
+    const payload = { sessionId: 's1', penaltyId: 'p1', sessionDriverId: 'sd1', status: 'active' };
+    for (const status of ['draft', 'ready', 'finished', 'interrupted']) {
+      service.sessionStatus = status;
+      service.emitAutoSound('session:penalty_changed', payload);
+    }
+    service.sessionStatus = 'active';
+    for (const phase of ['qualif', 'practice', 'balancing']) {
+      service.currentPhase = phase;
+      service.emitAutoSound('session:penalty_changed', payload);
+    }
+    expect(sounds).toEqual([]);
+    service.currentPhase = 'race';
+    for (const status of ['active', 'paused', 'finishing']) {
+      service.sessionStatus = status;
+      service.emitAutoSound('session:penalty_changed', payload);
+    }
+    expect(sounds.map((cue) => cue.type)).toEqual(['penaltyissued', 'penaltyissued', 'penaltyissued']);
   });
 
   it('announces actual GO once and resume only after the pause is closed', async () => {

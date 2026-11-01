@@ -74,7 +74,11 @@
     "fuelrefilled": "Réservoir virtuel rempli",
     "fuelDescription": "Les alertes concernent uniquement le carburant virtuel : une fois au passage à 20 % ou à zéro. Réarmement après remplissage au-dessus du seuil ; un passage direct à zéro déclenche seulement l’alerte vide. Les événements carburant acceptent {driver}, {car} et {controller}.",
     "unavailable": "Son indisponible",
-    "missingPreset": "Le son associé est manquant ou invalide. Choisissez un autre son ou désactivez ce déclencheur."
+    "missingPreset": "Le son associé est manquant ou invalide. Choisissez un autre son ou désactivez ce déclencheur.",
+    "penaltyissued": "Pénalité infligée",
+    "penaltyserved": "Pénalité purgée",
+    "penaltyrevoked": "Pénalité annulée",
+    "penaltyDescription": "Les sons de pénalité suivent uniquement une modification enregistrée de la course en cours, y compris en pause ou en phase finale. {driver}, {car} et {controller} sont disponibles. Les modifications historiques et les demandes rejetées ou répétées ne déclenchent aucun son."
   },
   "operatorMode": "Ouvrir les boutons sonores",
   "operatorHint": "Touchez un bouton pour jouer le son sur cet appareil. Pas de commandes de course ni de modifications ici.",

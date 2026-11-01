@@ -1184,6 +1184,12 @@ export class SessionService extends EventEmitter {
       this.emitLeaderboard();
     }
     this.emit('session:penalties_changed', { sessionId });
+    this.emitAutoSound('session:penalty_changed', {
+      sessionId,
+      sessionDriverId: penalty.sessionDriverId,
+      penaltyId: penalty.id,
+      status: penalty.status,
+    });
     if (championshipId) super.emit('sessionResultsChanged', { sessionId, championshipId });
   }
 
@@ -2593,6 +2599,15 @@ export class SessionService extends EventEmitter {
       case 'session:weather_changed':
         if (data.weatherCondition === WeatherCondition.RAIN) type = 'rain';
         else if (data.weatherCondition === WeatherCondition.DRY) type = 'dry';
+        break;
+      case 'session:penalty_changed':
+        if (this.currentPhase === SessionType.RACE && this.isActive() && data.penaltyId) {
+          type = {
+            [PenaltyStatus.ACTIVE]: 'penaltyissued',
+            [PenaltyStatus.SERVED]: 'penaltyserved',
+            [PenaltyStatus.REVOKED]: 'penaltyrevoked',
+          }[data.status];
+        }
         break;
       case 'session:pit_stop':
         type = 'pitstop';

@@ -218,6 +218,67 @@ describe('persistent director penalties and audit', () => {
     });
   });
 
+  test('committed penalty changes cue once; failed writes, duplicate requests and repeated serving stay silent', async () => {
+    const race = await makeRace('active');
+    await service.loadSession(race.session.id);
+    const sounds = [];
+    service.on('soundboardAutoEvent', (cue) => sounds.push(cue));
+    const input = {
+      sessionId: race.session.id,
+      sessionDriverId: race.first.id,
+      kind: PenaltyKind.TIME,
+      amount: 8000,
+      reason: 'Unsafe overtake',
+      requestId: requestId('sounds'),
+    };
+    const transaction = jest.spyOn(service.prisma, '$transaction').mockRejectedValueOnce(new Error('Storage failed'));
+    await expect(service.issuePenalty(input)).rejects.toThrow('Storage failed');
+    expect(sounds).toEqual([]);
+    transaction.mockRestore();
+    const issued = await service.issuePenalty(input);
+    await expect(service.issuePenalty(input)).rejects.toMatchObject({ status: 409 });
+    expect(sounds.map((cue) => cue.type)).toEqual(['penaltyissued']);
+    const serving = {
+      sessionId: race.session.id,
+      penaltyId: issued.id,
+      method: 'manual',
+      confirmedStationary: true,
+      reason: 'Director confirms stationary time',
+    };
+    await service.servePenalty(serving);
+    await service.servePenalty(serving);
+    expect(sounds.map((cue) => cue.type)).toEqual(['penaltyissued', 'penaltyserved']);
+    const other = await service.issuePenalty({ ...input, requestId: requestId('sounds-other') });
+    await service.revokePenalty(race.session.id, other.id);
+    await expect(service.revokePenalty(race.session.id, other.id)).rejects.toMatchObject({ status: 409 });
+    expect(sounds.map((cue) => cue.type)).toEqual([
+      'penaltyissued',
+      'penaltyserved',
+      'penaltyissued',
+      'penaltyrevoked',
+    ]);
+    expect(sounds.every((cue) => cue.data.driverName === 'Driver A' && cue.data.controller === 0)).toBe(true);
+    expect(new Set(sounds.map((cue) => cue.data.eventId)).size).toBe(4);
+  });
+
+  test('editing and reloading finished classification never replays penalty sounds', async () => {
+    const race = await makeRace();
+    await service.loadSession(race.session.id);
+    const sounds = [];
+    service.on('soundboardAutoEvent', (cue) => sounds.push(cue));
+    const issued = await service.issuePenalty({
+      sessionId: race.session.id,
+      sessionDriverId: race.first.id,
+      kind: PenaltyKind.TIME,
+      amount: 8000,
+      reason: 'Unsafe overtake',
+      requestId: requestId('historical-sounds'),
+    });
+    await service.revokePenalty(race.session.id, issued.id);
+    await service.loadSession(race.session.id);
+    expect(sounds).toEqual([]);
+  });
+
   test('reset revokes the active penalty while retaining its audit record', async () => {
     const race = await makeRace();
     const issued = await service.issuePenalty({
