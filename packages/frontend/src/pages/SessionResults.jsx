@@ -5,6 +5,7 @@ import { ArrowLeft, Copy, Printer } from 'lucide-react'
 import { SessionStatus, SessionType, rankRaceDrivers, qualifyingLapTime } from '@racehubos/shared'
 import { Button } from '@/components/ui/button'
 import LapTime from '../components/race/LapTime'
+import PublicResultExport from '../components/results/PublicResultExport'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -124,6 +125,13 @@ export default function SessionResults() {
                 </div>
               </dl>
             </header>
+            <PublicResultExport
+              key={session.id}
+              entries={rows}
+              isRace={isRace}
+              simulatedTotal={session.tyreMismatchPercent > 0 || session.fuelWeightPercent > 0}
+              simulatedBest={!isRace && session.fuelWeightPercent > 0}
+            />
 
             <section aria-label={t('printResults.standings')} className="space-y-3">
               <h2 className="text-lg font-bold">{t('printResults.standings')}</h2>
@@ -134,7 +142,7 @@ export default function SessionResults() {
                 <p>{t('profile.noParticipants')}</p>
               ) : (
                 <div className="overflow-x-auto print:overflow-visible">
-                  <table className="w-full border-collapse text-left text-sm">
+                  <table data-testid="session-classification" className="w-full border-collapse text-left text-sm">
                     <thead className="border-b-2 border-border print:border-gray-600">
                       <tr>
                         <th className="p-2">{t('printResults.position')}</th>
