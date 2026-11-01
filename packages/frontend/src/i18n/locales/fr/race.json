@@ -146,5 +146,21 @@
     "toConfigure_other": "{{count}} manettes à configurer",
     "toConfigureWithSlots_one": "{{count}} manette à configurer ({{slots}})",
     "toConfigureWithSlots_other": "{{count}} manettes à configurer ({{slots}})"
+  },
+  "ambience": {
+    "title": "Ambiance locale",
+    "hint": "Ambiance moteur synthétique sur cet appareil. Démarrage par clic ; arrêt en quittant la vue, en changeant de session ou en fin de session. Volume réduit pendant les annonces.",
+    "start": "Démarrer l’ambiance",
+    "stop": "Arrêter l’ambiance",
+    "mute": "Couper l’ambiance",
+    "unmute": "Rétablir l’ambiance",
+    "volume": "Volume de l’ambiance",
+    "off": "Désactivée",
+    "starting": "Démarrage …",
+    "playing": "Lecture en cours",
+    "muted": "Muette",
+    "ducking": "Atténuée pour une annonce",
+    "finished": "Session terminée – ambiance arrêtée",
+    "error": "Le son n’a pas démarré ou a été interrompu. Vérifiez l’autorisation audio du navigateur et relancez la lecture."
   }
 }

@@ -146,5 +146,21 @@
     "toConfigure_other": "{{count}} Regler zu konfigurieren",
     "toConfigureWithSlots_one": "{{count}} Regler zu konfigurieren ({{slots}})",
     "toConfigureWithSlots_other": "{{count}} Regler zu konfigurieren ({{slots}})"
+  },
+  "ambience": {
+    "title": "Lokales Rennambiente",
+    "hint": "Synthetisches Motorenambiente auf diesem Gerät. Start nur per Klick; stoppt beim Ansichts-/Sessionwechsel oder Sessionende. Sprachansagen senken das Ambiente automatisch ab.",
+    "start": "Ambiente starten",
+    "stop": "Ambiente stoppen",
+    "mute": "Stummschalten",
+    "unmute": "Ton einschalten",
+    "volume": "Ambiente-Lautstärke",
+    "off": "Aus",
+    "starting": "Wird gestartet …",
+    "playing": "Wiedergabe läuft",
+    "muted": "Stumm",
+    "ducking": "Für Sprachansage abgesenkt",
+    "finished": "Session beendet – Ambiente aus",
+    "error": "Audio konnte nicht gestartet werden oder wurde unterbrochen. Prüfe die Audiofreigabe Deines Browsers und starte erneut."
   }
 }

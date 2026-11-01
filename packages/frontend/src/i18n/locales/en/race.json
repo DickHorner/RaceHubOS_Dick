@@ -146,5 +146,21 @@
     "toConfigure_other": "{{count}} controllers to configure",
     "toConfigureWithSlots_one": "{{count}} controller to configure ({{slots}})",
     "toConfigureWithSlots_other": "{{count}} controllers to configure ({{slots}})"
+  },
+  "ambience": {
+    "title": "Local race ambience",
+    "hint": "Synthetic motor ambience on this device. Starts only on click; stops when leaving the view, changing session or ending the session. Automatically lowers during speech.",
+    "start": "Start ambience",
+    "stop": "Stop ambience",
+    "mute": "Mute ambience",
+    "unmute": "Unmute ambience",
+    "volume": "Ambient volume",
+    "off": "Off",
+    "starting": "Starting …",
+    "playing": "Playing",
+    "muted": "Muted",
+    "ducking": "Lowered for speech",
+    "finished": "Session ended – ambience off",
+    "error": "Audio could not start or was interrupted. Check your browser audio permission and try starting again."
   }
 }
