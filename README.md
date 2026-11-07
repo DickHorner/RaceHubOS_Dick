@@ -153,7 +153,7 @@ All contributions are welcome — whether it's a feature, a bug fix, a design id
 
 ## 📄 License
 
-Apache-2.0
+[GNU Affero General Public License v3](LICENSE) (`AGPL-3.0-or-later`). RaceHub OG is based on [RaceHubOS](https://github.com/AnselmeSDR/RaceHubOS). Third-party licenses and attribution are preserved in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## 🙏 Credits
 
@@ -295,7 +295,7 @@ Le projet est en développement actif et ouvert aux contributions :
 
 ### Licence
 
-Apache-2.0
+[GNU Affero General Public License v3](LICENSE) (`AGPL-3.0-or-later`). RaceHub OG est dérivé de [RaceHubOS](https://github.com/AnselmeSDR/RaceHubOS). Les licences et mentions des composants tiers sont conservées dans [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ### Crédits
 
