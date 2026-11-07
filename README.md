@@ -1,322 +1,158 @@
-# 🏁 RaceHubOS
-
-**Free & open source race management for Carrera Digital 132/124**
-
-![Podium](docs/screenshots/podium.png)
-
-Carrera dropped their official app. Existing alternatives are closed source. We believe slot racing deserves an open, community-driven tool that anyone can use, improve, and adapt to their setup.
-
-RaceHubOS is a full-featured race management system that runs in your browser. Plug your Carrera Control Unit, open a browser, and race.
-
-Built by slot racers, for slot racers. 🏎️
-
-**[English](#-features)** | **[Français](#-version-française)**
-
----
-
-## Table of Contents
-
-- [Features](#-features)
-- [Tech Stack](#️-tech-stack)
-- [Getting Started](#-getting-started)
-  - [Prerequisites](#prerequisites)
-  - [macOS / Linux](#-macos---linux)
-  - [Windows](#-windows)
-  - [Upgrade](#-upgrade)
-- [Development](#-development)
-  - [Simulator](#-simulator)
-  - [WebSocket Events](#-websocket-events)
-- [Contributing](#-contributing)
-- [License](#-license)
-- [Credits](#-credits)
-- [Version française](#-version-française)
-
----
-
-## ✨ Features
-
-- 📊 Real-time race leaderboard with animated positions
-- 👤 Driver, car, track and team management
-- 🏆 Championship system: manual or automatic mode (auto bracket, qualif groups, race progression)
-
-- 📈 Standings and statistics per championship and session type
-- ⚙️ Inline session configuration (controllers, duration, laps, grace period)
-- 🥇 Podium display at end of session with gaps and best lap
-- 🗣️ Voice announcements (best lap, podium results)
-- 🎙️ Configurable voice settings (voice selection, min laps threshold)
-- 🚦 Start lights sequence with audio cues
-- 🌙 Dark/light mode
-- 🔌 Bluetooth LE connectivity to Carrera Control Unit via AppConnect
-- 🎮 Built-in simulator for development (no hardware required)
-- ⚖️ Car balancing mode with lap time chart, median tracking and outlier filtering
-
-## 🛠️ Tech Stack
-
-**Frontend:**
-- React 19 + JavaScript (ES6+)
-- Vite
-- TailwindCSS + shadcn/ui
-- Socket.io-client
-- Framer Motion
-
-**Backend:**
-- Node.js 20+ + JavaScript (ES6+ modules)
-- Express + Socket.io
-- Prisma + SQLite (WAL mode)
-- Built-in race simulator
-
-## 🚀 Getting Started
-
-The script handles everything automatically:
-- Installs Homebrew, Git, and Node.js if missing
-- Clones the repo into `~/RaceHubOS-v<version>`
-- Installs dependencies and sets up the database
-- Creates a **RaceHubOS v\<version\>.app** on the Desktop with the project icon
-
-### 🍎 macOS / 🐧 Linux
-
-1. Download `RaceHubOS-install-mac.command` from the [repo](https://github.com/AnselmeSDR/RaceHubOS)
-2. Double-click to run (right-click > Open if macOS blocks it)
-
-### 🪟 Windows
-
-1. Download `RaceHubOS-install-win.bat` from the [repo](https://github.com/AnselmeSDR/RaceHubOS)
-2. Double-click to run
-
-### 🖥️ Usage
-
-Double-click the **RaceHubOS** app/shortcut on the Desktop. The browser opens automatically after a few seconds.
-
-### 🔄 Upgrade
-
-Updates are handled from within the app:
-1. Open **Settings**
-2. Click **Vérifier** to check for updates
-3. If available, click **Mettre à jour**
-4. The app downloads, installs and restarts automatically
-
-## 🧑‍💻 Development
-
-### Prerequisites
-
-- Node.js 20+
-- npm 10+
-- Git
-
-> **Note:** In production, `npm run build && npm start` builds the frontend and starts the backend on a single port (3001). In development, `npm run dev` runs both Vite and Express with hot reload.
-
-### 📦 Setup
-
-```bash
-git clone https://github.com/AnselmeSDR/RaceHubOS.git
-cd RaceHubOS
-npm install
-cd packages/backend && npx prisma generate && npx prisma migrate deploy && cd ../..
-npm run dev
-```
-
-The frontend will be available at http://localhost:5173 and the backend API at http://localhost:3001.
-
-### 🎮 Simulator
-
-The built-in simulator mimics the Carrera Control Unit. No hardware required.
-
-1. Open Settings
-2. Connect to "Simulator"
-3. Configure a session and start
-
-### 🔌 WebSocket Events
-
-Key events emitted by the backend:
-- `session:leaderboard` — Real-time leaderboard updates
-- `session:heartbeat` — Timing, remaining time/laps, leaderboard sync
-- `session:bestlap` — New session best lap (triggers voice announcement)
-- `session:finished` — Session end with final leaderboard
-- `session:status_changed` — Session lifecycle transitions
-- `cu:status` — Control Unit status (lights, mode, fuel)
-- `cu:timer` — Raw lap/sector times from hardware
-
-## 🤝 Contributing
-
-RaceHubOS is an active project with a lot of room to grow. Here are some directions we'd love help with:
-
-- 🍓 **Raspberry Pi** — Run the app on a dedicated Pi for a permanent race station
-- 📱 **Tablet control** — Touch-friendly interface for race direction from a tablet
-- 📺 **External displays** — Dedicated screens for spectators (leaderboard, live timing, standings)
-- 🏗️ **Packaged builds** — Standalone `.exe`, `.AppImage` for easier distribution
-- 🧩 **New features** — Penalties, fuel strategy, team relay races, lap charts, and more
-- **Ideas & bugs** — [Open an issue](https://github.com/AnselmeSDR/RaceHubOS/issues)
-- **Code** — Fork, branch, and submit a pull request — read [CONTRIBUTING.md](CONTRIBUTING.md) first
-- **Questions** — Reach out at anselme8@icloud.com
-
-All contributions are welcome — whether it's a feature, a bug fix, a design idea, or just feedback.
-
-## 📄 License
-
-[GNU Affero General Public License v3](LICENSE) (`AGPL-3.0-or-later`). RaceHub OG is based on [RaceHubOS](https://github.com/AnselmeSDR/RaceHubOS). Third-party licenses and attribution are preserved in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-## 🙏 Credits
-
-**Project**
-- Anselme Schneider — Founder & Developer (anselme8@icloud.com)
-- Romain Danna — Co-author (domain & race expertise)
-
-**Libraries & References**
-- Protocol reverse engineering: [Stephan Hess (slotbaer.de)](http://www.slotbaer.de/)
-- [carreralib](https://github.com/tkem/carreralib): Thomas Kemmer
-- [OpenLap](https://github.com/tkem/openlap): Thomas Kemmer
-
-Vibe coded with [Claude Code](https://claude.ai/code)
-
----
-
-## 🇫🇷 Version française
-
-Carrera a abandonné son app officielle. Les alternatives existantes sont fermées. On pense que le slot racing mérite un outil ouvert et communautaire que chacun peut utiliser, améliorer et adapter à son installation.
-
-RaceHubOS est un système complet de gestion de course qui tourne dans le navigateur. Branchez votre Control Unit Carrera, ouvrez un navigateur, et roulez.
-
-Fait par des passionnés de slot, pour des passionnés de slot. 🏎️
-
-### Fonctionnalités
-
-- 📊 Classement en temps réel avec animations de positions
-- 👤 Gestion des pilotes, voitures, circuits et équipes
-- 🏆 Système de championnat : mode manuel ou automatique (arbre qualifs/courses, progression auto)
-
-- 📈 Classements et statistiques par championnat et type de session
-- ⚙️ Configuration de session inline (contrôleurs, durée, tours, période de grâce)
-- 🥇 Podium en fin de session avec écarts et meilleur tour
-- 🗣️ Annonces vocales (meilleur tour, résultats podium)
-- 🎙️ Réglages voix configurables (choix de la voix, seuil de tours minimum)
-- 🚦 Séquence de feux de départ avec sons
-- 🌙 Mode sombre/clair
-- 🔌 Connexion Bluetooth LE à la Control Unit Carrera via AppConnect
-- 🎮 Simulateur intégré pour le développement (pas de matériel requis)
-- ⚖️ Mode équilibrage voitures avec graphe temps au tour, suivi médiane et filtre outliers
-
-### Installation
-
-#### macOS / Linux — Installation en un clic
-
-1. Télécharger `RaceHubOS-install-mac.command` depuis le [dépôt](https://github.com/AnselmeSDR/RaceHubOS)
-2. Double-cliquer pour lancer (clic droit > Ouvrir si macOS le bloque)
-
-Le script gère tout : installe Homebrew/Git/Node.js si absents, clone, installe les dépendances, configure la base de données, et crée une app **RaceHubOS v\<version\>** sur le Bureau avec l'icône.
-
-#### Windows — Installation en un clic
-
-1. Télécharger `RaceHubOS-install-win.bat` depuis le [dépôt](https://github.com/AnselmeSDR/RaceHubOS)
-2. Double-cliquer pour lancer
-
-Le script gère tout : installe Git/Node.js via winget si absents, clone, installe les dépendances, configure la base de données, et crée un raccourci **RaceHubOS v\<version\>** sur le Bureau avec l'icône.
-
-#### Installation manuelle
-
-```bash
-git clone https://github.com/AnselmeSDR/RaceHubOS.git
-cd RaceHubOS
-npm install
-cd packages/backend && npx prisma generate && npx prisma migrate deploy && cd ../..
-npm run dev
-```
-
-Le frontend est accessible sur http://localhost:5173 et l'API backend sur http://localhost:3001.
-
-#### Mise à jour
-
-Les mises à jour se font depuis l'application :
-1. Ouvrir **Paramètres**
-2. Cliquer **Vérifier** pour chercher les mises à jour
-3. Si disponible, cliquer **Mettre à jour**
-4. L'app télécharge, installe et redémarre automatiquement
-
-> **Note :** En production, `npm run build && npm start` build le frontend et lance le backend sur un seul port (3001). En développement, `npm run dev` lance Vite et Express avec hot reload.
-
-### Stack technique
-
-**Frontend :** React 19, Vite, TailwindCSS + shadcn/ui, Socket.io-client, Framer Motion
-
-**Backend :** Node.js 20+, Express + Socket.io, Prisma + SQLite (WAL), Simulateur intégré
-
-### Développement
-
-#### Prérequis
-
-- Node.js 20+
-- npm 10+
-- Git
-
-> **Note :** En production, `npm run build && npm start` build le frontend et lance le backend sur un seul port (3001). En développement, `npm run dev` lance Vite et Express avec hot reload.
-
-#### Installation
-
-```bash
-git clone https://github.com/AnselmeSDR/RaceHubOS.git
-cd RaceHubOS
-npm install
-cd packages/backend && npx prisma generate && npx prisma migrate deploy && cd ../..
-npm run dev
-```
-
-Le frontend est accessible sur http://localhost:5173 et l'API backend sur http://localhost:3001.
-
-#### Simulateur
-
-Le simulateur intégré reproduit le comportement de la Control Unit Carrera. Aucun matériel requis.
-
-1. Ouvrir les Paramètres
-2. Se connecter au "Simulateur"
-3. Configurer une session et démarrer
-
-#### Événements WebSocket
-
-Événements principaux émis par le backend :
-- `session:leaderboard` — Classement en temps réel
-- `session:heartbeat` — Timing, temps/tours restants, sync leaderboard
-- `session:bestlap` — Nouveau meilleur tour de session (déclenche l'annonce vocale)
-- `session:finished` — Fin de session avec classement final
-- `session:status_changed` — Transitions du cycle de vie de la session
-- `cu:status` — État de la Control Unit (feux, mode, carburant)
-- `cu:timer` — Temps bruts tours/secteurs depuis le matériel
-
-### Contribuer
-
-Le projet est en développement actif et ouvert aux contributions :
-
-- 🍓 **Raspberry Pi** — Faire tourner l'app sur un Pi dédié
-- 📱 **Contrôle tablette** — Interface tactile pour la direction de course
-- 📺 **Écrans externes** — Affichages dédiés pour les spectateurs
-- 🏗️ **Builds packagés** — Exécutables standalone
-- 🧩 **Nouvelles features** — Pénalités, stratégie carburant, relais par équipe, graphiques de tours, etc.
-- **Idées et bugs** — [Ouvrir une issue](https://github.com/AnselmeSDR/RaceHubOS/issues)
-- **Code** — Fork, branche, et pull request — lire d'abord [CONTRIBUTING.md](CONTRIBUTING.md)
-- **Questions** — anselme8@icloud.com
-
-### Licence
-
-[GNU Affero General Public License v3](LICENSE) (`AGPL-3.0-or-later`). RaceHub OG est dérivé de [RaceHubOS](https://github.com/AnselmeSDR/RaceHubOS). Les licences et mentions des composants tiers sont conservées dans [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-### Crédits
-
-**Projet**
-- Anselme Schneider — Fondateur & Développeur (anselme8@icloud.com)
-- Romain Danna — Co-auteur (expertise course & métier)
-
-**Librairies & Références**
-- Reverse engineering du protocole : [Stephan Hess (slotbaer.de)](http://www.slotbaer.de/)
-- [carreralib](https://github.com/tkem/carreralib) : Thomas Kemmer
-- [OpenLap](https://github.com/tkem/openlap) : Thomas Kemmer
-
-Vibe codé avec [Claude Code](https://claude.ai/code)
-
----
-
-## 📸 Screenshots
-
-| | |
+<div align="center">
+  <h1>🏁 RaceHub OG</h1>
+  <p><strong>The open-source race-night cockpit for Carrera DIGITAL 132 / 124</strong></p>
+  <p>Run races, manage the paddock, direct the show, and explore the results — on your own computer.</p>
+  <p>
+    <a href="https://github.com/DickHorner/RaceHubOS_Dick/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/DickHorner/RaceHubOS_Dick/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+    <a href="LICENSE"><img alt="AGPL-3.0-or-later" src="https://img.shields.io/badge/license-AGPL--3.0--or--later-blue"></a>
+  </p>
+  <p>
+    <strong><kbd>🇬🇧 English</kbd></strong> &nbsp;
+    <a href="README.de.md"><kbd>🇩🇪 Deutsch</kbd></a> &nbsp;
+    <a href="README.fr.md"><kbd>🇫🇷 Français</kbd></a>
+  </p>
+  <p>
+    <a href="#race-control">Racing</a> ·
+    <a href="#garage-and-paddock">Garage</a> ·
+    <a href="#show-and-sound">Show &amp; Sound</a> ·
+    <a href="#data-lab">Analysis</a> ·
+    <a href="#getting-started">Get started</a> ·
+    <a href="#contributing">Contribute</a>
+  </p>
+</div>
+
+RaceHub OG is a community continuation of [RaceHubOS](https://github.com/AnselmeSDR/RaceHubOS). It combines a local, browser-based race manager with a Carrera Control Unit connected through Bluetooth LE / AppConnect. The built-in simulator lets you explore the software without a track. No cloud account is required for the local race-night setup.
+
+| [![Illustration of race control](packages/frontend/public/illustrations/race.svg)](#race-control) | [![Illustration of a racing car garage](packages/frontend/public/illustrations/garage.svg)](#garage-and-paddock) |
+|:---:|:---:|
+| **[Race control](#race-control)** — Sessions, championships, race rules and race direction | **[Garage & paddock](#garage-and-paddock)** — Cars, drivers, teams and tracks |
+| [![Illustration of a stage and speakers](packages/frontend/public/illustrations/show.svg)](#show-and-sound) | [![Illustration of charts and analysis](packages/frontend/public/illustrations/analysis.svg)](#data-lab) |
+| **[Show & Sound](#show-and-sound)** — Touch sound pads, live displays and announcements | **[Data lab](#data-lab)** — Lap times, history, statistics and exports |
+
+## Race control
+
+- Practice, qualifying and race sessions, with live timing, a leaderboard, start lights, a podium and session results.
+- Manual and automatic championships with qualification groups, race progression and standings.
+- Race rules for weather and dry/wet tyres, virtual fuel and refuelling, mandatory pit stops, fuel-weight scoring, and simulated damage.
+- Personal driver displays and a separate mobile race director interface for penalties, confirmed penalty serving, pit decisions and Virtual Safety Car (VSC). Available controls depend on the session state, connection and authorization.
+
+## Garage and paddock
+
+- Manage drivers, cars, teams and tracks, with pictures, profiles, records and race history.
+- Store detailed car specifications and configure the Control Unit's speed, brake and fuel levels in ten steps.
+- Compare car performance using a dedicated balancing session and lap-time statistics.
+
+## Show and sound
+
+- A standalone, touch-friendly soundboard for the show operator, separate from race-director permissions.
+- A sound library with uploaded clips and speech presets, plus automatic event-driven cues (including fuel and penalty events).
+- Voice announcements, optional local race ambience with speech ducking, personal driver views and a read-only spectator scoreboard.
+- Remote sound playback is available only when the destination browser is ready and the existing access requirements are met.
+
+## Data lab
+
+- Session and championship history, lap times, race events, statistics and rankings.
+- Excel/CSV exports for relevant data and a printable result view.
+- An optional **offline HTML result sheet** for finished race/qualifying sessions: preview before download, anonymous driver labels by default, and names only after explicit selection and review.
+
+### Hardware and simulation are different
+
+| Capability | Effect |
 |---|---|
-| ![Dashboard](docs/screenshots/dashboard.png) **Dashboard** | ![Race](docs/screenshots/race.png) **Race** |
-| ![Free Session](docs/screenshots/free-session.png) **Free Session** | ![Championships](docs/screenshots/championships.png) **Championships** |
-| ![Drivers](docs/screenshots/drivers.png) **Drivers** | ![Stats](docs/screenshots/stats.png) **Statistics** |
-| ![Sessions](docs/screenshots/sessions.png) **Sessions** | ![Settings](docs/screenshots/settings.png) **Settings** |
+| Weather and tyre simulation | Adjusts virtual timing/scoring; **does not** change measured laps or physical car speed. |
+| Virtual fuel, pit strategy and fuel weight | Calculated separately from the Carrera CU's own fuel mode. |
+| VSC and car speed/brake settings | Can send commands to the **physical CU**. Verify their effect on your own track; simulated success or passing CI is not hardware proof. |
+
+## Getting started
+
+**Requirements:** [Node.js 22.13+](https://nodejs.org/), npm 10+, Git. For real races, you also need a compatible Carrera DIGITAL 132/124 Control Unit, AppConnect and a working Bluetooth LE adapter. The simulator needs no Carrera hardware.
+
+> [!WARNING]
+> The bundled `RaceHubOS-install-win.bat` and `RaceHubOS-install-mac.command` **still download the original `AnselmeSDR/RaceHubOS` repository**, not this fork. Use the manual installation below for RaceHub OG. The in-app version check also queries the original repository, so it is not a reliable update indicator for this fork.
+
+<details open>
+<summary><strong>🪟 Windows — PowerShell</strong></summary>
+
+Open PowerShell with Node.js, npm and Git installed:
+
+```powershell
+git clone https://github.com/DickHorner/RaceHubOS_Dick.git
+cd RaceHubOS_Dick
+npm install
+npm run dev
+```
+
+</details>
+
+<details>
+<summary><strong>🍎 macOS — Terminal</strong></summary>
+
+```bash
+git clone https://github.com/DickHorner/RaceHubOS_Dick.git
+cd RaceHubOS_Dick
+npm install
+npm run dev
+```
+
+</details>
+
+<details>
+<summary><strong>🐧 Linux — Terminal</strong></summary>
+
+```bash
+git clone https://github.com/DickHorner/RaceHubOS_Dick.git
+cd RaceHubOS_Dick
+npm install
+npm run dev
+```
+
+For physical Bluetooth use, Linux relies on BlueZ and system D-Bus permissions. Read [Linux Bluetooth transport](docs/LINUX-BLUETOOTH.md); do not run the backend as root.
+
+</details>
+
+Open **http://localhost:5173** for the development interface. The backend runs on **http://localhost:3001**. The startup script generates the Prisma client and verifies/applies database migrations.
+
+For a local built instance, stop development mode, then run:
+
+```bash
+npm run build
+npm start
+```
+
+Open **http://localhost:3001**. For updates, verify that your Git remote points to **this fork** and back up race data; do not rely on the upstream-facing installer or version check.
+
+<details>
+<summary><strong>Simulator, LAN devices and race-director access</strong></summary>
+
+- **Simulator:** enable the admin/developer UI mode in Settings to show the simulator in the device list. This tests software flows, not real Bluetooth behavior.
+- **Phones and displays:** connect devices on a trusted LAN using the race PC's LAN address; `localhost` on another device points to that device, not the race PC.
+- **Race direction:** initialize the director credential locally on the race PC. Driver links do not grant director privileges. Never expose the API to the public internet or treat a driver's Chaos button as a safety-rated emergency stop. See [mobile race control and access boundaries](docs/MOBILE-RACE-CONTROL.md).
+
+</details>
+
+<details>
+<summary><strong>Development and checks</strong></summary>
+
+The monorepo uses React/Vite, Tailwind and Socket.IO in `packages/frontend`, Node/Express and Prisma/SQLite in `packages/backend`, and shared domain logic in `packages/shared`.
+
+```bash
+npm run check -- --ci
+npm run build
+npm test -w @racehubos/backend
+```
+
+Browser tests are maintained with Playwright; see [Contributing](CONTRIBUTING.md), [repository conventions](docs/CONVENTIONS.md) and the [architecture overview](docs/ARCHITECTURE.md). Backend tests use a disposable test database. A successful build or CI run does not prove behavior on real Carrera hardware.
+
+</details>
+
+## Contributing
+
+Ideas, bug reports, translations, UX improvements and code contributions are welcome. Check [open issues](https://github.com/DickHorner/RaceHubOS_Dick/issues), read [CONTRIBUTING.md](CONTRIBUTING.md), and propose focused pull requests. Known hardware questions should be reproduced on an actual CU rather than inferred from simulator tests.
+
+## License and credits
+
+Licensed under the [GNU Affero General Public License v3 or later](LICENSE) (`AGPL-3.0-or-later`); see [third-party notices](THIRD_PARTY_NOTICES.md).
+
+**Origins:** [RaceHubOS](https://github.com/AnselmeSDR/RaceHubOS) was created by **Anselme Schneider**, with **Romain Danna** as co-author. RaceHub OG develops that foundation further in this repository. Carrera protocol references include [Stephan Hess / slotbaer.de](http://www.slotbaer.de/), [carreralib](https://github.com/tkem/carreralib) and [OpenLap](https://github.com/tkem/openlap) by Thomas Kemmer. Thanks to all contributors.
+
+*RaceHub OG is an independent community project, not an official Carrera product.*
